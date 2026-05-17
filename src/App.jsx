@@ -3439,6 +3439,10 @@ function BackendSyncPanel({ onBackendImport }) {
 }
 
 function LoginScreen({ onBackendImport, onPortalLogin, onPortalLogout }) {
+  const hasSupabaseUrl = Boolean(import.meta.env.VITE_SUPABASE_URL);
+  const hasSupabasePublishableKey = Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+  const isSupabaseConfigured = hasSupabaseUrl && hasSupabasePublishableKey;
+
   const [coachEmail, setCoachEmail] = useState("coach@nolimittest.com");
   const [coachPassword, setCoachPassword] = useState("");
   const [clientEmail, setClientEmail] = useState("client@nolimittest.com");
@@ -3447,7 +3451,31 @@ function LoginScreen({ onBackendImport, onPortalLogin, onPortalLogout }) {
   const [authProfile, setAuthProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
 
+  function getAuthErrorMessage(error) {
+    const message = error?.message || String(error || "Unknown error");
+
+    if (message.toLowerCase().includes("supabase")) {
+      return message;
+    }
+
+    return "Supabase auth action failed: " + message;
+  }
+
+  function guardSupabaseConfig(actionLabel) {
+    if (isSupabaseConfigured) return true;
+
+    setAuthProfile(null);
+    setAuthStatus(
+      actionLabel +
+        " skipped. Supabase is not configured for this environment. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local, then restart Vite."
+    );
+
+    return false;
+  }
+
   async function handleCheckSession() {
+    if (!guardSupabaseConfig("Session check")) return;
+
     setAuthLoading(true);
     setAuthStatus("Checking Supabase session...");
 
@@ -3463,11 +3491,12 @@ function LoginScreen({ onBackendImport, onPortalLogin, onPortalLogout }) {
       const profile = await getCurrentProfile();
 
       setAuthProfile(profile);
-      
-      if (onPortalLogin) {
+
+      if (profile?.role && onPortalLogin) {
         onPortalLogin(profile);
       }
-setAuthStatus(
+
+      setAuthStatus(
         "Active Supabase session found for " +
           session.user.email +
           ". Role: " +
@@ -3475,7 +3504,7 @@ setAuthStatus(
       );
     } catch (error) {
       setAuthProfile(null);
-      setAuthStatus("Supabase session check failed: " + (error.message || String(error)));
+      setAuthStatus(getAuthErrorMessage(error));
     } finally {
       setAuthLoading(false);
     }
@@ -3492,27 +3521,40 @@ setAuthStatus(
       return;
     }
 
+    if (!guardSupabaseConfig(loginType + " login")) return;
+
     setAuthLoading(true);
     setAuthStatus("Signing in " + loginType + " with Supabase...");
 
     try {
       const result = await signInWithEmailPassword(email, password);
       const profile = await getCurrentProfile();
+      const resolvedRole = String(profile?.role || "").toLowerCase();
 
       setAuthProfile(profile);
-      
+
+      if (!resolvedRole) {
+        setAuthStatus(
+          "Signed in as " +
+            (result?.user?.email || email) +
+            ", but no profile role was found. Add coach/client role in the profiles table before routing portals."
+        );
+        return;
+      }
+
       if (onPortalLogin) {
         onPortalLogin(profile);
       }
-setAuthStatus(
+
+      setAuthStatus(
         "Signed in as " +
           (result?.user?.email || email) +
           ". Supabase role: " +
-          (profile?.role || "profile role not found")
+          resolvedRole
       );
     } catch (error) {
       setAuthProfile(null);
-      setAuthStatus("Supabase login failed: " + (error.message || String(error)));
+      setAuthStatus(getAuthErrorMessage(error));
     } finally {
       setAuthLoading(false);
     }
@@ -3520,6 +3562,21 @@ setAuthStatus(
 
   async function handleSignOut() {
     setAuthLoading(true);
+
+    if (!isSupabaseConfigured) {
+      setAuthProfile(null);
+      setAuthStatus(
+        "Local portal logout complete. Supabase sign out was skipped because Supabase is not configured for this environment."
+      );
+
+      if (onPortalLogout) {
+        onPortalLogout();
+      }
+
+      setAuthLoading(false);
+      return;
+    }
+
     setAuthStatus("Signing out of Supabase...");
 
     try {
@@ -3531,7 +3588,12 @@ setAuthStatus(
         onPortalLogout();
       }
     } catch (error) {
-      setAuthStatus("Supabase sign out failed: " + (error.message || String(error)));
+      setAuthProfile(null);
+      setAuthStatus(getAuthErrorMessage(error));
+
+      if (onPortalLogout) {
+        onPortalLogout();
+      }
     } finally {
       setAuthLoading(false);
     }
@@ -3544,6 +3606,39 @@ setAuthStatus(
         title="Authentication Later"
         description="Supabase Auth is connected for coach and client sign-in testing. The main app workflow still stays localStorage-first until migration is finished."
       />
+
+      <div className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6">
+        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
+          Supabase Configuration
+        </p>
+
+        <h3 className="mt-2 text-2xl font-black uppercase text-white">
+          Auth Guard Status
+        </h3>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <MiniProgram
+            label="VITE_SUPABASE_URL"
+            value={hasSupabaseUrl ? "Found" : "Missing"}
+          />
+          <MiniProgram
+            label="VITE_SUPABASE_PUBLISHABLE_KEY"
+            value={hasSupabasePublishableKey ? "Found" : "Missing"}
+          />
+          <MiniProgram
+            label="Auth Actions"
+            value={isSupabaseConfigured ? "Ready" : "Safely blocked"}
+          />
+        </div>
+
+        {!isSupabaseConfigured && (
+          <p className="mt-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm font-bold leading-6 text-yellow-100">
+            Supabase is optional right now. The app will not crash if env values are missing.
+            Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local,
+            then restart Vite when you want real auth testing.
+          </p>
+        )}
+      </div>
 
       <div className="mb-6 rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/10 p-6">
         <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
@@ -3568,7 +3663,7 @@ setAuthStatus(
             type="button"
             onClick={handleCheckSession}
             disabled={authLoading}
-            className="rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63] disabled:opacity-50"
+            className="rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:opacity-50"
           >
             Check Current Session
           </button>
@@ -3577,7 +3672,7 @@ setAuthStatus(
             type="button"
             onClick={handleSignOut}
             disabled={authLoading}
-            className="rounded-full border border-red-500/30 bg-red-500/10 px-5 py-3 text-sm font-black uppercase text-red-200 transition hover:bg-red-500 hover:text-white disabled:opacity-50"
+            className="rounded-full border border-white/15 bg-black/40 px-5 py-3 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63] disabled:opacity-50"
           >
             Sign Out
           </button>
@@ -3587,13 +3682,16 @@ setAuthStatus(
           <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
             Auth Status
           </p>
-          <p className="mt-2 text-sm font-bold text-white/75">{authStatus}</p>
+
+          <p className="mt-2 text-sm font-bold leading-6 text-white/75">
+            {authStatus}
+          </p>
 
           {authProfile && (
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
               <MiniProgram label="Profile Email" value={authProfile.email || "N/A"} />
-              <MiniProgram label="Profile Name" value={authProfile.full_name || "N/A"} />
               <MiniProgram label="Profile Role" value={authProfile.role || "N/A"} />
+              <MiniProgram label="Profile ID" value={authProfile.id || "N/A"} />
             </div>
           )}
         </div>
@@ -3608,38 +3706,45 @@ setAuthStatus(
             Coach Access
           </p>
 
-          <h3 className="mt-2 text-2xl font-black uppercase">
+          <h3 className="mt-2 text-xl font-black uppercase">
             Coach Login
           </h3>
 
-          <p className="mt-3 text-sm leading-6 text-white/65">
+          <p className="mt-3 text-sm leading-6 text-white/60">
             Use the coach test account you created in Supabase Auth. This should return the coach profile role from the profiles table.
           </p>
 
-          <div className="mt-5 space-y-3">
-            <Input
-              label="Coach Email"
-              value={coachEmail}
-              onChange={setCoachEmail}
-              placeholder="coach@nolimittest.com"
-            />
+          <label className="mt-5 block text-xs font-black uppercase tracking-[0.18em] text-white/45">
+            Coach Email
+          </label>
+          <input
+            aria-label="Coach Email"
+            type="email"
+            value={coachEmail}
+            onChange={(event) => setCoachEmail(event.target.value)}
+            placeholder="coach@nolimittest.com"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]"
+          />
 
-            <Input
-              label="Coach Password"
-              value={coachPassword}
-              onChange={setCoachPassword}
-              placeholder="Enter saved coach password"
-              type="password"
-            />
+          <label className="mt-4 block text-xs font-black uppercase tracking-[0.18em] text-white/45">
+            Coach Password
+          </label>
+          <input
+            aria-label="Coach Password"
+            type="password"
+            value={coachPassword}
+            onChange={(event) => setCoachPassword(event.target.value)}
+            placeholder="Enter saved coach password"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]"
+          />
 
-            <button
-              type="submit"
-              disabled={authLoading}
-              className="w-full rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:opacity-50"
-            >
-              Test Supabase Coach Login
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={authLoading}
+            className="mt-5 w-full rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:opacity-50"
+          >
+            Test Supabase Coach Login
+          </button>
         </form>
 
         <form
@@ -3650,60 +3755,58 @@ setAuthStatus(
             Client Access
           </p>
 
-          <h3 className="mt-2 text-2xl font-black uppercase">
+          <h3 className="mt-2 text-xl font-black uppercase">
             Client Login
           </h3>
 
-          <p className="mt-3 text-sm leading-6 text-white/65">
+          <p className="mt-3 text-sm leading-6 text-white/60">
             Use the client test account you created in Supabase Auth. This should return the client profile role from the profiles table.
           </p>
 
-          <div className="mt-5 space-y-3">
-            <Input
-              label="Client Email"
-              value={clientEmail}
-              onChange={setClientEmail}
-              placeholder="client@nolimittest.com"
-            />
+          <label className="mt-5 block text-xs font-black uppercase tracking-[0.18em] text-white/45">
+            Client Email
+          </label>
+          <input
+            aria-label="Client Email"
+            type="email"
+            value={clientEmail}
+            onChange={(event) => setClientEmail(event.target.value)}
+            placeholder="client@nolimittest.com"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]"
+          />
 
-            <Input
-              label="Client Password"
-              value={clientPassword}
-              onChange={setClientPassword}
-              placeholder="Enter saved client password"
-              type="password"
-            />
+          <label className="mt-4 block text-xs font-black uppercase tracking-[0.18em] text-white/45">
+            Client Password
+          </label>
+          <input
+            aria-label="Client Password"
+            type="password"
+            value={clientPassword}
+            onChange={(event) => setClientPassword(event.target.value)}
+            placeholder="Enter saved client password"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]"
+          />
 
-            <button
-              type="submit"
-              disabled={authLoading}
-              className="w-full rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-5 py-3 text-sm font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black disabled:opacity-50"
-            >
-              Test Supabase Client Login
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={authLoading}
+            className="mt-5 w-full rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:opacity-50"
+          >
+            Test Supabase Client Login
+          </button>
         </form>
+      </div>
 
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6">
           <h3 className="text-xl font-black uppercase">
             Role-Based Screen Plan
           </h3>
 
           <div className="mt-4 grid gap-3">
-            <MiniProgram
-              label="Coach role"
-              value="Dashboard, clients, plans, activity, messages"
-            />
-
-            <MiniProgram
-              label="Client role"
-              value="Client portal, tracker, messages, progress"
-            />
-
-            <MiniProgram
-              label="Auth provider"
-              value="Supabase Auth active for testing"
-            />
+            <MiniProgram label="Coach role" value="Dashboard, clients, plans, activity, messages" />
+            <MiniProgram label="Client role" value="Client portal, tracker, messages, progress" />
+            <MiniProgram label="Auth provider" value="Supabase Auth active for testing" />
           </div>
         </div>
 
@@ -3713,9 +3816,9 @@ setAuthStatus(
           </h3>
 
           <p className="mt-3 text-sm leading-6 text-white/65">
-            Suggested backend tables later: profiles, clients, workout_plans,
-            workout_days, workout_exercises, workout_logs, workout_entries,
-            messages, notifications, and notification_preferences.
+            Suggested backend tables later: profiles, clients, workout_plans, workout_days,
+            workout_exercises, workout_logs, workout_entries, messages, notifications,
+            and notification_preferences.
           </p>
 
           <div className="mt-4 grid gap-3">
