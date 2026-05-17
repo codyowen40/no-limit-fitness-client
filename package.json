@@ -8,8 +8,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:stable": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js",
-    "test:stable:headed": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js --headed"
+    "test:stable": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js",
+    "test:stable:headed": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js --headed",
+    "test:bundle5": "playwright test tests/data-persistence.spec.js",
+    "test:bundle5:headed": "playwright test tests/data-persistence.spec.js --headed"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
