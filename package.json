@@ -27,7 +27,8 @@
     "test:nav-polish": "playwright test tests/nav-polish.spec.js",
     "test:nav-polish:headed": "playwright test tests/nav-polish.spec.js --headed",
     "test:public-client": "playwright test tests/public-client-url.spec.js",
-    "test:public-client:headed": "playwright test tests/public-client-url.spec.js --headed"
+    "test:public-client:headed": "playwright test tests/public-client-url.spec.js --headed",
+    "verify:live-sync": "node scripts/verify-live-test-sync.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
