@@ -24,3 +24,24 @@ dist-ssr
 *.sw?
 
 .vercel
+
+playwright-report/
+test-results/
+dist/
+node_modules/
+.env
+.env.local
+
+playwright-report/
+test-results/
+dist/
+node_modules/
+.env
+.env.local
+
+playwright-report/
+test-results/
+dist/
+node_modules/
+.env
+.env.local
