@@ -139,6 +139,12 @@ async function openCleanLogin(page) {
 
   await expect(page.locator("#root")).toBeAttached();
   await expect(page.locator("main")).toBeVisible();
+
+  const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
+
+  await nav.getByRole("button", { name: /^Login$/ }).click();
+
+  await expect(page.locator("main")).toContainText(/Authentication|Supabase|Login/i);
 }
 
 test.describe("No Limit Fitness Bundle 8 backend sync readiness", () => {

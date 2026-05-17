@@ -6,7 +6,7 @@ const TEST_UNLOCK_URL = "http://localhost:5173/?testUnlock=true";
 const PORTAL_MODE_KEY = "no-limit-fitness-portal-mode-v1";
 const TEST_UNLOCK_KEY = "no-limit-fitness-test-unlocked-v1";
 
-async function clearPortalState(page) {
+async function openCleanPublicUrl(page) {
   await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
 
   await page.evaluate(({ portalModeKey, testUnlockKey }) => {
@@ -14,86 +14,62 @@ async function clearPortalState(page) {
     window.localStorage.removeItem(testUnlockKey);
   }, { portalModeKey: PORTAL_MODE_KEY, testUnlockKey: TEST_UNLOCK_KEY });
 
-  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
 }
 
-async function openPortalMode(page, mode) {
+async function openUnlockedMode(page, mode) {
+  await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
+
   await page.evaluate(({ portalModeKey, testUnlockKey, nextMode }) => {
-    window.localStorage.setItem(testUnlockKey, "true");
     window.localStorage.setItem(portalModeKey, nextMode);
-  }, {
-    portalModeKey: PORTAL_MODE_KEY,
-    testUnlockKey: TEST_UNLOCK_KEY,
-    nextMode: mode,
-  });
+    window.localStorage.setItem(testUnlockKey, "true");
+  }, { portalModeKey: PORTAL_MODE_KEY, testUnlockKey: TEST_UNLOCK_KEY, nextMode: mode });
 
   await page.goto(TEST_UNLOCK_URL, { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#root")).toBeAttached();
 }
 
 test.describe("No Limit Fitness portal routing", () => {
-  test("starts locked, then supports demo, coach, and client portal navigation", async ({
-    page,
-  }) => {
-    await clearPortalState(page);
+  test("clean public URL starts in client portal mode", async ({ page }) => {
+    await openCleanPublicUrl(page);
 
-    let nav = page.getByRole("navigation");
+    const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
 
-    await expect(
-      page.getByRole("heading", { name: "Authentication Later" })
-    ).toBeVisible();
+    await expect(page.locator("#root")).toBeAttached();
+    await expect(page.getByLabel("Portal mode controls")).toHaveCount(0);
 
-    await openPortalMode(page, "demo");
-
-    nav = page.getByRole("navigation");
-
-    await expect(nav.getByRole("button", { name: /^Home$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Client$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Coach$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Clients$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Plans$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Tracker$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Exercises$/ })).toBeVisible();
+    await expect(nav.getByRole("button", { name: /Messages/i })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Progress$/ })).toBeVisible();
+    await expect(nav.getByRole("button", { name: /^Tracker$/ })).toBeVisible();
 
-    await expect(
-      nav.getByRole("button", { name: /^Messages(?:\s+\d+)?$/ }).first()
-    ).toBeVisible();
+    await expect(nav.getByRole("button", { name: /^Coach$/ })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /^Clients$/ })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /^Plans$/ })).toHaveCount(0);
+  });
 
-    await expect(nav.getByRole("button", { name: /^Login$/ })).toBeVisible();
+  test("internal test unlock still supports demo coach and client portal routing", async ({ page }) => {
+    await openUnlockedMode(page, "demo");
 
-    await openPortalMode(page, "coach");
+    const controls = page.getByLabel("Portal mode controls").first();
+    const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
 
-    nav = page.getByRole("navigation");
+    await expect(controls).toBeVisible();
+    await expect(page.getByText("Demo Preview Active")).toBeVisible();
 
-    await expect(nav.getByRole("button", { name: /^Logout$/ })).toBeVisible();
+    await controls.getByRole("button", { name: "Coach Portal" }).click();
+    await expect(page.getByText("Coach Portal Active")).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Coach$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Clients$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Plans$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Client$/ })).toBeHidden();
 
-    await openPortalMode(page, "client");
-
-    nav = page.getByRole("navigation");
-
-    await expect(nav.getByRole("button", { name: /^Logout$/ })).toBeVisible();
+    await controls.getByRole("button", { name: "Client Portal" }).click();
+    await expect(page.getByText("Client Portal Active")).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Client$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Coach$/ })).toBeHidden();
-    await expect(nav.getByRole("button", { name: /^Clients$/ })).toBeHidden();
-    await expect(nav.getByRole("button", { name: /^Plans$/ })).toBeHidden();
+    await expect(nav.getByRole("button", { name: /^Tracker$/ })).toBeVisible();
+    await expect(nav.getByRole("button", { name: /Messages/i })).toBeVisible();
 
-    await nav.getByRole("button", { name: /^Logout$/ }).click();
-
-    await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
-
-    nav = page.getByRole("navigation");
-
-    await expect(
-      page.getByRole("heading", { name: "Authentication Later" })
-    ).toBeVisible();
-
-    await expect(nav.getByRole("button", { name: /^Login$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Logout$/ })).toBeHidden();
-    await expect(page.getByLabel("Portal mode controls").first()).toBeHidden();
+    await expect(nav.getByRole("button", { name: /^Coach$/ })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /^Clients$/ })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /^Plans$/ })).toHaveCount(0);
   });
 });

@@ -501,6 +501,8 @@ function buildBackendConversationsForApp(clients, messages) {
 
 const PORTAL_MODE_STORAGE_KEY = "no-limit-fitness-portal-mode-v1";
 const TEST_UNLOCK_STORAGE_KEY = "no-limit-fitness-test-unlocked-v1";
+const PUBLIC_PORTAL_MODE = "client";
+const PUBLIC_LANDING_TAB = "Client";
 
 const PORTAL_VISIBLE_TABS_BY_MODE = {
   demo: [
@@ -563,20 +565,22 @@ function isPortalTestUnlocked() {
 }
 
 function getInitialPortalMode() {
-  if (typeof window === "undefined") return "login";
+  if (typeof window === "undefined") return PUBLIC_PORTAL_MODE;
 
   try {
     const savedMode = String(
       window.localStorage.getItem(PORTAL_MODE_STORAGE_KEY) || ""
     ).toLowerCase();
 
-    if (["login", "demo", "coach", "client"].includes(savedMode)) {
+    const unlocked = getPortalTestUnlocked();
+
+    if (unlocked && ["demo", "coach", "client"].includes(savedMode)) {
       return savedMode;
     }
 
-    return getPortalTestUnlocked() ? "demo" : "login";
+    return unlocked ? "demo" : PUBLIC_PORTAL_MODE;
   } catch {
-    return "login";
+    return PUBLIC_PORTAL_MODE;
   }
 }
 
@@ -664,7 +668,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const mode = getInitialPortalMode();
 
-    if (!getPortalTestUnlocked()) return "Login";
+    if (!getPortalTestUnlocked()) return PUBLIC_LANDING_TAB;
     if (mode === "coach") return "Coach";
     if (mode === "client") return "Client";
 
@@ -685,7 +689,17 @@ export default function App() {
     document.body.dataset.portalMode = normalizedMode;
 
     if (!unlocked) {
-      if (activeTab !== "Login") setActiveTab("Login");
+      const publicVisibleTabs =
+        PORTAL_VISIBLE_TABS_BY_MODE[PUBLIC_PORTAL_MODE] || [];
+
+      if (!publicVisibleTabs.includes(activeTab)) {
+        setActiveTab(PUBLIC_LANDING_TAB);
+      }
+
+      if (portalMode !== PUBLIC_PORTAL_MODE) {
+        setPortalMode(PUBLIC_PORTAL_MODE);
+      }
+
       return;
     }
 
@@ -777,9 +791,11 @@ export default function App() {
     () => conversations.reduce((total, conversation) => total + conversation.messages.filter((m) => m.unreadForClient).length, 0),
     [conversations]
   );
-  const normalizedPortalMode = String(portalMode || "demo").toLowerCase();
-  const isLoggedIn =
-    normalizedPortalMode === "coach" || normalizedPortalMode === "client";
+  const normalizedPortalMode = String(portalMode || PUBLIC_PORTAL_MODE).toLowerCase();
+  const isPortalUnlocked = getPortalTestUnlocked();
+const isLoggedIn =
+    isPortalUnlocked &&
+    (normalizedPortalMode === "coach" || normalizedPortalMode === "client");
 
 
 
@@ -813,10 +829,10 @@ export default function App() {
     },
   ];
 
-  const visibleTabs = getPortalTestUnlocked()
+  const visibleTabs = isPortalUnlocked
     ? PORTAL_VISIBLE_TABS_BY_MODE[normalizedPortalMode] ||
       PORTAL_VISIBLE_TABS_BY_MODE.demo
-    : ["Login"];
+    : PORTAL_VISIBLE_TABS_BY_MODE[PUBLIC_PORTAL_MODE];
 
   const visibleTabsSet = new Set(visibleTabs);
   const renderedTabs = tabs.filter((tab) => visibleTabsSet.has(tab.id));
