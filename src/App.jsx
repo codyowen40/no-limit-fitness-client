@@ -502,6 +502,47 @@ function buildBackendConversationsForApp(clients, messages) {
 const PORTAL_MODE_STORAGE_KEY = "no-limit-fitness-portal-mode-v1";
 const TEST_UNLOCK_STORAGE_KEY = "no-limit-fitness-test-unlocked-v1";
 
+const PORTAL_VISIBLE_TABS_BY_MODE = {
+  demo: [
+    "Home",
+    "Client",
+    "Coach",
+    "Clients",
+    "Plans",
+    "Tracker",
+    "Messages",
+    "Exercises",
+    "Progress",
+    "Login",
+  ],
+  coach: [
+    "Home",
+    "Coach",
+    "Clients",
+    "Plans",
+    "Tracker",
+    "Messages",
+    "Exercises",
+    "Progress",
+    "Login",
+  ],
+  client: [
+    "Home",
+    "Client",
+    "Tracker",
+    "Messages",
+    "Exercises",
+    "Progress",
+    "Login",
+  ],
+};
+
+const PORTAL_LANDING_TAB_BY_MODE = {
+  demo: "Home",
+  coach: "Coach",
+  client: "Client",
+};
+
 function getPortalTestUnlocked() {
   if (typeof window === "undefined") return false;
 
@@ -545,17 +586,7 @@ function getInitialPortalMode() {
 
 
 
-function getTestUnlockStatus() {
-  if (typeof window === "undefined") return false;
-
-  try {
-    return isPortalTestUnlocked();
-  } catch {
-    return false;
-  }
-}
-
-function PortalModeControls({ portalMode, setPortalMode }) {
+function PortalModeControls({ portalMode, setPortalMode, setActiveTab }) {
   const modeLabel =
     portalMode === "coach"
       ? "Coach Portal"
@@ -575,6 +606,17 @@ function PortalModeControls({ portalMode, setPortalMode }) {
     { id: "coach", label: "Coach Portal" },
     { id: "client", label: "Client Portal" },
   ];
+
+  function selectPortalMode(nextMode) {
+    try {
+      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, nextMode);
+    } catch {
+      // LocalStorage can fail in restricted browser modes.
+    }
+
+    setPortalMode(nextMode);
+    setActiveTab(PORTAL_LANDING_TAB_BY_MODE[nextMode] || "Home");
+  }
 
   return (
     <section
@@ -600,7 +642,7 @@ function PortalModeControls({ portalMode, setPortalMode }) {
               <button
                 key={option.id}
                 type="button"
-                onClick={() => setPortalMode(option.id)}
+                onClick={() => selectPortalMode(option.id)}
                 className={
                   isActive
                     ? "rounded-full bg-[#00BF63] px-4 py-2 text-sm font-black uppercase text-black"
@@ -630,52 +672,17 @@ export default function App() {
   });
 
   const [portalMode, setPortalMode] = useState(getInitialPortalMode);
-
-  // NLF_TEST_UNLOCK_ROUTING_EFFECT_START
   useEffect(() => {
     const unlocked = getPortalTestUnlocked();
-    const normalizedMode = String(portalMode || "demo").toLowerCase();
+    const normalizedMode = String(portalMode || "login").toLowerCase();
 
-    const visibleTabsByPortalMode = {
-      demo: [
-        "Home",
-        "Client",
-        "Coach",
-        "Clients",
-        "Plans",
-        "Tracker",
-        "Messages",
-        "Exercises",
-        "Progress",
-        "Login",
-      ],
-      coach: [
-        "Home",
-        "Coach",
-        "Clients",
-        "Plans",
-        "Tracker",
-        "Messages",
-        "Exercises",
-        "Progress",
-        "Login",
-      ],
-      client: [
-        "Home",
-        "Client",
-        "Tracker",
-        "Messages",
-        "Exercises",
-        "Progress",
-        "Login",
-      ],
-    };
+    try {
+      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, normalizedMode);
+    } catch {
+      // LocalStorage can fail in restricted browser modes.
+    }
 
-    const landingTabByPortalMode = {
-      demo: "Home",
-      coach: "Coach",
-      client: "Client",
-    };
+    document.body.dataset.portalMode = normalizedMode;
 
     if (!unlocked) {
       if (activeTab !== "Login") setActiveTab("Login");
@@ -683,107 +690,15 @@ export default function App() {
     }
 
     const visibleTabs =
-      visibleTabsByPortalMode[normalizedMode] || visibleTabsByPortalMode.demo;
-    const landingTab = landingTabByPortalMode[normalizedMode] || "Home";
+      PORTAL_VISIBLE_TABS_BY_MODE[normalizedMode] || PORTAL_VISIBLE_TABS_BY_MODE.demo;
+    const landingTab =
+      PORTAL_LANDING_TAB_BY_MODE[normalizedMode] || PORTAL_LANDING_TAB_BY_MODE.demo;
 
-    if (activeTab === "Login" || !visibleTabs.includes(activeTab)) {
+    if (!visibleTabs.includes(activeTab)) {
       setActiveTab(landingTab);
     }
-  }, [activeTab, portalMode]);
-  // NLF_TEST_UNLOCK_ROUTING_EFFECT_END
-
-  const showPortalControls = getTestUnlockStatus();
-
-  const [isTestUnlocked, setIsTestUnlocked] = useState(() => {
-    try {
-      return isPortalTestUnlocked();
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, portalMode);
-    } catch {
-      // LocalStorage can fail in restricted browser modes.
-    }
-
-    document.body.dataset.portalMode = portalMode;
-
-    const visibleTabsByPortalMode = {
-      demo: [
-        "Home",
-        "Client",
-        "Coach",
-        "Clients",
-        "Plans",
-        "Tracker",
-        "Messages",
-        "Exercises",
-        "Progress",
-        "Login",
-      ],
-      coach: [
-        "Home",
-        "Coach",
-        "Clients",
-        "Plans",
-        "Tracker",
-        "Messages",
-        "Exercises",
-        "Progress",
-        "Login",
-      ],
-      client: [
-        "Home",
-        "Client",
-        "Tracker",
-        "Messages",
-        "Exercises",
-        "Progress",
-        "Login",
-      ],
-    };
-
-    const hiddenTabsByPortalMode = {
-      demo: [],
-      coach: ["Client"],
-      client: ["Coach", "Clients", "Plans"],
-    };
-
-    const landingTabByPortalMode = {
-      demo: "Home",
-      coach: "Coach",
-      client: "Client",
-    };
-
-    const hiddenTabs = hiddenTabsByPortalMode[portalMode] || [];
-
-    if (hiddenTabs.includes(activeTab)) {
-      setActiveTab(landingTabByPortalMode[portalMode] || "Home");
-    }
-
-    window.requestAnimationFrame(() => {
-      const visibleTabs = visibleTabsByPortalMode[portalMode] || visibleTabsByPortalMode.demo;
-
-      document.querySelectorAll("nav button").forEach((button) => {
-        const cleanLabel = String(button.textContent || "")
-          .replace(/\s+\d+$/, "")
-          .trim();
-
-        const shouldShow =
-          visibleTabs.includes(cleanLabel) ||
-          cleanLabel === "Messages" ||
-          cleanLabel === "Login" ||
-          cleanLabel === "Logout";
-
-        button.style.display = shouldShow ? "" : "none";
-        button.setAttribute("data-portal-visible", shouldShow ? "true" : "false");
-      });
-    });
   }, [portalMode, activeTab]);
-const [clients, setClients] = useState(initialState.clients);
+  const [clients, setClients] = useState(initialState.clients);
   const [clientForm, setClientForm] = useState({ name: "", email: "" });
   const [selectedClientProfileId, setSelectedClientProfileId] = useState(initialState.clients[0]?.id || "");
   const [clientActionNotice, setClientActionNotice] = useState("");
@@ -880,6 +795,13 @@ const [clients, setClients] = useState(initialState.clients);
     { id: "Progress", icon: TrendingUp },
     { id: "Login", label: isLoggedIn ? "Logout" : "Login", icon: isLoggedIn ? LogOut : LogIn, isAccountAction: true },
   ];
+
+  const visibleTabs = getPortalTestUnlocked()
+    ? PORTAL_VISIBLE_TABS_BY_MODE[normalizedPortalMode] || PORTAL_VISIBLE_TABS_BY_MODE.demo
+    : ["Login"];
+
+  const visibleTabsSet = new Set(visibleTabs);
+  const renderedTabs = tabs.filter((tab) => visibleTabsSet.has(tab.id));
 
   const filteredLibraryExercises = useMemo(() => {
     const search = librarySearch.toLowerCase();
@@ -1566,86 +1488,6 @@ function handlePortalLogout() {
       <div className="fixed inset-0 bg-gradient-to-b from-black via-black/90 to-black" />
 
       <div className="relative z-10">
-        {/* FINAL_DIRECT_PORTAL_CONTROLS_FOR_PLAYWRIGHT */}
-        {typeof window !== "undefined" &&
-          (new URLSearchParams(window.location.search).get("testUnlock") === "true" ||
-            window.localStorage.getItem(TEST_UNLOCK_STORAGE_KEY) === "true") && (
-            <section
-              aria-label="Portal mode controls"
-              className="mx-auto mt-4 max-w-7xl rounded-2xl border border-[#00BF63]/30 bg-black/80 p-4 shadow-2xl shadow-black/40 backdrop-blur"
-            >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
-                    Portal Mode
-                  </p>
-                  <h2 className="mt-1 text-xl font-black text-white">
-                    {String(portalMode || "demo").toLowerCase() === "coach"
-                      ? "Coach Portal Active"
-                      : String(portalMode || "demo").toLowerCase() === "client"
-                        ? "Client Portal Active"
-                        : "Demo Preview Active"}
-                  </h2>
-                  <p className="mt-1 max-w-3xl text-sm text-zinc-300">
-                    Test unlock is active for Playwright portal routing.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      try {
-                        window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, "demo");
-                      } catch {
-                        // LocalStorage can fail in restricted browser modes.
-                      }
-
-                      setPortalMode("demo");
-                      setActiveTab("Home");
-                    }}
-                    className="rounded-full bg-[#00BF63] px-4 py-2 text-sm font-black uppercase text-black"
-                  >
-                    Demo Preview
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      try {
-                        window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, "coach");
-                      } catch {
-                        // LocalStorage can fail in restricted browser modes.
-                      }
-
-                      setPortalMode("coach");
-                      setActiveTab("Coach");
-                    }}
-                    className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
-                  >
-                    Coach Portal
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      try {
-                        window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, "client");
-                      } catch {
-                        // LocalStorage can fail in restricted browser modes.
-                      }
-
-                      setPortalMode("client");
-                      setActiveTab("Client");
-                    }}
-                    className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
-                  >
-                    Client Portal
-                  </button>
-                </div>
-              </div>
-            </section>
-          )}
         <header className="border-b border-white/10 bg-black/80 backdrop-blur">
           <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
             <button type="button" onClick={() => setActiveTab("Home")} className="flex items-center gap-3 text-left">
@@ -1659,7 +1501,7 @@ function handlePortalLogout() {
             </button>
 
             <nav className="flex flex-wrap gap-2">
-              {tabs.map((tab) => {
+              {renderedTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
@@ -1689,25 +1531,15 @@ function handlePortalLogout() {
                     )}
                   </button>
                 );
-              })}
-
-          <button
-            type="button"
-            data-nlf-top-messages-tab="true"
-            onClick={() => setActiveTab("Messages")}
-            className={
-              activeTab === "Messages"
-                ? "rounded-full bg-[#00BF63] px-4 py-2 text-sm font-black uppercase text-black"
-                : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
-            }
-          >
-            Messages
-          </button>
-</nav>
+              })}</nav>
           </div>
 
           {isPortalTestUnlocked() && (
-            <PortalModeControls portalMode={portalMode} setPortalMode={setPortalMode} />
+            <PortalModeControls
+            portalMode={portalMode}
+            setPortalMode={setPortalMode}
+            setActiveTab={setActiveTab}
+          />
           )}
         </header>
 
