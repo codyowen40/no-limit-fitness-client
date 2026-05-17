@@ -783,25 +783,48 @@ export default function App() {
 
 
 
+  const messageUnreadCount =
+    normalizedPortalMode === "client" ? unreadClientCount : unreadCoachCount;
+
   const tabs = [
-    { id: "Home", icon: Home },
+    {
+      id: "Home",
+      icon: Home,
+      isHomeAction: true,
+    },
     { id: "Client", icon: Users },
-    { id: "Coach", icon: ShieldCheck },
     { id: "Clients", icon: Users },
-    { id: "Plans", icon: ClipboardList },
-    { id: "Tracker", icon: CheckCircle },
-    { id: "Messages", icon: MessageSquare, badge: unreadCoachCount },
+    { id: "Coach", icon: ShieldCheck },
     { id: "Exercises", icon: Dumbbell },
+    {
+      id: "Messages",
+      icon: MessageSquare,
+      badge: messageUnreadCount,
+      isMessageTab: true,
+    },
+    { id: "Plans", icon: ClipboardList },
     { id: "Progress", icon: TrendingUp },
-    { id: "Login", label: isLoggedIn ? "Logout" : "Login", icon: isLoggedIn ? LogOut : LogIn, isAccountAction: true },
+    { id: "Tracker", icon: CheckCircle },
+    {
+      id: "Login",
+      label: isLoggedIn ? "Logout" : "Login",
+      icon: isLoggedIn ? LogOut : LogIn,
+      isAccountAction: true,
+    },
   ];
 
   const visibleTabs = getPortalTestUnlocked()
-    ? PORTAL_VISIBLE_TABS_BY_MODE[normalizedPortalMode] || PORTAL_VISIBLE_TABS_BY_MODE.demo
+    ? PORTAL_VISIBLE_TABS_BY_MODE[normalizedPortalMode] ||
+      PORTAL_VISIBLE_TABS_BY_MODE.demo
     : ["Login"];
 
   const visibleTabsSet = new Set(visibleTabs);
   const renderedTabs = tabs.filter((tab) => visibleTabsSet.has(tab.id));
+  const homeNavTabs = renderedTabs.filter((tab) => tab.isHomeAction);
+  const mainNavTabs = renderedTabs.filter(
+    (tab) => !tab.isAccountAction && !tab.isHomeAction
+  );
+  const accountNavTabs = renderedTabs.filter((tab) => tab.isAccountAction);
 
   const filteredLibraryExercises = useMemo(() => {
     const search = librarySearch.toLowerCase();
@@ -1500,38 +1523,123 @@ function handlePortalLogout() {
               </div>
             </button>
 
-            <nav className="flex flex-wrap gap-2">
-              {renderedTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      if (tab.id === "Login" && isLoggedIn) {
-                        handlePortalLogout();
-                        return;
-                      }
+            <nav
+              aria-label="Main navigation"
+              className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:justify-end"
+            >
+              {homeNavTabs.length > 0 && (
+                <div
+                  data-nlf-home-nav="true"
+                  className="flex flex-wrap gap-2 border-b border-white/10 pb-3 lg:mr-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4"
+                >
+                  {homeNavTabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    const tabLabel = tab.label || tab.id;
 
-                      setActiveTab(tab.id);
-                    }}
-                    className={`relative flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
-                      isActive
-                        ? "border-[#00BF63] bg-[#00BF63] text-black"
-                        : "border-white/10 bg-white/5 text-white hover:border-[#00BF63]/70 hover:text-[#00BF63]"
-                    }`}
-                  >
-                    <Icon size={16} />
-                    {tab.label || tab.id}
-                    {tab.badge > 0 && (
-                      <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-black ${isActive ? "bg-black text-[#00BF63]" : "bg-[#00BF63] text-black"}`}>
-                        {tab.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}</nav>
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={[
+                          "relative flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-black uppercase tracking-wide transition",
+                          isActive
+                            ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20"
+                            : "border-white/20 bg-white/10 text-white hover:border-[#00BF63] hover:bg-[#00BF63] hover:text-black",
+                        ].join(" ")}
+                      >
+                        <Icon size={16} />
+                        {tabLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div data-nlf-main-nav="true" className="flex flex-wrap gap-2">
+                {mainNavTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  const isMessageTab = tab.id === "Messages";
+                  const tabLabel = tab.label || tab.id;
+
+                  const inactiveClass = isMessageTab
+                    ? "border-[#00BF63]/40 bg-[#00BF63]/10 text-[#00BF63] shadow-lg shadow-[#00BF63]/10 hover:bg-[#00BF63] hover:text-black"
+                    : "border-white/10 bg-white/5 text-white hover:border-[#00BF63]/70 hover:text-[#00BF63]";
+
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={[
+                        "relative flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition",
+                        isActive
+                          ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20"
+                          : inactiveClass,
+                      ].join(" ")}
+                    >
+                      <Icon size={16} />
+                      {tabLabel}
+
+                      {tab.badge > 0 && (
+                        <span
+                          className={[
+                            "ml-1 rounded-full px-2 py-0.5 text-xs font-black",
+                            isActive
+                              ? "bg-black text-[#00BF63]"
+                              : "bg-[#00BF63] text-black",
+                          ].join(" ")}
+                        >
+                          {tab.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {accountNavTabs.length > 0 && (
+                <div
+                  data-nlf-account-nav="true"
+                  className="flex flex-wrap gap-2 border-t border-white/10 pt-3 lg:ml-4 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0"
+                >
+                  {accountNavTabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    const tabLabel = tab.label || tab.id;
+                    const isLogout = tabLabel === "Logout";
+
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => {
+                          if (tab.id === "Login" && isLoggedIn) {
+                            handlePortalLogout();
+                            return;
+                          }
+
+                          setActiveTab(tab.id);
+                        }}
+                        className={[
+                          "relative flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-black uppercase tracking-wide transition",
+                          isActive
+                            ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20"
+                            : isLogout
+                              ? "border-red-400/40 bg-red-500/10 text-red-200 hover:border-red-300 hover:bg-red-500 hover:text-black"
+                              : "border-[#00BF63]/60 bg-black text-[#00BF63] ring-1 ring-[#00BF63]/30 hover:bg-[#00BF63] hover:text-black",
+                        ].join(" ")}
+                      >
+                        <Icon size={16} />
+                        {tabLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </nav>
           </div>
 
           {isPortalTestUnlocked() && (

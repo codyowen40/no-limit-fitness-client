@@ -8,8 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:stable": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js",
-    "test:stable:headed": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js --headed",
+    "test:stable": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js tests/nav-polish.spec.js",
+    "test:stable:headed": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js tests/nav-polish.spec.js --headed",
     "test:bundle5": "playwright test tests/data-persistence.spec.js tests/workout-log-details.spec.js",
     "test:bundle5:headed": "playwright test tests/data-persistence.spec.js tests/workout-log-details.spec.js --headed",
     "test:bundle6": "playwright test tests/bundle-6-mega.spec.js",
@@ -23,7 +23,9 @@
     "test:release": "playwright test tests/release-readiness.spec.js",
     "test:release:headed": "playwright test tests/release-readiness.spec.js --headed",
     "check:release": "npm run build && npm run test:stable",
-    "check:release:headed": "npm run build && npm run test:stable:headed"
+    "check:release:headed": "npm run build && npm run test:stable:headed",
+    "test:nav-polish": "playwright test tests/nav-polish.spec.js",
+    "test:nav-polish:headed": "playwright test tests/nav-polish.spec.js --headed"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
