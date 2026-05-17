@@ -1,0 +1,53 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap");
+@import "tailwindcss";
+
+:root {
+  font-family: "Montserrat", Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: "Montserrat", Arial, sans-serif;
+  background: #000000;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.font-site {
+  font-family: "Montserrat", Arial, sans-serif;
+}
+
+/* NLF_LOGIN_GATE_CSS_START */
+/* Login Gate:
+   - Public users see Login first.
+   - Portal switcher is hidden from normal users.
+   - Tests can unlock old demo routing with localStorage.
+*/
+
+body:not([data-nlf-test-unlocked="true"]) [aria-label="Portal mode controls"] {
+  display: none !important;
+}
+
+body[data-nlf-login-gate="true"] nav button {
+  display: none !important;
+}
+
+body[data-nlf-login-gate="true"] nav button:nth-of-type(9) {
+  display: inline-flex !important;
+  margin-left: auto !important;
+  border-color: rgba(0, 191, 99, 0.9) !important;
+  background: rgba(0, 191, 99, 0.16) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(0, 191, 99, 0.3), 0 12px 30px rgba(0, 191, 99, 0.12);
+  text-transform: none !important;
+  font-weight: 900 !important;
+}
+
+body[data-nlf-login-gate="true"] nav button:nth-of-type(9):hover {
+  background: #00BF63 !important;
+  color: #000000 !important;
+}
+/* NLF_LOGIN_GATE_CSS_END */
+
