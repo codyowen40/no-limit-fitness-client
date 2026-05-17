@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:stable": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js",
+    "test:stable:headed": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js --headed"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
