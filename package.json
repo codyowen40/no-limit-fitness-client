@@ -8,15 +8,18 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:stable": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js",
-    "test:stable:headed": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js --headed",
+    "test:stable": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js",
+    "test:stable:headed": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js --headed",
     "test:bundle5": "playwright test tests/data-persistence.spec.js tests/workout-log-details.spec.js",
     "test:bundle5:headed": "playwright test tests/data-persistence.spec.js tests/workout-log-details.spec.js --headed",
     "test:bundle6": "playwright test tests/bundle-6-mega.spec.js",
     "test:bundle6:headed": "playwright test tests/bundle-6-mega.spec.js --headed",
     "test:bundle7": "playwright test tests/bundle-7-mega.spec.js",
     "test:bundle7:headed": "playwright test tests/bundle-7-mega.spec.js --headed",
-    "test:mega7:headed": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js --headed"
+    "test:mega7:headed": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js --headed",
+    "test:bundle8": "playwright test tests/supabase-sync-readiness.spec.js",
+    "test:bundle8:headed": "playwright test tests/supabase-sync-readiness.spec.js --headed",
+    "test:mega8:headed": "playwright test tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js --headed"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
