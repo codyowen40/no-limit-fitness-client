@@ -1,19 +1,104 @@
 import { supabase } from "./supabaseClient";
 
+const SUPABASE_NOT_CONFIGURED_MESSAGE =
+  "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local, restart Vite, then try again.";
+
+function getSupabaseClient() {
+  return supabase || null;
+}
+
+function isSupabaseClientReady(client) {
+  return Boolean(
+    client &&
+      client.auth &&
+      typeof client.auth.getSession === "function" &&
+      typeof client.from === "function"
+  );
+}
+
+export function getSupabaseStatus() {
+  const client = getSupabaseClient();
+  const configured = isSupabaseClientReady(client);
+
+  return {
+    configured,
+    hasClient: Boolean(client),
+    hasAuth: Boolean(client?.auth),
+    hasDatabase: typeof client?.from === "function",
+    message: configured ? "Supabase client is configured." : SUPABASE_NOT_CONFIGURED_MESSAGE,
+  };
+}
+
+export function isSupabaseConfigured() {
+  return getSupabaseStatus().configured;
+}
+
+export function createSupabaseUnavailableError() {
+  const error = new Error(SUPABASE_NOT_CONFIGURED_MESSAGE);
+  error.name = "SupabaseConfigurationError";
+  error.code = "SUPABASE_NOT_CONFIGURED";
+  error.isSupabaseUnavailable = true;
+  return error;
+}
+
+function requireSupabase() {
+  const client = getSupabaseClient();
+
+  if (!isSupabaseClientReady(client)) {
+    throw createSupabaseUnavailableError();
+  }
+
+  return client;
+}
+
+function getOptionalSupabase(context) {
+  const client = getSupabaseClient();
+
+  if (!isSupabaseClientReady(client)) {
+    console.warn(`${context}: ${SUPABASE_NOT_CONFIGURED_MESSAGE}`);
+    return null;
+  }
+
+  return client;
+}
+
+function isMissingSingleRowError(error) {
+  return error?.code === "PGRST116";
+}
+
+function normalizeRequiredText(value, fallback = "") {
+  return String(value || fallback).trim();
+}
+
 export async function getCurrentSession() {
-  const { data, error } = await supabase.auth.getSession();
+  const client = getOptionalSupabase("getCurrentSession");
+
+  if (!client) {
+    return null;
+  }
+
+  const { data, error } = await client.auth.getSession();
 
   if (error) {
     throw error;
   }
 
-  return data.session;
+  return data?.session || null;
 }
 
 export async function signInWithEmailPassword(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+  const client = requireSupabase();
+
+  const cleanEmail = normalizeRequiredText(email);
+  const cleanPassword = normalizeRequiredText(password);
+
+  if (!cleanEmail || !cleanPassword) {
+    throw new Error("Email and password are required for Supabase login.");
+  }
+
+  const { data, error } = await client.auth.signInWithPassword({
+    email: cleanEmail,
+    password: cleanPassword,
   });
 
   if (error) {
@@ -24,7 +109,13 @@ export async function signInWithEmailPassword(email, password) {
 }
 
 export async function signOutUser() {
-  const { error } = await supabase.auth.signOut();
+  const client = getOptionalSupabase("signOutUser");
+
+  if (!client) {
+    return true;
+  }
+
+  const { error } = await client.auth.signOut();
 
   if (error) {
     throw error;
@@ -34,27 +125,39 @@ export async function signOutUser() {
 }
 
 export async function getCurrentProfile() {
+  const client = getOptionalSupabase("getCurrentProfile");
+
+  if (!client) {
+    return null;
+  }
+
   const session = await getCurrentSession();
 
   if (!session?.user?.id) {
     return null;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from("profiles")
     .select("*")
     .eq("id", session.user.id)
     .single();
 
-  if (error) {
+  if (error && !isMissingSingleRowError(error)) {
     throw error;
   }
 
-  return data;
+  return data || null;
 }
 
 export async function getExerciseLibrary() {
-  const { data, error } = await supabase
+  const client = getOptionalSupabase("getExerciseLibrary");
+
+  if (!client) {
+    return [];
+  }
+
+  const { data, error } = await client
     .from("exercise_library")
     .select("*")
     .order("name", { ascending: true });
@@ -67,7 +170,13 @@ export async function getExerciseLibrary() {
 }
 
 export async function getClients() {
-  const { data, error } = await supabase
+  const client = getOptionalSupabase("getClients");
+
+  if (!client) {
+    return [];
+  }
+
+  const { data, error } = await client
     .from("clients")
     .select("*")
     .order("created_at", { ascending: false });
@@ -79,15 +188,29 @@ export async function getClients() {
   return data || [];
 }
 
-export async function createClientRecord({ coachId, name, email, status = "Active", notes = "" }) {
-  const { data, error } = await supabase
+export async function createClientRecord({
+  coachId,
+  name,
+  email,
+  status = "Active",
+  notes = "",
+}) {
+  const client = requireSupabase();
+
+  const cleanName = normalizeRequiredText(name);
+
+  if (!cleanName) {
+    throw new Error("Client name is required.");
+  }
+
+  const { data, error } = await client
     .from("clients")
     .insert({
-      coach_id: coachId,
-      name,
-      email,
-      status,
-      notes,
+      coach_id: coachId || null,
+      name: cleanName,
+      email: normalizeRequiredText(email),
+      status: status || "Active",
+      notes: notes || "",
     })
     .select()
     .single();
@@ -100,7 +223,13 @@ export async function createClientRecord({ coachId, name, email, status = "Activ
 }
 
 export async function updateClientStatus(clientId, status) {
-  const { data, error } = await supabase
+  const client = requireSupabase();
+
+  if (!clientId) {
+    throw new Error("Client ID is required.");
+  }
+
+  const { data, error } = await client
     .from("clients")
     .update({ status })
     .eq("id", clientId)
@@ -115,7 +244,13 @@ export async function updateClientStatus(clientId, status) {
 }
 
 export async function getWorkoutPlansWithDetails() {
-  const { data, error } = await supabase
+  const client = getOptionalSupabase("getWorkoutPlansWithDetails");
+
+  if (!client) {
+    return [];
+  }
+
+  const { data, error } = await client
     .from("workout_plans")
     .select(`
       *,
@@ -139,12 +274,20 @@ export async function createWorkoutPlanWithDetails({
   planName,
   days = [],
 }) {
-  const { data: plan, error: planError } = await supabase
+  const client = requireSupabase();
+
+  const cleanPlanName = normalizeRequiredText(planName);
+
+  if (!cleanPlanName) {
+    throw new Error("Plan name is required.");
+  }
+
+  const { data: plan, error: planError } = await client
     .from("workout_plans")
     .insert({
-      coach_id: coachId,
-      client_id: clientId,
-      plan_name: planName,
+      coach_id: coachId || null,
+      client_id: clientId || null,
+      plan_name: cleanPlanName,
       status: "Active",
     })
     .select()
@@ -157,7 +300,7 @@ export async function createWorkoutPlanWithDetails({
   for (let dayIndex = 0; dayIndex < days.length; dayIndex += 1) {
     const day = days[dayIndex];
 
-    const { data: workoutDay, error: dayError } = await supabase
+    const { data: workoutDay, error: dayError } = await client
       .from("workout_days")
       .insert({
         plan_id: plan.id,
@@ -171,13 +314,13 @@ export async function createWorkoutPlanWithDetails({
       throw dayError;
     }
 
-    const exercises = day.exercises || [];
+    const exercises = Array.isArray(day.exercises) ? day.exercises : [];
 
     if (exercises.length > 0) {
       const exerciseRows = exercises.map((exercise, exerciseIndex) => ({
         workout_day_id: workoutDay.id,
         exercise_library_id: exercise.exerciseLibraryId || null,
-        exercise_name: exercise.exerciseName,
+        exercise_name: exercise.exerciseName || "Exercise",
         exercise_order: exerciseIndex + 1,
         sets: exercise.sets || "",
         reps_or_time: exercise.repsOrTime || "",
@@ -186,7 +329,7 @@ export async function createWorkoutPlanWithDetails({
         coach_notes: exercise.notes || "",
       }));
 
-      const { error: exerciseError } = await supabase
+      const { error: exerciseError } = await client
         .from("plan_exercises")
         .insert(exerciseRows);
 
@@ -200,7 +343,13 @@ export async function createWorkoutPlanWithDetails({
 }
 
 export async function getWorkoutLogsWithEntries() {
-  const { data, error } = await supabase
+  const client = getOptionalSupabase("getWorkoutLogsWithEntries");
+
+  if (!client) {
+    return [];
+  }
+
+  const { data, error } = await client
     .from("workout_logs")
     .select(`
       *,
@@ -225,7 +374,17 @@ export async function createWorkoutLogWithEntries({
   skipReason = "",
   entries = [],
 }) {
-  const { data: workoutLog, error: logError } = await supabase
+  const client = requireSupabase();
+
+  if (!clientId) {
+    throw new Error("Client ID is required.");
+  }
+
+  if (!status) {
+    throw new Error("Workout status is required.");
+  }
+
+  const { data: workoutLog, error: logError } = await client
     .from("workout_logs")
     .insert({
       client_id: clientId,
@@ -243,11 +402,13 @@ export async function createWorkoutLogWithEntries({
     throw logError;
   }
 
-  if (entries.length > 0) {
-    const entryRows = entries.map((entry) => ({
+  const safeEntries = Array.isArray(entries) ? entries : [];
+
+  if (safeEntries.length > 0) {
+    const entryRows = safeEntries.map((entry) => ({
       workout_log_id: workoutLog.id,
       plan_exercise_id: entry.planExerciseId || null,
-      exercise_name: entry.exerciseName,
+      exercise_name: entry.exerciseName || "Exercise",
       actual_weight: entry.actualWeight || "",
       sets_completed: entry.setsCompleted || "",
       reps_completed: entry.repsCompleted || "",
@@ -257,7 +418,7 @@ export async function createWorkoutLogWithEntries({
       client_notes: entry.notes || "",
     }));
 
-    const { error: entryError } = await supabase
+    const { error: entryError } = await client
       .from("workout_entries")
       .insert(entryRows);
 
@@ -270,7 +431,13 @@ export async function createWorkoutLogWithEntries({
 }
 
 export async function getMessagesForClient(clientId) {
-  const { data, error } = await supabase
+  const client = getOptionalSupabase("getMessagesForClient");
+
+  if (!client || !clientId) {
+    return [];
+  }
+
+  const { data, error } = await client
     .from("messages")
     .select("*")
     .eq("client_id", clientId)
@@ -289,15 +456,29 @@ export async function sendMessage({
   senderRole,
   body,
 }) {
-  const { data, error } = await supabase
+  const client = requireSupabase();
+
+  const cleanBody = normalizeRequiredText(body);
+
+  if (!clientId) {
+    throw new Error("Client ID is required.");
+  }
+
+  if (!cleanBody) {
+    throw new Error("Message body is required.");
+  }
+
+  const cleanSenderRole = String(senderRole || "coach").toLowerCase();
+
+  const { data, error } = await client
     .from("messages")
     .insert({
       client_id: clientId,
       sender_profile_id: senderProfileId,
-      sender_role: senderRole,
-      body,
-      unread_for_coach: senderRole === "client",
-      unread_for_client: senderRole === "coach",
+      sender_role: cleanSenderRole,
+      body: cleanBody,
+      unread_for_coach: cleanSenderRole === "client",
+      unread_for_client: cleanSenderRole === "coach",
     })
     .select()
     .single();
@@ -310,12 +491,18 @@ export async function sendMessage({
 }
 
 export async function markMessagesRead(clientId, readerRole) {
+  const client = requireSupabase();
+
+  if (!clientId) {
+    throw new Error("Client ID is required.");
+  }
+
   const updatePayload =
     readerRole === "coach"
       ? { unread_for_coach: false }
       : { unread_for_client: false };
 
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from("messages")
     .update(updatePayload)
     .eq("client_id", clientId)
@@ -329,7 +516,13 @@ export async function markMessagesRead(clientId, readerRole) {
 }
 
 export async function getNotifications() {
-  const { data, error } = await supabase
+  const client = getOptionalSupabase("getNotifications");
+
+  if (!client) {
+    return [];
+  }
+
+  const { data, error } = await client
     .from("notifications")
     .select("*")
     .order("created_at", { ascending: false });
@@ -342,7 +535,13 @@ export async function getNotifications() {
 }
 
 export async function markNotificationRead(notificationId) {
-  const { data, error } = await supabase
+  const client = requireSupabase();
+
+  if (!notificationId) {
+    throw new Error("Notification ID is required.");
+  }
+
+  const { data, error } = await client
     .from("notifications")
     .update({ is_read: true })
     .eq("id", notificationId)
@@ -357,12 +556,18 @@ export async function markNotificationRead(notificationId) {
 }
 
 export async function getNotificationPreferences() {
-  const { data, error } = await supabase
+  const client = getOptionalSupabase("getNotificationPreferences");
+
+  if (!client) {
+    return null;
+  }
+
+  const { data, error } = await client
     .from("notification_preferences")
     .select("*")
     .single();
 
-  if (error && error.code !== "PGRST116") {
+  if (error && !isMissingSingleRowError(error)) {
     throw error;
   }
 
@@ -370,7 +575,13 @@ export async function getNotificationPreferences() {
 }
 
 export async function upsertNotificationPreferences(preferences) {
-  const { data, error } = await supabase
+  const client = requireSupabase();
+
+  if (!preferences || typeof preferences !== "object") {
+    throw new Error("Notification preferences are required.");
+  }
+
+  const { data, error } = await client
     .from("notification_preferences")
     .upsert(preferences, { onConflict: "coach_id" })
     .select()
