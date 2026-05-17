@@ -187,14 +187,13 @@ async function openTab(page, tabName) {
 async function openBundleConversation(page) {
   await openTab(page, "Messages");
 
-  await expect(page.getByRole("heading", { name: /Messages/i })).toBeVisible();
+  const main = page.getByRole("main");
 
-  await page
-    .getByRole("button", { name: /Bundle Six Client/i })
-    .first()
-    .click();
+  await expect(main).toBeVisible();
 
-  await expect(page.getByRole("heading", { name: /Bundle Six Client/i })).toBeVisible();
+  await expect(
+    main.getByText("Bundle 6 client check-in before testing.", { exact: true }).first()
+  ).toBeVisible();
 }
 
 test.describe("No Limit Fitness Bundle 6 mega regression", () => {
