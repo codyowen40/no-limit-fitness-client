@@ -63,7 +63,7 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
 
     await expect(nav.getByRole("button", { name: /^Home$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Client$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Exercises$/ })).toBeVisible();
+    await expect(nav.getByRole("button", { name: /^Exercises$/ })).toHaveCount(0);
     await expect(nav.getByRole("button", { name: /^Messages(?:\s+\d+)?$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Progress$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Tracker$/ })).toBeVisible();

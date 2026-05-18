@@ -528,15 +528,7 @@ const PORTAL_VISIBLE_TABS_BY_MODE = {
     "Progress",
     "Login",
   ],
-  client: [
-    "Home",
-    "Client",
-    "Tracker",
-    "Messages",
-    "Exercises",
-    "Progress",
-    "Login",
-  ],
+  client: ["Home", "Client", "Messages", "Progress", "Tracker", "Login"],
 };
 
 const PORTAL_LANDING_TAB_BY_MODE = {
@@ -918,6 +910,341 @@ function CoachClientAssignmentPanel({
   );
 }
 // NLF_COACH_ASSIGNMENT_HELPERS_END
+
+// NLF_CLIENT_PORTAL_POLISH_HELPERS_START
+function getFriendlyClientName(client) {
+  return client?.name || client?.fullName || client?.clientName || "Client";
+}
+
+function getFriendlyPlanTitle(plan) {
+  return (
+    plan?.title ||
+    plan?.name ||
+    plan?.planName ||
+    plan?.programName ||
+    "Assigned Training Plan"
+  );
+}
+
+function getFriendlyPlanGoal(plan) {
+  return (
+    plan?.goal ||
+    plan?.focus ||
+    plan?.trainingGoal ||
+    plan?.description ||
+    "Follow the assigned workouts and log notes after each session."
+  );
+}
+
+function getFriendlyPlanDays(plan) {
+  if (!plan || typeof plan !== "object") return [];
+
+  const possibleArrays = [
+    plan.days,
+    plan.workouts,
+    plan.trainingDays,
+    plan.weeklyPlan,
+    plan.sessions,
+  ];
+
+  for (const possibleArray of possibleArrays) {
+    if (Array.isArray(possibleArray)) {
+      return possibleArray;
+    }
+  }
+
+  if (plan.week && typeof plan.week === "object") {
+    return Object.entries(plan.week).map(([dayName, dayValue]) => ({
+      day: dayName,
+      ...(typeof dayValue === "object" && dayValue ? dayValue : { notes: String(dayValue) }),
+    }));
+  }
+
+  return [];
+}
+
+function getFriendlyDayTitle(day, index) {
+  return (
+    day?.title ||
+    day?.name ||
+    day?.day ||
+    day?.label ||
+    day?.focus ||
+    "Workout Day " + (index + 1)
+  );
+}
+
+function getFriendlyDayExercises(day) {
+  if (!day || typeof day !== "object") return [];
+
+  const possibleArrays = [
+    day.exercises,
+    day.movements,
+    day.lifts,
+    day.items,
+    day.blocks,
+  ];
+
+  for (const possibleArray of possibleArrays) {
+    if (Array.isArray(possibleArray)) {
+      return possibleArray;
+    }
+  }
+
+  return [];
+}
+
+function getFriendlyExerciseName(exercise) {
+  if (typeof exercise === "string") return exercise;
+
+  return (
+    exercise?.exercise ||
+    exercise?.name ||
+    exercise?.movement ||
+    exercise?.lift ||
+    "Exercise"
+  );
+}
+
+function getFriendlyExerciseDose(exercise) {
+  if (!exercise || typeof exercise === "string") return "See coach notes";
+
+  const sets = exercise.sets || exercise.set || "";
+  const reps = exercise.reps || exercise.repRange || exercise.targetReps || "";
+  const rest = exercise.rest || exercise.restTime || "";
+
+  const pieces = [];
+
+  if (sets || reps) {
+    pieces.push([sets, reps].filter(Boolean).join(" x "));
+  }
+
+  if (rest) {
+    pieces.push("Rest " + rest);
+  }
+
+  return pieces.join(" • ") || exercise.notes || "See coach notes";
+}
+
+function findFriendlyAssignedPlan({ clients, savedPlans }) {
+  const safeClients = Array.isArray(clients) ? clients : [];
+  const safePlans = Array.isArray(savedPlans) ? savedPlans : [];
+
+  const activeClient =
+    safeClients.find((client) => getClientCoachingStatus(client) === "active") ||
+    safeClients[0] ||
+    null;
+
+  if (!safePlans.length) {
+    return {
+      client: activeClient,
+      plan: null,
+      planDays: [],
+      todayDay: null,
+    };
+  }
+
+  const assignedPlan =
+    safePlans.find(
+      (plan) =>
+        plan.clientId === activeClient?.id ||
+        plan.assignedClientId === activeClient?.id ||
+        plan.client === activeClient?.id ||
+        plan.client === activeClient?.name ||
+        plan.assignedTo === activeClient?.id ||
+        plan.assignedTo === activeClient?.name
+    ) || safePlans[0];
+
+  const planDays = getFriendlyPlanDays(assignedPlan);
+  const todayDay = planDays[0] || null;
+
+  return {
+    client: activeClient,
+    plan: assignedPlan,
+    planDays,
+    todayDay,
+  };
+}
+
+function ClientPortalMyPlanPanel({
+  clients,
+  savedPlans,
+  workoutLogs,
+  onOpenTracker,
+  onOpenMessages,
+  onOpenProgress,
+}) {
+  const { client, plan, planDays, todayDay } = findFriendlyAssignedPlan({
+    clients,
+    savedPlans,
+  });
+
+  const recentLogs = Array.isArray(workoutLogs) ? workoutLogs.slice(-3).reverse() : [];
+  const todayExercises = getFriendlyDayExercises(todayDay).slice(0, 5);
+
+  return (
+    <section
+      aria-label="Client My Plan dashboard"
+      className="mb-6 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-5 shadow-2xl shadow-black/40"
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-[#00BF63]">
+            My Plan
+          </p>
+          <h1 className="mt-2 text-3xl font-black text-white">
+            {client ? getFriendlyClientName(client) + "'s Training" : "Client Training Plan"}
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Simple view for what to do next, how to log it, and where to message your coach.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onOpenTracker}
+            className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-black transition hover:bg-[#00d36f]"
+          >
+            Log Workout
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenMessages}
+            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+          >
+            Message Coach
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenProgress}
+            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+          >
+            View Progress
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <article className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-white/40">
+            Today's Workout
+          </p>
+
+          {plan ? (
+            <>
+              <h2 className="mt-2 text-2xl font-black text-white">
+                {getFriendlyDayTitle(todayDay, 0)}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-white/60">
+                {getFriendlyPlanTitle(plan)} — {getFriendlyPlanGoal(plan)}
+              </p>
+
+              <div className="mt-4 grid gap-2">
+                {todayExercises.length > 0 ? (
+                  todayExercises.map((exercise, index) => (
+                    <div
+                      key={index}
+                      className="rounded-2xl border border-white/10 bg-black/40 p-3"
+                    >
+                      <p className="font-black text-white">
+                        {index + 1}. {getFriendlyExerciseName(exercise)}
+                      </p>
+                      <p className="mt-1 text-sm text-white/55">
+                        {getFriendlyExerciseDose(exercise)}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/45">
+                    No exercise rows found yet. Ask your coach to assign or update the plan.
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="mt-4 rounded-2xl border border-dashed border-white/10 p-4">
+              <h2 className="text-xl font-black text-white">
+                No assigned plan found yet.
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-white/60">
+                Once your coach assigns a plan, this area will show your workout, notes, and quick logging options.
+              </p>
+            </div>
+          )}
+        </article>
+
+        <article className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-white/40">
+            This Week
+          </p>
+
+          <div className="mt-4 grid gap-2">
+            {planDays.length > 0 ? (
+              planDays.slice(0, 5).map((day, index) => (
+                <div
+                  key={index}
+                  className="rounded-2xl border border-white/10 bg-black/40 p-3"
+                >
+                  <p className="font-black text-white">
+                    {getFriendlyDayTitle(day, index)}
+                  </p>
+                  <p className="mt-1 text-sm text-white/50">
+                    {getFriendlyDayExercises(day).length || "Coach-set"} movements
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/45">
+                Weekly plan preview will show here after assignment.
+              </p>
+            )}
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-4">
+            <p className="text-sm font-black text-[#00BF63]">Coach Reminder</p>
+            <p className="mt-1 text-sm leading-6 text-white/65">
+              Log what you actually completed. Add notes for pain, swaps, missed reps, energy, or questions.
+            </p>
+          </div>
+        </article>
+      </div>
+
+      <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/40">
+              Recent Activity
+            </p>
+            <p className="mt-1 text-sm text-white/55">
+              Your last logged notes and workouts will help your coach adjust the plan.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 grid gap-2">
+          {recentLogs.length > 0 ? (
+            recentLogs.map((log, index) => (
+              <p
+                key={log.id || index}
+                className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/60"
+              >
+                {log.notes || log.clientNotes || log.summary || log.status || "Workout logged"}
+              </p>
+            ))
+          ) : (
+            <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/45">
+              No recent workout logs yet. Use Tracker after your workout.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+// NLF_CLIENT_PORTAL_POLISH_HELPERS_END
 
 export default function App() {
   const [initialState] = useState(loadInitialState);
@@ -2015,6 +2342,18 @@ function handlePortalLogout() {
         </header>
 
         <main className="mx-auto max-w-7xl px-4 py-8">
+        {/* NLF_CLIENT_PORTAL_POLISH_PANEL_START */}
+        {activeTab === "Client" && normalizedPortalMode === "client" && (
+          <ClientPortalMyPlanPanel
+            clients={clients}
+            savedPlans={savedPlans}
+            workoutLogs={workoutLogs}
+            onOpenTracker={() => setActiveTab("Tracker")}
+            onOpenMessages={() => setActiveTab("Messages")}
+            onOpenProgress={() => setActiveTab("Progress")}
+          />
+        )}
+        {/* NLF_CLIENT_PORTAL_POLISH_PANEL_END */}
         {/* NLF_COACH_ASSIGNMENT_PANEL_START */}
         {activeTab === "Clients" && normalizedPortalMode !== "client" && (
           <CoachClientAssignmentPanel

@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 
+const LOCAL_URL = "http://localhost:5173/";
+const TEST_UNLOCK_URL = "http://localhost:5173/?testUnlock=true";
+
 const PORTAL_MODE_KEY = "no-limit-fitness-portal-mode-v1";
 const TEST_UNLOCK_KEY = "no-limit-fitness-test-unlocked-v1";
 
@@ -9,7 +12,7 @@ async function openCleanPublicUrl(page) {
     window.localStorage.removeItem(testUnlockKey);
   }, { portalModeKey: PORTAL_MODE_KEY, testUnlockKey: TEST_UNLOCK_KEY });
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
 }
 
 async function openInternalDemoUrl(page) {
@@ -18,7 +21,7 @@ async function openInternalDemoUrl(page) {
     window.localStorage.setItem(testUnlockKey, "true");
   }, { portalModeKey: PORTAL_MODE_KEY, testUnlockKey: TEST_UNLOCK_KEY });
 
-  await page.goto("/?testUnlock=true", { waitUntil: "domcontentloaded" });
+  await page.goto(TEST_UNLOCK_URL, { waitUntil: "domcontentloaded" });
 }
 
 async function expectNavButton(nav, namePattern) {
@@ -30,7 +33,7 @@ async function expectNoNavButton(nav, namePattern) {
 }
 
 test.describe("No Limit Fitness public client URL", () => {
-  test("opens clean URL directly into the client portal without demo controls", async ({ page }) => {
+  test("opens clean URL directly into the slim client portal without demo controls", async ({ page }) => {
     await openCleanPublicUrl(page);
 
     const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
@@ -45,20 +48,23 @@ test.describe("No Limit Fitness public client URL", () => {
 
     await expectNavButton(nav, /^Home$/);
     await expectNavButton(nav, /^Client$/);
-    await expectNavButton(nav, /^Exercises$/);
     await expectNavButton(nav, /^Messages(?:\s+\d+)?$/);
     await expectNavButton(nav, /^Progress$/);
     await expectNavButton(nav, /^Tracker$/);
     await expectNavButton(nav, /^(Login|Logout)$/);
 
+    await expectNoNavButton(nav, /^Exercises$/);
     await expectNoNavButton(nav, /^Coach$/);
     await expectNoNavButton(nav, /^Clients$/);
     await expectNoNavButton(nav, /^Plans$/);
 
-    await expect(page.locator("main")).toContainText(/Client|Dashboard|Messages|Progress|Tracker/i);
+    await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
+    await expect(page.locator("main")).toContainText("My Plan");
+    await expect(page.locator("main")).toContainText("Today's Workout");
+    await expect(page.locator("main")).toContainText("This Week");
   });
 
-  test("keeps internal demo preview available through the test unlock URL without requiring visible switcher controls", async ({ page }) => {
+  test("keeps full internal demo preview available through the test unlock URL", async ({ page }) => {
     await openInternalDemoUrl(page);
 
     const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
