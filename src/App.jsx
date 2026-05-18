@@ -663,6 +663,262 @@ function PortalModeControls({ portalMode, setPortalMode, setActiveTab }) {
   );
 }
 
+// NLF_COACH_ASSIGNMENT_HELPERS_START
+const NLF_COACH_ASSIGNMENT = {
+  coachId: "coach-demo",
+  coachName: "Coach",
+};
+
+function getClientCoachingStatus(client) {
+  const explicitStatus = String(client?.coachingStatus || "").toLowerCase();
+  const legacyStatus = String(client?.status || "").toLowerCase();
+
+  if (explicitStatus === "archived" || legacyStatus === "archived") return "archived";
+  if (explicitStatus === "active") return "active";
+  if (explicitStatus === "unassigned") return "unassigned";
+  if (client?.coachId || client?.coachName) return "active";
+
+  return "unassigned";
+}
+
+function normalizeClientCoachingRecord(client, index = 0) {
+  const status = getClientCoachingStatus(client);
+  const nowLabel = client?.assignedAt || "";
+
+  return {
+    ...client,
+    coachingStatus: status,
+    coachId: status === "active" ? client?.coachId || NLF_COACH_ASSIGNMENT.coachId : client?.coachId || "",
+    coachName: status === "active" ? client?.coachName || NLF_COACH_ASSIGNMENT.coachName : client?.coachName || "",
+    assignedAt: status === "active" ? nowLabel : client?.assignedAt || "",
+    archivedAt: status === "archived" ? client?.archivedAt || nowLabel : client?.archivedAt || "",
+    archiveReason: client?.archiveReason || "",
+    clientSortIndex: index,
+  };
+}
+
+function formatClientAssignmentDate(value) {
+  if (!value) return "Not set";
+
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return String(value);
+
+  return new Date(parsed).toLocaleDateString();
+}
+
+function getClientStatusBadgeClass(status) {
+  if (status === "active") {
+    return "border-[#00BF63]/40 bg-[#00BF63]/15 text-[#00BF63]";
+  }
+
+  if (status === "archived") {
+    return "border-zinc-500/40 bg-zinc-500/10 text-zinc-300";
+  }
+
+  return "border-yellow-400/40 bg-yellow-400/10 text-yellow-300";
+}
+
+function getClientStatusLabel(status) {
+  if (status === "active") return "Active";
+  if (status === "archived") return "Archived";
+  return "Unassigned";
+}
+
+function CoachClientAssignmentPanel({
+  clients,
+  clientActionNotice,
+  onAssignClient,
+  onArchiveClient,
+  onReactivateClient,
+  onViewArchivedClient,
+}) {
+  const normalizedClients = clients.map((client, index) =>
+    normalizeClientCoachingRecord(client, index)
+  );
+
+  const activeClients = normalizedClients.filter(
+    (client) => client.coachingStatus === "active"
+  );
+  const unassignedClients = normalizedClients.filter(
+    (client) => client.coachingStatus === "unassigned"
+  );
+  const archivedClients = normalizedClients.filter(
+    (client) => client.coachingStatus === "archived"
+  );
+
+  const groups = [
+    {
+      id: "active",
+      title: "Active Clients",
+      description: "Currently coached clients visible in normal coach workflow.",
+      clients: activeClients,
+      empty: "No active assigned clients yet.",
+    },
+    {
+      id: "unassigned",
+      title: "Unassigned Clients",
+      description: "Clients created or imported but not attached to this coach yet.",
+      clients: unassignedClients,
+      empty: "No unassigned clients.",
+    },
+    {
+      id: "archived",
+      title: "Archived Clients",
+      description: "Past clients are hidden from active coaching but their data stays saved.",
+      clients: archivedClients,
+      empty: "No archived clients yet.",
+    },
+  ];
+
+  const renderClientCard = (client) => {
+    const status = getClientCoachingStatus(client);
+    const badgeClass = getClientStatusBadgeClass(status);
+
+    return (
+      <article
+        key={client.id}
+        className="rounded-2xl border border-white/10 bg-black/50 p-4"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="text-base font-black text-white">{client.name}</h4>
+              <span
+                className={
+                  "rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.2em] " +
+                  badgeClass
+                }
+              >
+                {getClientStatusLabel(status)}
+              </span>
+            </div>
+
+            <p className="mt-1 text-sm text-white/60">{client.email || "No email saved"}</p>
+
+            <div className="mt-3 grid gap-2 text-xs font-bold text-white/50 sm:grid-cols-2">
+              <p>Coach: {client.coachName || "Not assigned"}</p>
+              <p>Assigned: {formatClientAssignmentDate(client.assignedAt)}</p>
+              <p>Archived: {formatClientAssignmentDate(client.archivedAt)}</p>
+              <p>Reason: {client.archiveReason || "None"}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {status === "unassigned" && (
+              <button
+                type="button"
+                onClick={() => onAssignClient(client.id)}
+                className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-black transition hover:bg-[#00d36f]"
+              >
+                Assign to Me
+              </button>
+            )}
+
+            {status === "active" && (
+              <button
+                type="button"
+                onClick={() => onArchiveClient(client.id)}
+                className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:border-yellow-400 hover:text-yellow-300"
+              >
+                Archive Client
+              </button>
+            )}
+
+            {status === "archived" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onReactivateClient(client.id)}
+                  className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-black transition hover:bg-[#00d36f]"
+                >
+                  Reactivate Client
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onViewArchivedClient(client.id)}
+                  className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                >
+                  View Past Data
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  };
+
+  return (
+    <section
+      aria-label="Coach client assignment manager"
+      className="mb-6 rounded-3xl border border-[#00BF63]/25 bg-black/70 p-5 shadow-2xl shadow-black/30"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-[#00BF63]">
+            Coach Assignment
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-white">
+            Assign, Archive, and Review Clients
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Keep active coaching clean. Assign new clients, archive clients you are no longer coaching, and keep past data available for review.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 text-center text-xs font-black uppercase tracking-[0.16em]">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <p className="text-[#00BF63]">{activeClients.length}</p>
+            <p className="mt-1 text-white/50">Active</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <p className="text-yellow-300">{unassignedClients.length}</p>
+            <p className="mt-1 text-white/50">Open</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <p className="text-zinc-300">{archivedClients.length}</p>
+            <p className="mt-1 text-white/50">Archived</p>
+          </div>
+        </div>
+      </div>
+
+      {clientActionNotice && (
+        <p className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-3 text-sm font-black text-[#00BF63]">
+          {clientActionNotice}
+        </p>
+      )}
+
+      <div className="mt-5 grid gap-4">
+        {groups.map((group) => (
+          <div key={group.id} className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h3 className="text-lg font-black text-white">{group.title}</h3>
+                <p className="text-sm text-white/55">{group.description}</p>
+              </div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                {group.clients.length} total
+              </p>
+            </div>
+
+            <div className="grid gap-3">
+              {group.clients.length > 0 ? (
+                group.clients.map(renderClientCard)
+              ) : (
+                <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/45">
+                  {group.empty}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+// NLF_COACH_ASSIGNMENT_HELPERS_END
+
 export default function App() {
   const [initialState] = useState(loadInitialState);
   const [activeTab, setActiveTab] = useState(() => {
@@ -760,6 +1016,97 @@ export default function App() {
   const [localSaveNotice, setLocalSaveNotice] = useState(
     "Local saving is active. Clients, plans, logs, skipped reasons, messages, unread indicators, activity read status, plan editing, notification preferences, backend placeholders, and workout log details will stay after refresh."
   );
+
+  // NLF_COACH_ASSIGNMENT_STATE_START
+  const normalizedCoachClients = useMemo(
+    () => clients.map((client, index) => normalizeClientCoachingRecord(client, index)),
+    [clients]
+  );
+
+  const assignClientToCoach = (clientId) => {
+    const assignedAt = new Date().toISOString();
+
+    setClients((previousClients) =>
+      previousClients.map((client) =>
+        client.id === clientId
+          ? {
+              ...normalizeClientCoachingRecord(client),
+              coachId: NLF_COACH_ASSIGNMENT.coachId,
+              coachName: NLF_COACH_ASSIGNMENT.coachName,
+              coachingStatus: "active",
+              status: "Active",
+              assignedAt: client.assignedAt || assignedAt,
+              archivedAt: "",
+              archiveReason: "",
+            }
+          : client
+      )
+    );
+
+    const clientName =
+      clients.find((client) => client.id === clientId)?.name || "Client";
+
+    setClientActionNotice(clientName + " assigned to Coach.");
+  };
+
+  const archiveClientForCoach = (clientId) => {
+    const archivedAt = new Date().toISOString();
+
+    setClients((previousClients) =>
+      previousClients.map((client) =>
+        client.id === clientId
+          ? {
+              ...normalizeClientCoachingRecord(client),
+              coachingStatus: "archived",
+              status: "Archived",
+              archivedAt,
+              archiveReason: client.archiveReason || "No longer actively coached",
+            }
+          : client
+      )
+    );
+
+    const clientName =
+      clients.find((client) => client.id === clientId)?.name || "Client";
+
+    setClientActionNotice(clientName + " archived. Past data is still available.");
+  };
+
+  const reactivateClientForCoach = (clientId) => {
+    const assignedAt = new Date().toISOString();
+
+    setClients((previousClients) =>
+      previousClients.map((client) =>
+        client.id === clientId
+          ? {
+              ...normalizeClientCoachingRecord(client),
+              coachId: NLF_COACH_ASSIGNMENT.coachId,
+              coachName: NLF_COACH_ASSIGNMENT.coachName,
+              coachingStatus: "active",
+              status: "Active",
+              assignedAt: client.assignedAt || assignedAt,
+              archivedAt: "",
+              archiveReason: "",
+            }
+          : client
+      )
+    );
+
+    const clientName =
+      clients.find((client) => client.id === clientId)?.name || "Client";
+
+    setClientActionNotice(clientName + " reactivated for active coaching.");
+  };
+
+  const viewArchivedClientForCoach = (clientId) => {
+    setSelectedClientProfileId(clientId);
+
+    const clientName =
+      clients.find((client) => client.id === clientId)?.name || "Client";
+
+    setClientActionNotice("Viewing saved history for " + clientName + ".");
+  };
+  // NLF_COACH_ASSIGNMENT_STATE_END
 
   useEffect(() => {
     saveStateToLocalStorage({ clients, savedPlans, workoutLogs, conversations, readActivityIds, notificationPreferences, backendSettings });
@@ -1668,6 +2015,18 @@ function handlePortalLogout() {
         </header>
 
         <main className="mx-auto max-w-7xl px-4 py-8">
+        {/* NLF_COACH_ASSIGNMENT_PANEL_START */}
+        {activeTab === "Clients" && normalizedPortalMode !== "client" && (
+          <CoachClientAssignmentPanel
+            clients={normalizedCoachClients}
+            clientActionNotice={clientActionNotice}
+            onAssignClient={assignClientToCoach}
+            onArchiveClient={archiveClientForCoach}
+            onReactivateClient={reactivateClientForCoach}
+            onViewArchivedClient={viewArchivedClientForCoach}
+          />
+        )}
+        {/* NLF_COACH_ASSIGNMENT_PANEL_END */}
           {activeTab === "Home" && (
             <HomeScreen
               setActiveTab={setActiveTab}
