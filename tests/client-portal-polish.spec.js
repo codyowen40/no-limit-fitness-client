@@ -117,6 +117,15 @@ test.describe("No Limit Fitness client portal polish", () => {
 
     await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
 
+    await expect(page.getByLabel("Mobile nutrition coach card")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Open Nutrition Coach$/ })).toBeVisible();
+    await expect(page.getByLabel("No Limit Nutrition Coach")).toBeHidden();
+
+    await page.getByRole("button", { name: /^Open Nutrition Coach$/ }).click();
+    await expect(page.locator("main")).toContainText("What do you need help with today?");
+    await expect(page.getByRole("button", { name: /^Build My Target$/ })).toBeVisible();
+
+
     await expect(mobileNav.getByRole("button", { name: /^My Plan$/ })).toBeVisible();
     await expect(mobileNav.getByRole("button", { name: /^Log$/ })).toBeVisible();
     await expect(mobileNav.getByRole("button", { name: /^Progress$/ })).toBeVisible();

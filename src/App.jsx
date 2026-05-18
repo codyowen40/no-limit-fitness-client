@@ -1082,6 +1082,7 @@ function ClientPortalMyPlanPanel({
 
   const recentLogs = Array.isArray(workoutLogs) ? workoutLogs.slice(-3).reverse() : [];
   const todayExercises = getFriendlyDayExercises(todayDay).slice(0, 5);
+  const [isNutritionCoachOpen, setIsNutritionCoachOpen] = useState(false);
 
   return (
     <section
@@ -1213,7 +1214,38 @@ function ClientPortalMyPlanPanel({
         </article>
       </div>
 
-      <ClientNutritionMacroHelper />
+      <section
+        aria-label="Mobile nutrition coach card"
+        className="rounded-3xl border border-[#00BF63]/25 bg-black/55 p-5 shadow-xl shadow-black/30 md:hidden"
+      >
+        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
+          Nutrition
+        </p>
+        <h3 className="mt-2 text-2xl font-black uppercase text-white">
+          No Limit Nutrition Coach
+        </h3>
+        <p className="mt-2 text-sm font-semibold leading-6 text-white/65">
+          Build target calories/macros or check a meal when you need it. This keeps the mobile dashboard clean while still keeping the full tool one tap away.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setIsNutritionCoachOpen((current) => !current)}
+          className="mt-4 w-full rounded-2xl border border-[#00BF63]/40 bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-wide text-black shadow-lg shadow-[#00BF63]/20 transition hover:bg-white"
+        >
+          {isNutritionCoachOpen ? "Hide Nutrition Coach" : "Open Nutrition Coach"}
+        </button>
+      </section>
+
+      {isNutritionCoachOpen && (
+        <div className="md:hidden">
+          <ClientNutritionMacroHelper />
+        </div>
+      )}
+
+      <div className="hidden md:block">
+        <ClientNutritionMacroHelper />
+      </div>
 
       <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
         <div className="flex items-center justify-between gap-3">
