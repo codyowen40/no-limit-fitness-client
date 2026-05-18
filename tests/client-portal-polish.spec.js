@@ -53,18 +53,49 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(page.getByRole("button", { name: /Message Coach/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /View Progress/i })).toBeVisible();
 
-    await expect(page.locator("main")).toContainText("AI Nutrition Helper");
-    await expect(page.locator("main")).toContainText("Calories & Macros");
-    await expect(page.getByLabel("Body weight in pounds")).toBeVisible();
+    await expect(page.getByLabel("No Limit Nutrition Coach")).toBeVisible();
+    await expect(page.locator("main")).toContainText("What do you need help with today?");
+    await expect(page.getByRole("button", { name: /^Build My Target$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Check What I Ate$/ })).toBeVisible();
 
-    await page.getByLabel("Body weight in pounds").fill("200");
-    await page.getByLabel("Nutrition goal").selectOption("lean-bulk");
-    await page.getByLabel("Activity level").selectOption("high");
+    await page.getByRole("button", { name: /^Build My Target$/ }).click();
+
+    await expect(page.locator("main")).toContainText("Basic Questions");
+
+    await page.getByLabel("Sex").selectOption("male");
+    await page.getByLabel("Age").fill("32");
+    await page.getByLabel("Height feet").fill("6");
+    await page.getByLabel("Height inches").fill("0");
+    await page.getByLabel("Current body weight in pounds").fill("200");
+    await page.getByLabel("Main goal").selectOption("lean-bulk");
     await page.getByLabel("Meals per day").selectOption("4");
+    await page.getByLabel("Job or daily activity").selectOption("physical-job");
 
+    await page.getByRole("button", { name: /Show My Target/i }).click();
+
+    await expect(page.locator("main")).toContainText("estimated maintenance");
     await expect(page.locator("main")).toContainText("Lean Bulk");
-    await expect(page.locator("main")).toContainText("Simple Meal Breakdown");
-    await expect(page.locator("main")).toContainText("per meal");
+    await expect(page.locator("main")).toContainText("Goal Comparison");
+    await expect(page.locator("main")).toContainText("Calories Are The Baseline");
+    await expect(page.locator("main")).toContainText("Example Flexible Option");
+    await expect(page.locator("main")).toContainText("meals do not have to be split perfectly even");
+
+    await page.getByRole("button", { name: /^Check What I Ate$/ }).click();
+
+    await expect(page.locator("main")).toContainText("Portion-Smart Meal Check");
+    await expect(page.locator("main")).toContainText("Portion size + brand + cooking method");
+
+    await page
+      .getByLabel("Meal description")
+      .fill("3 eggs, 2 pieces of toast, a banana, and a Premier Protein shake");
+
+    await page.getByRole("button", { name: /Estimate Meal/i }).click();
+
+    await expect(page.locator("main")).toContainText("Estimated Meal Feedback");
+    await expect(page.locator("main")).toContainText("Estimate confidence");
+    await expect(page.locator("main")).toContainText("Good protein");
+    await expect(page.locator("main")).toContainText("Accuracy Note");
+    await expect(page.locator("main")).toContainText("One Helpful Follow-Up");
 
     await nav.getByRole("button", { name: /^Exercises$/ }).click();
     await expect(page.locator("main")).toContainText("Exercise Library");
