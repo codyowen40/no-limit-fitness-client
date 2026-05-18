@@ -168,5 +168,12 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(nav.getByRole("button", { name: /^Coach$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Clients$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Plans$/ })).toBeVisible();
+
+    await nav.getByRole("button", { name: /^Plans$/ }).click();
+    await expect(page.getByLabel("Workout builder mode")).toBeVisible();
+    await expect(page.getByLabel("Workout builder actions")).toBeVisible();
+    await expect(page.locator("main")).toContainText("Creating New Plan");
+    await expect(page.getByRole("button", { name: /^Save New Plan$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Clear Builder$/ })).toBeVisible();
   });
 });

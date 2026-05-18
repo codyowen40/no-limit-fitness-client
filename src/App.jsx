@@ -3531,6 +3531,11 @@ function ClientProfileDetails({ client, savedPlans, workoutLogs, conversations, 
 }
 
 function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selectedDayId, setSelectedDayId, updatePlanField, addTrainingDay, updateTrainingDayName, removeTrainingDay, planExerciseSearch, setPlanExerciseSearch, planCategory, setPlanCategory, filteredBuilderExercises, addExerciseToSelectedDay, updatePlanExercise, removePlanExercise, savePlan, resetPlanBuilder, builderMessage, savedPlans, selectedPlanDetailId, setSelectedPlanDetailId, editingPlanId, startEditPlan, duplicateSavedPlan, deleteSavedPlan }) {
+  const builderModeLabel = editingPlanId ? "Editing Existing Plan" : "Creating New Plan";
+  const builderModeDescription = editingPlanId
+    ? "You are editing a saved plan. Make your changes, then click Save Changes. Use Cancel Editing to leave edit mode without saving new changes."
+    : "You are building a new workout plan. Choose the client, add training days, add exercises, then click Save New Plan.";
+
   const totalExercises = planDraft.days.reduce((total, day) => total + day.exercises.length, 0);
   const selectedPlanDetail = savedPlans.find((plan) => plan.id === selectedPlanDetailId) || savedPlans[0] || null;
 
@@ -3539,7 +3544,7 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
       <SectionHeader
         eyebrow="Workout Plan Builder"
         title="Workout Builder"
-        description="Build, edit, save, duplicate, and delete plans from one coach tool. Follow the steps below: choose the client, add training days, add exercises, then save."
+        description="Coach-only workout creator and editor. Choose the client, build the days, add exercises, then save. Existing saved plans can be viewed, edited, copied, or deleted from the saved plan cards."
       />
 
       <div aria-label="Workout builder quick steps" className="mb-6 grid gap-3 md:grid-cols-4">
@@ -3547,7 +3552,7 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
           ["1", "Choose Client", "Select who this plan belongs to before saving."],
           ["2", "Add Days", "Create the training split and name each workout day."],
           ["3", "Add Exercises", "Search, click Add, then edit sets, reps, rest, and notes."],
-          ["4", "Save / Edit", "Use Save New Plan, Save Changes, Duplicate, or Delete."],
+          ["4", "Save", "Use Save New Plan for a new workout or Save Changes when editing."],
         ].map(([step, title, text]) => (
           <div key={step} className="rounded-2xl border border-white/10 bg-black/45 p-4 shadow-lg shadow-black/20">
             <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-full bg-[#00BF63] text-sm font-black text-black">
@@ -3567,8 +3572,59 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
               <Select label="Select Client" value={planDraft.clientId} onChange={(value) => updatePlanField("clientId", value)} options={clients.map((client) => ({ label: client.name, value: client.id }))} />
             </div>
             <div className="mt-4 grid gap-3 rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4 md:grid-cols-3"><StatCard label="Selected Client" value={selectedClient?.name || "None"} /><StatCard label="Training Days" value={planDraft.days.length} /><StatCard label="Plan Exercises" value={totalExercises} /></div>
-            {editingPlanId && <div className="mt-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm font-bold text-yellow-200">Editing mode is active. Make changes, then click Save Changes. Use Cancel / Reset if you do not want to keep editing.</div>}
-            <div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={savePlan} className="flex items-center gap-2 rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white"><Save size={17} />{editingPlanId ? "Save Changes" : "Save New Plan"}</button><button type="button" onClick={resetPlanBuilder} className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"><X size={17} />Cancel / Reset</button></div>
+            <div
+              aria-label="Workout builder mode"
+              className={[
+                "mt-4 rounded-3xl border p-4 shadow-xl shadow-black/20",
+                editingPlanId
+                  ? "border-yellow-400/40 bg-yellow-500/10"
+                  : "border-[#00BF63]/35 bg-[#00BF63]/10",
+              ].join(" ")}
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-black uppercase tracking-[0.22em] text-white">
+                  {builderModeLabel}
+                </p>
+                {editingPlanId && (
+                  <span className="w-fit rounded-full border border-yellow-400/40 bg-yellow-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-yellow-200">
+                    Editing Active
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-white/70">
+                {builderModeDescription}
+              </p>
+              <div className="mt-3 grid gap-2 text-xs leading-5 text-white/65 md:grid-cols-3">
+                <p>
+                  <span className="font-black text-white">Save:</span> stores the plan currently shown in the builder.
+                </p>
+                <p>
+                  <span className="font-black text-white">Edit:</span> loads a saved plan back into this builder.
+                </p>
+                <p>
+                  <span className="font-black text-white">Delete:</span> removes the saved plan card.
+                </p>
+              </div>
+            </div>
+
+            <div aria-label="Workout builder actions" className="mt-4 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={savePlan}
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-white"
+              >
+                <Save size={17} />
+                {editingPlanId ? "Save Changes" : "Save New Plan"}
+              </button>
+              <button
+                type="button"
+                onClick={resetPlanBuilder}
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-black uppercase tracking-wide text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+              >
+                <X size={17} />
+                {editingPlanId ? "Cancel Editing" : "Clear Builder"}
+              </button>
+            </div>
             {builderMessage && <p className="mt-4 rounded-2xl border border-[#00BF63]/30 bg-black/50 p-3 text-sm font-bold text-[#00BF63]">{builderMessage}</p>}
           </div>
 
@@ -3667,9 +3723,9 @@ function SavedPlansPanel({ savedPlans, selectedPlanDetail, setSelectedPlanDetail
               {plan.updatedAt && <p className="mt-1 text-xs font-bold uppercase tracking-[0.2em] text-yellow-200">Updated: {plan.updatedAt}</p>}
             </button>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" onClick={() => startEditPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-3 py-2 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"><ClipboardList size={14} />Edit</button>
-              <button type="button" onClick={() => duplicateSavedPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"><Copy size={14} />Duplicate</button>
-              <button type="button" onClick={() => deleteSavedPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-black uppercase text-red-300 transition hover:bg-red-500 hover:text-white"><Trash2 size={14} />Delete</button>
+              <button type="button" onClick={() => startEditPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-3 py-2 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"><ClipboardList size={14} />Edit This Plan</button>
+              <button type="button" onClick={() => duplicateSavedPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"><Copy size={14} />Copy Plan</button>
+              <button type="button" onClick={() => deleteSavedPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-black uppercase text-red-300 transition hover:bg-red-500 hover:text-white"><Trash2 size={14} />Delete Plan</button>
             </div>
           </div>
         ))}
