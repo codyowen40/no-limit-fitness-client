@@ -1519,6 +1519,37 @@ const isLoggedIn =
   );
   const accountNavTabs = renderedTabs.filter((tab) => tab.isAccountAction);
 
+  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
+  const mobilePrimaryTabIds = ["Client", "Tracker", "Progress"];
+  const mobilePrimaryTabLabels = {
+    Client: "My Plan",
+    Tracker: "Log",
+    Progress: "Progress",
+  };
+  const mobilePrimaryTabs = mobilePrimaryTabIds
+    .map((tabId) => renderedTabs.find((tab) => tab.id === tabId))
+    .filter(Boolean);
+  const mobileMoreOrder = ["Home", "Messages", "Exercises", "Login", "Coach", "Clients", "Plans"];
+  const mobileMoreTabs = renderedTabs
+    .filter((tab) => !mobilePrimaryTabIds.includes(tab.id))
+    .sort((a, b) => {
+      const aIndex = mobileMoreOrder.indexOf(a.id);
+      const bIndex = mobileMoreOrder.indexOf(b.id);
+      return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+    });
+  const isMobileMoreActive = mobileMoreTabs.some((tab) => tab.id === activeTab);
+
+  function handleMobileTabNavigation(tab) {
+    if (tab.id === "Login" && isLoggedIn) {
+      handlePortalLogout();
+      setIsMobileMoreOpen(false);
+      return;
+    }
+
+    setActiveTab(tab.id);
+    setIsMobileMoreOpen(false);
+  }
+
   const filteredLibraryExercises = useMemo(() => {
     const search = librarySearch.toLowerCase();
     return exerciseLibrary.filter((exercise) => {
@@ -2218,7 +2249,7 @@ function handlePortalLogout() {
 
             <nav
               aria-label="Main navigation"
-              className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:justify-end"
+              className={["w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:justify-end", normalizedPortalMode === "client" ? "hidden md:flex" : "flex"].join(" ")}
             >
               {homeNavTabs.length > 0 && (
                 <div
@@ -2344,7 +2375,108 @@ function handlePortalLogout() {
           )}
         </header>
 
-        <main className="mx-auto max-w-7xl px-4 py-8">
+        {normalizedPortalMode === "client" && (
+          <nav
+            aria-label="Mobile navigation"
+            className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-black/90 px-3 py-2 shadow-2xl shadow-black/60 backdrop-blur md:hidden"
+          >
+            {isMobileMoreOpen && (
+              <div
+                aria-label="Mobile More menu"
+                className="absolute inset-x-3 bottom-20 rounded-3xl border border-white/10 bg-black/95 p-3 shadow-2xl shadow-black/70"
+              >
+                <p className="px-2 pb-2 text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+                  More Tools
+                </p>
+
+                <div className="grid gap-2">
+                  {mobileMoreTabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const tabLabel = tab.label || tab.id;
+                    const isActive = activeTab === tab.id;
+
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        aria-label={tabLabel}
+                        onClick={() => handleMobileTabNavigation(tab)}
+                        className={[
+                          "flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-black transition",
+                          isActive
+                            ? "border-[#00BF63] bg-[#00BF63] text-black"
+                            : "border-white/10 bg-white/[0.04] text-white hover:border-[#00BF63] hover:text-[#00BF63]",
+                        ].join(" ")}
+                      >
+                        <span className="flex items-center gap-3">
+                          <Icon size={18} />
+                          {tabLabel}
+                        </span>
+
+                        {tab.badge > 0 && (
+                          <span
+                            className={[
+                              "rounded-full px-2 py-0.5 text-xs font-black",
+                              isActive ? "bg-black text-[#00BF63]" : "bg-[#00BF63] text-black",
+                            ].join(" ")}
+                          >
+                            {tab.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-4 gap-2">
+              {mobilePrimaryTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                const tabLabel = mobilePrimaryTabLabels[tab.id] || tab.label || tab.id;
+
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    aria-label={tabLabel}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setIsMobileMoreOpen(false);
+                    }}
+                    className={[
+                      "flex flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2 text-[11px] font-black uppercase tracking-wide transition",
+                      isActive
+                        ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20"
+                        : "border-white/10 bg-white/[0.04] text-white/70 hover:border-[#00BF63] hover:text-[#00BF63]",
+                    ].join(" ")}
+                  >
+                    <Icon size={18} />
+                    {tabLabel}
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                aria-label="More"
+                onClick={() => setIsMobileMoreOpen((current) => !current)}
+                className={[
+                  "flex flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2 text-[11px] font-black uppercase tracking-wide transition",
+                  isMobileMoreOpen || isMobileMoreActive
+                    ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20"
+                    : "border-white/10 bg-white/[0.04] text-white/70 hover:border-[#00BF63] hover:text-[#00BF63]",
+                ].join(" ")}
+              >
+                <span className="text-lg leading-none">•••</span>
+                More
+              </button>
+            </div>
+          </nav>
+        )}
+
+        <main className="mx-auto max-w-7xl px-4 py-8 pb-28 md:pb-8">
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_START */}
         {activeTab === "Client" && normalizedPortalMode === "client" && (
           <ClientPortalMyPlanPanel

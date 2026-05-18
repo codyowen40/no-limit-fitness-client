@@ -108,6 +108,47 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(page.locator("main")).toBeVisible();
   });
 
+  test("layers public client navigation on mobile without removing functions", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openPublicClient(page);
+
+    const mobileNav = page.getByRole("navigation", { name: /Mobile navigation/i });
+    const desktopNav = page.getByRole("navigation", { name: /Main navigation/i }).first();
+
+    await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
+
+    await expect(mobileNav.getByRole("button", { name: /^My Plan$/ })).toBeVisible();
+    await expect(mobileNav.getByRole("button", { name: /^Log$/ })).toBeVisible();
+    await expect(mobileNav.getByRole("button", { name: /^Progress$/ })).toBeVisible();
+    await expect(mobileNav.getByRole("button", { name: /^More$/ })).toBeVisible();
+
+    await expect(desktopNav.getByRole("button", { name: /^Exercises$/ })).toBeHidden();
+
+    await mobileNav.getByRole("button", { name: /^More$/ }).click();
+
+    const moreMenu = page.getByLabel("Mobile More menu");
+
+    await expect(moreMenu).toBeVisible();
+    await expect(moreMenu.getByRole("button", { name: /^Home$/ })).toBeVisible();
+    await expect(moreMenu.getByRole("button", { name: /^Messages(?:\s+\d+)?$/ })).toBeVisible();
+    await expect(moreMenu.getByRole("button", { name: /^Exercises$/ })).toBeVisible();
+    await expect(moreMenu.getByRole("button", { name: /^(Login|Logout)$/ })).toBeVisible();
+
+    await moreMenu.getByRole("button", { name: /^Exercises$/ }).click();
+    await expect(page.locator("main")).toContainText("Exercise Library");
+    await expect(page.locator("main")).toContainText("safe substitutions");
+
+    await mobileNav.getByRole("button", { name: /^More$/ }).click();
+    await moreMenu.getByRole("button", { name: /^Messages(?:\s+\d+)?$/ }).click();
+    await expect(page.locator("main")).toContainText("Messages");
+
+    await mobileNav.getByRole("button", { name: /^Log$/ }).click();
+    await expect(page.locator("main")).toBeVisible();
+
+    await mobileNav.getByRole("button", { name: /^My Plan$/ }).click();
+    await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
+  });
+
   test("keeps full internal demo navigation available for coach testing", async ({ page }) => {
     await openInternalDemo(page);
 

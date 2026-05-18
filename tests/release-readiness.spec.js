@@ -36,11 +36,43 @@ async function openInternalDemo(page) {
 }
 
 async function clickNav(page, tabName) {
-  const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
+  const mobileNav = page.getByRole("navigation", { name: /Mobile navigation/i });
+  const isMobileNavVisible = await mobileNav.isVisible().catch(() => false);
 
+  if (isMobileNavVisible) {
+    const mobilePrimaryLabels = {
+      Client: "My Plan",
+      Tracker: "Log",
+      Progress: "Progress",
+    };
+
+    const primaryLabel = mobilePrimaryLabels[tabName];
+
+    if (primaryLabel) {
+      await mobileNav
+        .getByRole("button", { name: new RegExp("^" + primaryLabel + "$", "i") })
+        .click();
+      await expect(page.locator("main")).toBeVisible();
+      return;
+    }
+
+    await mobileNav.getByRole("button", { name: /^More$/i }).click();
+
+    const moreMenu = page.getByLabel("Mobile More menu");
+    const pattern =
+      tabName === "Messages"
+        ? /^Messages(?:\s+\d+)?$/i
+        : new RegExp("^" + tabName + "$", "i");
+
+    await moreMenu.getByRole("button", { name: pattern }).first().click();
+    await expect(page.locator("main")).toBeVisible();
+    return;
+  }
+
+  const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
   const pattern =
     tabName === "Messages"
-      ? /^Messages(?:\s+\d+)?$/
+      ? /^Messages(?:\s+\d+)?$/i
       : new RegExp("^" + tabName + "$", "i");
 
   await nav.getByRole("button", { name: pattern }).first().click();
