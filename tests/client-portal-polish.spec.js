@@ -38,9 +38,9 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(nav.getByRole("button", { name: /^Messages(?:\s+\d+)?$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Progress$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Tracker$/ })).toBeVisible();
+    await expect(nav.getByRole("button", { name: /^Exercises$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^(Login|Logout)$/ })).toBeVisible();
 
-    await expect(nav.getByRole("button", { name: /^Exercises$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Coach$/ })).toHaveCount(0);
     await expect(nav.getByRole("button", { name: /^Clients$/ })).toHaveCount(0);
     await expect(nav.getByRole("button", { name: /^Plans$/ })).toHaveCount(0);
@@ -48,12 +48,24 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(page.locator("main")).toContainText("My Plan");
     await expect(page.locator("main")).toContainText("Today's Workout");
     await expect(page.locator("main")).toContainText("This Week");
+
     await expect(page.getByRole("button", { name: /Log Workout/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /Message Coach/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /View Progress/i })).toBeVisible();
-    await nav.getByRole("button", { name: /^Exercises$/ }).click();
-    await expect(page.locator("main")).toContainText("Exercise Library");
-    await expect(page.locator("main")).toContainText("safe substitutions");
+
+    await expect(page.locator("main")).toContainText("AI Nutrition Helper");
+    await expect(page.locator("main")).toContainText("Calories & Macros");
+    await expect(page.getByLabel("Body weight in pounds")).toBeVisible();
+
+    await page.getByLabel("Body weight in pounds").fill("200");
+    await page.getByLabel("Nutrition goal").selectOption("lean-bulk");
+    await page.getByLabel("Activity level").selectOption("high");
+    await page.getByLabel("Meals per day").selectOption("4");
+
+    await expect(page.locator("main")).toContainText("Lean Bulk");
+    await expect(page.locator("main")).toContainText("Simple Meal Breakdown");
+    await expect(page.locator("main")).toContainText("per meal");
+
     await nav.getByRole("button", { name: /^Exercises$/ }).click();
     await expect(page.locator("main")).toContainText("Exercise Library");
     await expect(page.locator("main")).toContainText("safe substitutions");
@@ -76,4 +88,3 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(nav.getByRole("button", { name: /^Plans$/ })).toBeVisible();
   });
 });
-

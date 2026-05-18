@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import ClientNutritionMacroHelper from "./ClientNutritionMacroHelper.jsx";
 import {
   Activity,
   Bell,
@@ -1211,6 +1212,8 @@ function ClientPortalMyPlanPanel({
           </div>
         </article>
       </div>
+
+      <ClientNutritionMacroHelper />
 
       <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
         <div className="flex items-center justify-between gap-3">
