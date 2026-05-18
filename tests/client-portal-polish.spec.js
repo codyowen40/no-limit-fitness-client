@@ -116,6 +116,7 @@ test.describe("No Limit Fitness client portal polish", () => {
     const desktopNav = page.getByRole("navigation", { name: /Main navigation/i }).first();
 
     await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
+    await expect(page.getByLabel("Client quick actions")).toBeVisible();
 
     await expect(page.getByLabel("Mobile nutrition coach card")).toBeVisible();
     await expect(page.getByRole("button", { name: /^Open Nutrition Coach$/ })).toBeVisible();

@@ -1087,14 +1087,14 @@ function ClientPortalMyPlanPanel({
   return (
     <section
       aria-label="Client My Plan dashboard"
-      className="mb-6 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-5 shadow-2xl shadow-black/40"
+      className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.3em] text-[#00BF63]">
             My Plan
           </p>
-          <h1 className="mt-2 text-3xl font-black text-white">
+          <h1 className="mt-2 text-2xl font-black leading-tight text-white md:text-3xl">
             {client ? getFriendlyClientName(client) + "'s Training" : "Client Training Plan"}
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
@@ -1102,11 +1102,11 @@ function ClientPortalMyPlanPanel({
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div aria-label="Client quick actions" className="grid grid-cols-3 gap-2 md:flex md:flex-wrap">
           <button
             type="button"
             onClick={onOpenTracker}
-            className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-black transition hover:bg-[#00d36f]"
+            className="min-h-12 rounded-2xl bg-[#00BF63] px-3 py-3 text-center text-[11px] font-black uppercase tracking-[0.14em] text-black transition hover:bg-[#00d36f] md:min-h-0 md:rounded-full md:px-4 md:py-2 md:text-xs md:tracking-[0.18em]"
           >
             Log Workout
           </button>
@@ -1114,7 +1114,7 @@ function ClientPortalMyPlanPanel({
           <button
             type="button"
             onClick={onOpenMessages}
-            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+            className="min-h-12 rounded-2xl border border-white/15 bg-white/5 px-3 py-3 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63] md:min-h-0 md:rounded-full md:px-4 md:py-2 md:text-xs md:tracking-[0.18em]"
           >
             Message Coach
           </button>
@@ -1122,7 +1122,7 @@ function ClientPortalMyPlanPanel({
           <button
             type="button"
             onClick={onOpenProgress}
-            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+            className="min-h-12 rounded-2xl border border-white/15 bg-white/5 px-3 py-3 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63] md:min-h-0 md:rounded-full md:px-4 md:py-2 md:text-xs md:tracking-[0.18em]"
           >
             View Progress
           </button>
@@ -1216,7 +1216,7 @@ function ClientPortalMyPlanPanel({
 
       <section
         aria-label="Mobile nutrition coach card"
-        className="rounded-3xl border border-[#00BF63]/25 bg-black/55 p-5 shadow-xl shadow-black/30 md:hidden"
+        className="mt-4 rounded-3xl border border-[#00BF63]/25 bg-black/60 p-4 shadow-xl shadow-black/30 md:hidden"
       >
         <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
           Nutrition
@@ -2410,12 +2410,12 @@ function handlePortalLogout() {
         {normalizedPortalMode === "client" && (
           <nav
             aria-label="Mobile navigation"
-            className="fixed inset-x-3 bottom-4 z-50 mx-auto max-w-md rounded-[2rem] border border-[#00BF63]/35 bg-black/95 px-3 py-2 shadow-2xl shadow-[#00BF63]/15 ring-1 ring-white/10 backdrop-blur md:hidden"
+            className="fixed inset-x-3 bottom-4 z-50 mx-auto max-w-md rounded-[2rem] border border-[#00BF63]/35 bg-black/95 px-3 pb-3 pt-2 shadow-2xl shadow-[#00BF63]/15 ring-1 ring-white/10 backdrop-blur md:hidden"
           >
             {isMobileMoreOpen && (
               <div
                 aria-label="Mobile More menu"
-                className="absolute inset-x-0 bottom-24 rounded-3xl border border-[#00BF63]/30 bg-black/95 p-3 shadow-2xl shadow-black/70 ring-1 ring-white/10"
+                className="absolute inset-x-0 bottom-24 max-h-[65vh] overflow-y-auto rounded-3xl border border-[#00BF63]/30 bg-black/95 p-3 shadow-2xl shadow-black/70 ring-1 ring-white/10"
               >
                 <p className="px-2 pb-2 text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
                   More Tools
