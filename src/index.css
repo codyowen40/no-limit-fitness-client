@@ -5,8 +5,6 @@ const testPath = "tests/client-portal-polish.spec.js";
 
 let app = fs.readFileSync(appPath, "utf8");
 
-const accountTabsLine = "  const accountNavTabs = renderedTabs.filter((tab) => tab.isAccountAction);\n";
-
 const mobileStateBlock = `
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
   const mobilePrimaryTabIds = ["Client", "Tracker", "Progress"];
@@ -40,31 +38,33 @@ const mobileStateBlock = `
   }
 `;
 
-if (!app.includes(accountTabsLine)) {
-  throw new Error("Could not find accountNavTabs line.");
-}
-
 if (!app.includes('const mobilePrimaryTabIds = ["Client", "Tracker", "Progress"];')) {
-  app = app.replace(accountTabsLine, accountTabsLine + mobileStateBlock);
+  const accountTabsRegex =
+    /(\s*const accountNavTabs = renderedTabs\.filter\(\(tab\) => tab\.isAccountAction\);\r?\n)/;
+
+  if (!accountTabsRegex.test(app)) {
+    throw new Error("Could not find accountNavTabs line with regex.");
+  }
+
+  app = app.replace(accountTabsRegex, `$1${mobileStateBlock}`);
 }
 
-const oldDesktopNavClass =
-  'className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:justify-end"';
+const oldDesktopNavClassRegex =
+  /className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:justify-end"/;
 
 const newDesktopNavClass =
   'className={["w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:justify-end", normalizedPortalMode === "client" ? "hidden md:flex" : "flex"].join(" ")}';
 
 if (!app.includes(newDesktopNavClass)) {
-  if (!app.includes(oldDesktopNavClass)) {
+  if (!oldDesktopNavClassRegex.test(app)) {
     throw new Error("Could not find desktop nav class.");
   }
 
-  app = app.replace(oldDesktopNavClass, newDesktopNavClass);
+  app = app.replace(oldDesktopNavClassRegex, newDesktopNavClass);
 }
 
-const oldHeaderToMain = `        </header>
-
-        <main className="mx-auto max-w-7xl px-4 py-8">`;
+const headerToMainRegex =
+  /        <\/header>\r?\n\r?\n        <main className="mx-auto max-w-7xl px-4 py-8">/;
 
 const mobileNavBlock = `        </header>
 
@@ -172,11 +172,11 @@ const mobileNavBlock = `        </header>
         <main className="mx-auto max-w-7xl px-4 py-8 pb-28 md:pb-8">`;
 
 if (!app.includes('aria-label="Mobile navigation"')) {
-  if (!app.includes(oldHeaderToMain)) {
+  if (!headerToMainRegex.test(app)) {
     throw new Error("Could not find header-to-main block.");
   }
 
-  app = app.replace(oldHeaderToMain, mobileNavBlock);
+  app = app.replace(headerToMainRegex, mobileNavBlock);
 }
 
 fs.writeFileSync(appPath, app);
