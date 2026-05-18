@@ -19,4 +19,31 @@ body {
   font-family: "Montserrat", Arial, sans-serif;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+  background: #030507;
+}
 
+body {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.76), rgba(0, 0, 0, 0.88)),
+    url("/images/gym-background.jpg");
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* Let the app shell show the gym background behind the cards */
+#root > .min-h-screen {
+  background: transparent !important;
+}
+
+@media (max-width: 768px) {
+  body {
+    background-position: center top;
+    background-attachment: scroll;
+  }
+}
