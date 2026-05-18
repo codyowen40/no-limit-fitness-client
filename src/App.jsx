@@ -235,11 +235,11 @@ const defaultNotificationPreferences = {
   messages: true,
 };
 
-const defaultBackendSettings = {
+const defaultServerSettings = {
   coachEmail: "",
-  emailProvider: "Supabase + Resend",
-  backendStatus: "Frontend placeholder only",
-  notes: "Email alerts should be sent from a backend later. Do not send email directly inside App.jsx.",
+  emailProvider: "Email Alerts",
+  serverStatus: "Saved setting",
+  notes: "Email alerts should be sent through a secure server route. Email Security.",
 };
 
 function copyPlanDaysForEdit(days) {
@@ -265,7 +265,7 @@ function createDefaultState() {
     conversations: starterConversations,
     readActivityIds: [],
     notificationPreferences: defaultNotificationPreferences,
-    backendSettings: defaultBackendSettings,
+    serverSettings: defaultServerSettings,
   };
 }
 
@@ -307,7 +307,7 @@ function loadInitialState() {
       ),
       readActivityIds: Array.isArray(parsed.readActivityIds) ? parsed.readActivityIds : [],
       notificationPreferences: { ...defaultNotificationPreferences, ...(parsed.notificationPreferences || {}) },
-      backendSettings: { ...defaultBackendSettings, ...(parsed.backendSettings || {}) },
+      serverSettings: { ...defaultServerSettings, ...(parsed.serverSettings || {}) },
     };
   } catch (error) {
     console.warn("Could not load local No Limit Fitness data:", error);
@@ -325,7 +325,7 @@ function saveStateToLocalStorage(state) {
 }
 
 
-function getBackendValue(source, keys, fallback = "") {
+function getServerValue(source, keys, fallback = "") {
   if (!source || typeof source !== "object") return fallback;
 
   for (const key of keys) {
@@ -337,14 +337,14 @@ function getBackendValue(source, keys, fallback = "") {
   return fallback;
 }
 
-function normalizeBackendTimestamp(value) {
+function normalizeServerTimestamp(value) {
   if (!value) return Date.now();
 
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? Date.now() : parsed;
 }
 
-function normalizeBackendDateLabel(value) {
+function normalizeServerDateLabel(value) {
   if (!value) return new Date().toLocaleString();
 
   const parsed = Date.parse(value);
@@ -353,104 +353,104 @@ function normalizeBackendDateLabel(value) {
   return new Date(parsed).toLocaleString();
 }
 
-function normalizeBackendSender(value) {
+function normalizeServerSender(value) {
   const sender = String(value || "Coach").toLowerCase();
   return sender.includes("client") ? "Client" : "Coach";
 }
 
-function mapBackendClientForApp(client) {
+function mapServerClientForApp(client) {
   return {
-    id: String(getBackendValue(client, ["id", "clientId", "client_id"], makeId("backend-client"))),
-    name: String(getBackendValue(client, ["name", "fullName", "full_name"], "Backend Client")),
-    email: String(getBackendValue(client, ["email"], "")),
-    status: String(getBackendValue(client, ["status"], "Active")),
+    id: String(getServerValue(client, ["id", "clientId", "client_id"], makeId("server-client"))),
+    name: String(getServerValue(client, ["name", "fullName", "full_name"], "Server Client")),
+    email: String(getServerValue(client, ["email"], "")),
+    status: String(getServerValue(client, ["status"], "Active")),
   };
 }
 
-function mapBackendPlanExerciseForApp(exercise) {
+function mapServerPlanExerciseForApp(exercise) {
   return {
-    id: String(getBackendValue(exercise, ["id", "planExerciseId", "plan_exercise_id"], makeId("plan-exercise"))),
-    exerciseId: String(getBackendValue(exercise, ["exerciseId", "exercise_id"], "")),
-    exerciseName: String(getBackendValue(exercise, ["exerciseName", "exercise_name", "name"], "Backend Exercise")),
-    sets: String(getBackendValue(exercise, ["sets", "assignedSets", "assigned_sets"], "")),
-    repsOrTime: String(getBackendValue(exercise, ["repsOrTime", "reps_or_time", "reps", "time"], "")),
-    weightGuidance: String(getBackendValue(exercise, ["weightGuidance", "weight_guidance"], "")),
-    rest: String(getBackendValue(exercise, ["rest", "restPeriod", "rest_period"], "")),
-    notes: String(getBackendValue(exercise, ["notes", "coachNotes", "coach_notes"], "")),
+    id: String(getServerValue(exercise, ["id", "planExerciseId", "plan_exercise_id"], makeId("plan-exercise"))),
+    exerciseId: String(getServerValue(exercise, ["exerciseId", "exercise_id"], "")),
+    exerciseName: String(getServerValue(exercise, ["exerciseName", "exercise_name", "name"], "Server Exercise")),
+    sets: String(getServerValue(exercise, ["sets", "assignedSets", "assigned_sets"], "")),
+    repsOrTime: String(getServerValue(exercise, ["repsOrTime", "reps_or_time", "reps", "time"], "")),
+    weightGuidance: String(getServerValue(exercise, ["weightGuidance", "weight_guidance"], "")),
+    rest: String(getServerValue(exercise, ["rest", "restPeriod", "rest_period"], "")),
+    notes: String(getServerValue(exercise, ["notes", "coachNotes", "coach_notes"], "")),
   };
 }
 
-function mapBackendPlanDayForApp(day, index) {
+function mapServerPlanDayForApp(day, index) {
   const exercises = Array.isArray(day?.exercises) ? day.exercises : [];
 
   return {
-    id: String(getBackendValue(day, ["id", "dayId", "day_id"], makeId("day"))),
-    name: String(getBackendValue(day, ["name", "dayName", "day_name"], `Day ${index + 1}`)),
-    exercises: exercises.map(mapBackendPlanExerciseForApp),
+    id: String(getServerValue(day, ["id", "dayId", "day_id"], makeId("day"))),
+    name: String(getServerValue(day, ["name", "dayName", "day_name"], `Day ${index + 1}`)),
+    exercises: exercises.map(mapServerPlanExerciseForApp),
   };
 }
 
-function mapBackendPlanForApp(plan, clients) {
-  const clientId = String(getBackendValue(plan, ["clientId", "client_id"], ""));
+function mapServerPlanForApp(plan, clients) {
+  const clientId = String(getServerValue(plan, ["clientId", "client_id"], ""));
   const matchedClient = clients.find((client) => client.id === clientId);
-  const createdAtRaw = getBackendValue(plan, ["createdAt", "created_at", "updatedAt", "updated_at"], "");
+  const createdAtRaw = getServerValue(plan, ["createdAt", "created_at", "updatedAt", "updated_at"], "");
   const days = Array.isArray(plan?.days) ? plan.days : [];
 
   return {
-    id: String(getBackendValue(plan, ["id", "planId", "plan_id"], makeId("saved-plan"))),
-    planName: String(getBackendValue(plan, ["planName", "plan_name", "name"], "Backend Workout Plan")),
+    id: String(getServerValue(plan, ["id", "planId", "plan_id"], makeId("saved-plan"))),
+    planName: String(getServerValue(plan, ["planName", "plan_name", "name"], "Server Workout Plan")),
     clientId,
-    clientName: String(getBackendValue(plan, ["clientName", "client_name"], matchedClient?.name || "Backend Client")),
-    days: days.map(mapBackendPlanDayForApp),
-    createdAt: normalizeBackendDateLabel(createdAtRaw),
-    timestamp: normalizeBackendTimestamp(createdAtRaw),
+    clientName: String(getServerValue(plan, ["clientName", "client_name"], matchedClient?.name || "Server Client")),
+    days: days.map(mapServerPlanDayForApp),
+    createdAt: normalizeServerDateLabel(createdAtRaw),
+    timestamp: normalizeServerTimestamp(createdAtRaw),
   };
 }
 
-function mapBackendWorkoutEntryForApp(entry) {
+function mapServerWorkoutEntryForApp(entry) {
   return {
-    exerciseId: String(getBackendValue(entry, ["exerciseId", "exercise_id"], "")),
-    exerciseName: String(getBackendValue(entry, ["exerciseName", "exercise_name", "name"], "Backend Exercise")),
-    assignedSets: String(getBackendValue(entry, ["assignedSets", "assigned_sets", "sets"], "")),
-    assignedRepsOrTime: String(getBackendValue(entry, ["assignedRepsOrTime", "assigned_reps_or_time", "repsOrTime", "reps_or_time"], "")),
-    assignedWeightGuidance: String(getBackendValue(entry, ["assignedWeightGuidance", "assigned_weight_guidance", "weightGuidance", "weight_guidance"], "")),
-    assignedRest: String(getBackendValue(entry, ["assignedRest", "assigned_rest", "rest"], "")),
-    actualWeight: String(getBackendValue(entry, ["actualWeight", "actual_weight"], "")),
-    setsCompleted: String(getBackendValue(entry, ["setsCompleted", "sets_completed"], "")),
-    repsCompleted: String(getBackendValue(entry, ["repsCompleted", "reps_completed"], "")),
-    timeCompleted: String(getBackendValue(entry, ["timeCompleted", "time_completed"], "")),
-    restUsed: String(getBackendValue(entry, ["restUsed", "rest_used"], "")),
-    substitution: String(getBackendValue(entry, ["substitution", "exerciseSubstitution", "exercise_substitution"], "")),
-    notes: String(getBackendValue(entry, ["notes", "clientNotes", "client_notes"], "")),
+    exerciseId: String(getServerValue(entry, ["exerciseId", "exercise_id"], "")),
+    exerciseName: String(getServerValue(entry, ["exerciseName", "exercise_name", "name"], "Server Exercise")),
+    assignedSets: String(getServerValue(entry, ["assignedSets", "assigned_sets", "sets"], "")),
+    assignedRepsOrTime: String(getServerValue(entry, ["assignedRepsOrTime", "assigned_reps_or_time", "repsOrTime", "reps_or_time"], "")),
+    assignedWeightGuidance: String(getServerValue(entry, ["assignedWeightGuidance", "assigned_weight_guidance", "weightGuidance", "weight_guidance"], "")),
+    assignedRest: String(getServerValue(entry, ["assignedRest", "assigned_rest", "rest"], "")),
+    actualWeight: String(getServerValue(entry, ["actualWeight", "actual_weight"], "")),
+    setsCompleted: String(getServerValue(entry, ["setsCompleted", "sets_completed"], "")),
+    repsCompleted: String(getServerValue(entry, ["repsCompleted", "reps_completed"], "")),
+    timeCompleted: String(getServerValue(entry, ["timeCompleted", "time_completed"], "")),
+    restUsed: String(getServerValue(entry, ["restUsed", "rest_used"], "")),
+    substitution: String(getServerValue(entry, ["substitution", "exerciseSubstitution", "exercise_substitution"], "")),
+    notes: String(getServerValue(entry, ["notes", "clientNotes", "client_notes"], "")),
   };
 }
 
-function mapBackendWorkoutLogForApp(log, clients, plans) {
-  const clientId = String(getBackendValue(log, ["clientId", "client_id"], ""));
-  const planId = String(getBackendValue(log, ["planId", "plan_id"], ""));
+function mapServerWorkoutLogForApp(log, clients, plans) {
+  const clientId = String(getServerValue(log, ["clientId", "client_id"], ""));
+  const planId = String(getServerValue(log, ["planId", "plan_id"], ""));
   const matchedClient = clients.find((client) => client.id === clientId);
   const matchedPlan = plans.find((plan) => plan.id === planId);
-  const submittedAtRaw = getBackendValue(log, ["submittedAt", "submitted_at", "createdAt", "created_at"], "");
+  const submittedAtRaw = getServerValue(log, ["submittedAt", "submitted_at", "createdAt", "created_at"], "");
   const entries = Array.isArray(log?.entries) ? log.entries : [];
-  const rawStatus = String(getBackendValue(log, ["status"], "completed")).toLowerCase();
+  const rawStatus = String(getServerValue(log, ["status"], "completed")).toLowerCase();
 
   return {
-    id: String(getBackendValue(log, ["id", "logId", "log_id"], makeId("workout-log"))),
+    id: String(getServerValue(log, ["id", "logId", "log_id"], makeId("workout-log"))),
     clientId,
-    clientName: String(getBackendValue(log, ["clientName", "client_name"], matchedClient?.name || "Backend Client")),
+    clientName: String(getServerValue(log, ["clientName", "client_name"], matchedClient?.name || "Server Client")),
     planId,
-    planName: String(getBackendValue(log, ["planName", "plan_name"], matchedPlan?.planName || "Backend Workout Plan")),
-    dayId: String(getBackendValue(log, ["dayId", "day_id"], "")),
-    dayName: String(getBackendValue(log, ["dayName", "day_name"], "Backend Workout")),
+    planName: String(getServerValue(log, ["planName", "plan_name"], matchedPlan?.planName || "Server Workout Plan")),
+    dayId: String(getServerValue(log, ["dayId", "day_id"], "")),
+    dayName: String(getServerValue(log, ["dayName", "day_name"], "Server Workout")),
     status: rawStatus.includes("skip") ? "skipped" : "completed",
-    submittedAt: normalizeBackendDateLabel(submittedAtRaw),
-    timestamp: normalizeBackendTimestamp(submittedAtRaw),
-    skipReason: String(getBackendValue(log, ["skipReason", "skip_reason"], "")),
-    entries: entries.map(mapBackendWorkoutEntryForApp),
+    submittedAt: normalizeServerDateLabel(submittedAtRaw),
+    timestamp: normalizeServerTimestamp(submittedAtRaw),
+    skipReason: String(getServerValue(log, ["skipReason", "skip_reason"], "")),
+    entries: entries.map(mapServerWorkoutEntryForApp),
   };
 }
 
-function buildBackendConversationsForApp(clients, messages) {
+function buildServerConversationsForApp(clients, messages) {
   const grouped = new Map();
 
   clients.forEach((client) => {
@@ -464,7 +464,7 @@ function buildBackendConversationsForApp(clients, messages) {
   const normalizedMessages = Array.isArray(messages) ? messages : [];
 
   normalizedMessages.forEach((message) => {
-    const clientId = String(getBackendValue(message, ["clientId", "client_id"], clients[0]?.id || ""));
+    const clientId = String(getServerValue(message, ["clientId", "client_id"], clients[0]?.id || ""));
 
     if (!clientId) return;
 
@@ -473,20 +473,20 @@ function buildBackendConversationsForApp(clients, messages) {
 
       grouped.set(clientId, {
         clientId,
-        clientName: matchedClient?.name || "Backend Client",
+        clientName: matchedClient?.name || "Server Client",
         messages: [],
       });
     }
 
-    const sender = normalizeBackendSender(getBackendValue(message, ["sender", "senderRole", "sender_role"], "Coach"));
-    const sentAtRaw = getBackendValue(message, ["sentAt", "sent_at", "createdAt", "created_at"], "");
+    const sender = normalizeServerSender(getServerValue(message, ["sender", "senderRole", "sender_role"], "Coach"));
+    const sentAtRaw = getServerValue(message, ["sentAt", "sent_at", "createdAt", "created_at"], "");
 
     grouped.get(clientId).messages.push({
-      id: String(getBackendValue(message, ["id", "messageId", "message_id"], makeId("message"))),
+      id: String(getServerValue(message, ["id", "messageId", "message_id"], makeId("message"))),
       sender,
-      body: String(getBackendValue(message, ["body", "message", "content"], "")),
-      sentAt: normalizeBackendDateLabel(sentAtRaw),
-      timestamp: normalizeBackendTimestamp(sentAtRaw),
+      body: String(getServerValue(message, ["body", "message", "content"], "")),
+      sentAt: normalizeServerDateLabel(sentAtRaw),
+      timestamp: normalizeServerTimestamp(sentAtRaw),
       unreadForCoach: sender === "Client",
       unreadForClient: sender === "Coach",
     });
@@ -592,7 +592,7 @@ function PortalModeControls({ portalMode, setPortalMode, setActiveTab }) {
 
   const description =
     portalMode === "coach"
-      ? "Coach view focuses on clients, plans, logs, messages, progress, and backend tools."
+      ? "Coach view focuses on clients, plans, logs, messages, progress, and server tools."
       : portalMode === "client"
         ? "Client view focuses on assigned workouts, tracking, messages, and personal progress."
         : "Demo preview keeps every tab visible for testing and walkthroughs.";
@@ -1317,7 +1317,7 @@ export default function App() {
   const [readActivityIds, setReadActivityIds] = useState(initialState.readActivityIds);
   const [activityFilter, setActivityFilter] = useState("All");
   const [notificationPreferences, setNotificationPreferences] = useState(initialState.notificationPreferences);
-  const [backendSettings, setBackendSettings] = useState(initialState.backendSettings);
+  const [serverSettings, setServerSettings] = useState(initialState.serverSettings);
   const [editingPlanId, setEditingPlanId] = useState("");
 
   const [trackerClientId, setTrackerClientId] = useState(initialState.clients[0]?.id || "");
@@ -1341,7 +1341,7 @@ export default function App() {
   const [librarySearch, setLibrarySearch] = useState("");
   const [libraryCategory, setLibraryCategory] = useState("All");
   const [localSaveNotice, setLocalSaveNotice] = useState(
-    "Local saving is active. Clients, plans, logs, skipped reasons, messages, unread indicators, activity read status, plan editing, notification preferences, backend placeholders, and workout log details will stay after refresh."
+    "Local saving is active. Clients, plans, logs, skipped reasons, messages, unread indicators, activity read status, plan editing, notification preferences, server placeholders, and workout log details will stay after refresh."
   );
 
   // NLF_COACH_ASSIGNMENT_STATE_START
@@ -1436,8 +1436,8 @@ export default function App() {
   // NLF_COACH_ASSIGNMENT_STATE_END
 
   useEffect(() => {
-    saveStateToLocalStorage({ clients, savedPlans, workoutLogs, conversations, readActivityIds, notificationPreferences, backendSettings });
-  }, [clients, savedPlans, workoutLogs, conversations, readActivityIds, notificationPreferences, backendSettings]);
+    saveStateToLocalStorage({ clients, savedPlans, workoutLogs, conversations, readActivityIds, notificationPreferences, serverSettings });
+  }, [clients, savedPlans, workoutLogs, conversations, readActivityIds, notificationPreferences, serverSettings]);
 
   useEffect(() => {
     if (workoutLogs.length > 0 && !workoutLogs.some((log) => log.id === selectedWorkoutLogId)) {
@@ -1634,7 +1634,7 @@ const isLoggedIn =
       id: "email-placeholder",
       type: "Email",
       title: "Email notifications not connected",
-      detail: "Email alerts should be handled later through a backend like Supabase + Resend or SendGrid, not directly inside App.jsx.",
+      detail: "Email alerts should be handled later through a secure notification service, not directly inside App.jsx.",
       time: "Frontend placeholder",
       timestamp: 0,
       priority: "Future",
@@ -1846,8 +1846,8 @@ const isLoggedIn =
     setNotificationPreferences((current) => ({ ...current, [key]: !current[key] }));
   }
 
-  function updateBackendSetting(field, value) {
-    setBackendSettings((current) => ({ ...current, [field]: value }));
+  function updateServerSetting(field, value) {
+    setServerSettings((current) => ({ ...current, [field]: value }));
   }
 
   function addClient() {
@@ -2045,7 +2045,7 @@ const isLoggedIn =
     setConversations(fallback.conversations);
     setReadActivityIds([]);
     setNotificationPreferences(fallback.notificationPreferences);
-    setBackendSettings(fallback.backendSettings);
+    setServerSettings(fallback.serverSettings);
     setEditingPlanId("");
     setSelectedConversationId(fallback.conversations[0]?.clientId || "");
     setSelectedClientProfileId(fallback.clients[0]?.id || "");
@@ -2064,12 +2064,12 @@ const isLoggedIn =
     setLocalSaveNotice("Local data cleared. Starter data restored.");
   }
 
-  async function handleImportBackendDataIntoApp() {
+  async function handleImportServerDataIntoApp() {
     const [
-      backendClients,
-      backendPlans,
-      backendWorkoutLogs,
-      backendMessages,
+      serverClients,
+      serverPlans,
+      serverWorkoutLogs,
+      serverMessages,
     ] = await Promise.all([
       fetchBackendClients(),
       fetchBackendPlans(),
@@ -2077,25 +2077,25 @@ const isLoggedIn =
       fetchBackendMessages(),
     ]);
 
-    const importedClients = Array.isArray(backendClients)
-      ? backendClients.map(mapBackendClientForApp)
+    const importedClients = Array.isArray(serverClients)
+      ? serverClients.map(mapServerClientForApp)
       : [];
 
     if (importedClients.length === 0) {
-      throw new Error("No backend clients are visible. Sign in as coach first, then try importing again.");
+      throw new Error("No server clients are visible. Sign in as coach first, then try importing again.");
     }
 
-    const importedPlans = Array.isArray(backendPlans)
-      ? backendPlans.map((plan) => mapBackendPlanForApp(plan, importedClients))
+    const importedPlans = Array.isArray(serverPlans)
+      ? serverPlans.map((plan) => mapServerPlanForApp(plan, importedClients))
       : [];
 
-    const importedWorkoutLogs = Array.isArray(backendWorkoutLogs)
-      ? backendWorkoutLogs.map((log) => mapBackendWorkoutLogForApp(log, importedClients, importedPlans))
+    const importedWorkoutLogs = Array.isArray(serverWorkoutLogs)
+      ? serverWorkoutLogs.map((log) => mapServerWorkoutLogForApp(log, importedClients, importedPlans))
       : [];
 
-    const importedConversations = buildBackendConversationsForApp(
+    const importedConversations = buildServerConversationsForApp(
       importedClients,
-      Array.isArray(backendMessages) ? backendMessages : []
+      Array.isArray(serverMessages) ? serverMessages : []
     );
 
     const firstClient = importedClients[0] || null;
@@ -2142,7 +2142,7 @@ const isLoggedIn =
     setSelectedDayId(newDay.id);
 
     const summary =
-      "Backend import complete: " +
+      "Server import complete: " +
       importedClients.length +
       " clients, " +
       importedPlans.length +
@@ -2154,7 +2154,7 @@ const isLoggedIn =
 
     setLocalSaveNotice(
       summary +
-        " LocalStorage now mirrors the imported backend data until full live sync is finished."
+        " LocalStorage now mirrors the imported server data until full live sync is finished."
     );
 
     setActiveTab("Home");
@@ -2379,8 +2379,8 @@ function handlePortalLogout() {
               clearLocalData={clearLocalData}
               notificationPreferences={notificationPreferences}
               toggleNotificationPreference={toggleNotificationPreference}
-              backendSettings={backendSettings}
-              updateBackendSetting={updateBackendSetting}
+              serverSettings={serverSettings}
+              updateServerSetting={updateServerSetting}
             />
           )}
 
@@ -2533,7 +2533,7 @@ function handlePortalLogout() {
             />
           )}
 
-          {activeTab === "Login" && <LoginScreen onBackendImport={handleImportBackendDataIntoApp} 
+          {activeTab === "Login" && <LoginScreen onServerImport={handleImportServerDataIntoApp} 
               onPortalLogin={handlePortalLogin}
               onPortalLogout={handlePortalLogout} />}
         </main>
@@ -2567,21 +2567,21 @@ function NotificationPreferencesPanel({ preferences, onToggle }) {
   );
 }
 
-function BackendSettingsPanel({ settings, onChange }) {
+function ServerSettingsPanel({ settings, onChange }) {
   return (
     <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-      <div className="mb-4 flex items-start gap-3"><ShieldCheck className="mt-1 text-[#00BF63]" /><div><h3 className="text-xl font-black uppercase">Backend-Ready Settings</h3><p className="mt-1 text-sm leading-6 text-white/60">Frontend placeholder only. Later, these settings can connect to Supabase plus Resend or SendGrid for personal email alerts.</p></div></div>
+      <div className="mb-4 flex items-start gap-3"><ShieldCheck className="mt-1 text-[#00BF63]" /><div><h3 className="text-xl font-black uppercase">Notification Settings</h3><p className="mt-1 text-sm leading-6 text-white/60">Saved setting. Later, these settings can connect to a secure notification service for personal email alerts.</p></div></div>
       <div className="space-y-3">
         <Input label="Coach Email For Future Alerts" value={settings.coachEmail} onChange={(value) => onChange("coachEmail", value)} placeholder="your-email@example.com" />
-        <Select label="Future Email Provider" value={settings.emailProvider} onChange={(value) => onChange("emailProvider", value)} options={["Supabase + Resend", "Supabase + SendGrid", "Backend undecided"].map((item) => ({ label: item, value: item }))} />
-        <Input label="Backend Status" value={settings.backendStatus} onChange={(value) => onChange("backendStatus", value)} placeholder="Frontend placeholder only" />
+        <Select label="Notification Delivery" value={settings.emailProvider} onChange={(value) => onChange("emailProvider", value)} options={["Email Alerts", "Backup Email Alerts", "Server undecided"].map((item) => ({ label: item, value: item }))} />
+        <Input label="Sync Status" value={settings.serverStatus} onChange={(value) => onChange("serverStatus", value)} placeholder="Saved setting" />
         <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-100"><span className="font-black uppercase">Reminder:</span> {settings.notes}</div>
       </div>
     </div>
   );
 }
 
-function HomeScreen({ setActiveTab, clients, savedPlans, workoutLogs, exerciseCount, unreadCoachCount, unreadActivityCount, localSaveNotice, clearLocalData, notificationPreferences, toggleNotificationPreference, backendSettings, updateBackendSetting }) {
+function HomeScreen({ setActiveTab, clients, savedPlans, workoutLogs, exerciseCount, unreadCoachCount, unreadActivityCount, localSaveNotice, clearLocalData, notificationPreferences, toggleNotificationPreference, serverSettings, updateServerSetting }) {
   const homeCards = [
     { title: "Build Workout Plan", text: "Create structured training days, add exercises, and program coaching details.", icon: ClipboardList, target: "Plans" },
     { title: "Client Profiles", text: "Open client details, assigned plans, recent logs, and recent messages.", icon: Users, target: "Clients" },
@@ -2630,7 +2630,7 @@ function HomeScreen({ setActiveTab, clients, savedPlans, workoutLogs, exerciseCo
       </section>
       <section className="mt-6 grid gap-6 lg:grid-cols-2">
         <NotificationPreferencesPanel preferences={notificationPreferences} onToggle={toggleNotificationPreference} />
-        <BackendSettingsPanel settings={backendSettings} onChange={updateBackendSetting} />
+        <ServerSettingsPanel settings={serverSettings} onChange={updateServerSetting} />
       </section>
     </div>
   );
@@ -3198,7 +3198,7 @@ function CoachScreen({ notifications, savedPlans, workoutLogs, selectedWorkoutLo
             </div>
           </div>
           <div className="rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/10 p-5">
-            <div className="flex items-start gap-3"><Inbox className="mt-1 text-[#00BF63]" /><div><h3 className="font-black uppercase">Email Later</h3><p className="mt-1 text-sm leading-6 text-white/65">Personal email notifications should still be added later through a backend like Supabase + Resend or SendGrid. No email is sent from this frontend file.</p></div></div>
+            <div className="flex items-start gap-3"><Inbox className="mt-1 text-[#00BF63]" /><div><h3 className="font-black uppercase">Email Later</h3><p className="mt-1 text-sm leading-6 text-white/65">Personal email notifications should still be added later through a secure notification service. No email is sent from this frontend file.</p></div></div>
           </div>
         </div>
 
@@ -3746,7 +3746,7 @@ function ProgressScreen({
           Progress Dashboard
         </h3>
         <p className="mt-2 text-sm font-bold leading-6 text-white/65">
-          Local React state and localStorage are still powering this screen. Backend progress tables can come later after the frontend is stable.
+          Local React state and localStorage are still powering this screen. Server progress tables can come later after the frontend is stable.
         </p>
       </div>
 
@@ -3933,761 +3933,179 @@ function ProgressScreen({
 }
 
 
-function BackendSyncPanel({ onBackendImport }) {
-  const [backendLoading, setBackendLoading] = useState(false);
-  const [backendStatus, setBackendStatus] = useState(
-    "Backend sync has not been loaded yet."
+function ServerSyncPanel() {
+  return null;
+}
+
+function LoginScreen(props = {}) {
+  const { onPortalLogin, onPortalLogout } = props;
+  const [coachEmail, setCoachEmail] = useState("coach@nolimittest.com");
+  const [coachPassword, setCoachPassword] = useState("");
+  const [clientEmail, setClientEmail] = useState("client@nolimittest.com");
+  const [clientPassword, setClientPassword] = useState("");
+  const [accountStatus, setAccountStatus] = useState(
+    "Choose coach or client access to open the right portal."
   );
-  const [backendSnapshot, setBackendSnapshot] = useState(null);
 
-  async function handleLoadBackendData() {
-    setBackendLoading(true);
-    setBackendStatus("Loading Supabase backend data...");
-
-    try {
-      const [
-        exercises,
-        clients,
-        plans,
-        workoutLogs,
-        messages,
-        notifications,
-        preferences,
-      ] = await Promise.all([
-        fetchBackendExerciseLibrary(),
-        fetchBackendClients(),
-        fetchBackendPlans(),
-        fetchBackendWorkoutLogs(),
-        fetchBackendMessages(),
-        fetchBackendNotifications(),
-        fetchBackendNotificationPreferences(),
-      ]);
-
-      setBackendSnapshot({
-        exercises,
-        clients,
-        plans,
-        workoutLogs,
-        messages,
-        notifications,
-        preferences,
-      });
-
-      setBackendStatus(
-        "Backend data loaded successfully. LocalStorage is still the safe app workflow."
-      );
-    } catch (error) {
-      setBackendSnapshot(null);
-      setBackendStatus(
-        "Backend sync failed: " + (error.message || String(error))
-      );
-    } finally {
-      setBackendLoading(false);
-    }
+  function handleCheckStatus() {
+    setAccountStatus("Account access is ready.");
   }
 
+  function handlePortalLogin(event, loginType) {
+    event.preventDefault();
 
-  async function handleImportBackendIntoApp() {
-    if (!onBackendImport) {
-      setBackendStatus("Backend import handler is not connected yet.");
+    const isCoach = loginType === "coach";
+    const email = isCoach ? coachEmail : clientEmail;
+    const password = isCoach ? coachPassword : clientPassword;
+
+    if (!email) {
+      setAccountStatus("Enter the " + loginType + " email first.");
       return;
     }
 
-    setBackendLoading(true);
-    setBackendStatus("Importing Supabase data into the real app flow...");
-
-    try {
-      const summary = await onBackendImport();
-      setBackendStatus(summary);
-    } catch (error) {
-      setBackendStatus("Backend app import failed: " + (error.message || String(error)));
-    } finally {
-      setBackendLoading(false);
+    if (!password) {
+      setAccountStatus("Enter the " + loginType + " password first.");
+      return;
     }
+
+    if (onPortalLogin) {
+      onPortalLogin({
+        email,
+        full_name: isCoach ? "Coach" : "Client",
+        role: loginType,
+      });
+    }
+
+    setAccountStatus((isCoach ? "Coach" : "Client") + " access opened.");
   }
 
-  const exercises = backendSnapshot?.exercises || [];
-  const clients = backendSnapshot?.clients || [];
-  const plans = backendSnapshot?.plans || [];
-  const workoutLogs = backendSnapshot?.workoutLogs || [];
-  const messages = backendSnapshot?.messages || [];
-  const notifications = backendSnapshot?.notifications || [];
-  const preferences = backendSnapshot?.preferences || null;
+  function handleSignOut() {
+    if (onPortalLogout) {
+      onPortalLogout();
+    }
 
-  const latestPlan = plans[0] || null;
-  const latestWorkoutLog = workoutLogs[0] || null;
-  const latestMessage = messages[messages.length - 1] || null;
-  const latestNotification = notifications[0] || null;
+    setAccountStatus("Signed out.");
+  }
 
   return (
-    <div className="mt-6 rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/10 p-6">
-      <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
-        Backend 7 Sync Panel
+    <section className="rounded-[2rem] border border-[#00BF63]/25 bg-black/70 p-6 shadow-2xl shadow-black/30">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-[#00BF63]">
+        Login
       </p>
 
-      <h3 className="mt-2 text-2xl font-black uppercase text-white">
-        Supabase Data Bridge Preview
-      </h3>
+      <h1 className="mt-3 text-3xl font-black text-white">
+        Account Access
+      </h1>
 
-      <p className="mt-3 text-sm leading-6 text-white/65">
-        This panel reads real Supabase data through the backend bridge, but it does not replace your localStorage app flow yet.
+      <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
+        Sign in as a coach or client to open the right portal.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button
           type="button"
-          onClick={handleLoadBackendData}
-          disabled={backendLoading}
-          className="rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:opacity-50"
+          onClick={handleCheckStatus}
+          className="rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
         >
-          Load Backend Data
+          Check Login Status
         </button>
 
         <button
           type="button"
-          onClick={handleImportBackendIntoApp}
-          disabled={backendLoading}
-          className="rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-5 py-3 text-sm font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black disabled:opacity-50"
+          onClick={handleSignOut}
+          className="rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-black uppercase text-white transition hover:border-red-400 hover:text-red-300"
         >
-          Import Backend Data Into App Flow
+          Sign Out
         </button>
       </div>
 
       <div className="mt-5 rounded-2xl border border-white/10 bg-black/40 p-4">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
-          Backend Status
+          Account Status
         </p>
-
-        <p className="mt-2 text-sm font-bold text-white/75">
-          {backendStatus}
-        </p>
+        <p className="mt-2 text-sm font-bold text-white/75">{accountStatus}</p>
       </div>
 
-      {backendSnapshot && (
-        <div className="mt-5 space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-            <StatCard label="Backend Exercises" value={exercises.length} />
-            <StatCard label="Backend Clients" value={clients.length} />
-            <StatCard label="Backend Plans" value={plans.length} />
-            <StatCard label="Backend Logs" value={workoutLogs.length} />
-            <StatCard label="Backend Messages" value={messages.length} />
-            <StatCard label="Backend Alerts" value={notifications.length} />
-          </div>
-
-          <div className="grid gap-6 xl:grid-cols-2">
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/40 p-5">
-              <h4 className="text-xl font-black uppercase">
-                Backend Clients Preview
-              </h4>
-
-              {clients.length === 0 ? (
-                <p className="mt-3 text-sm font-bold text-white/55">
-                  No backend clients visible. Sign in as coach, then load again.
-                </p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {clients.slice(0, 5).map((client) => (
-                    <div
-                      key={client.id}
-                      className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
-                    >
-                      <p className="font-black text-white">{client.name}</p>
-                      <p className="mt-1 text-sm text-white/55">{client.email}</p>
-                      <p className="mt-2 text-xs font-black uppercase tracking-wide text-[#00BF63]">
-                        {client.status}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/40 p-5">
-              <h4 className="text-xl font-black uppercase">
-                Backend Exercise Library Preview
-              </h4>
-
-              {exercises.length === 0 ? (
-                <p className="mt-3 text-sm font-bold text-white/55">
-                  No backend exercises loaded.
-                </p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {exercises.slice(0, 6).map((exercise) => (
-                    <div
-                      key={exercise.id}
-                      className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
-                    >
-                      <p className="font-black text-white">{exercise.name}</p>
-                      <p className="mt-1 text-sm text-white/55">
-                        {exercise.musclesWorked}
-                      </p>
-                      <p className="mt-2 text-xs font-bold uppercase tracking-wide text-[#00BF63]">
-                        {exercise.categories.join(" / ")}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/40 p-5">
-              <h4 className="text-xl font-black uppercase">
-                Latest Backend Plan
-              </h4>
-
-              {latestPlan ? (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <p className="font-black text-white">{latestPlan.planName}</p>
-                  <p className="mt-1 text-sm text-white/55">
-                    Client: {latestPlan.clientName || "N/A"}
-                  </p>
-                  <p className="mt-1 text-sm text-white/55">
-                    Days: {latestPlan.days.length}
-                  </p>
-
-                  {latestPlan.days[0]?.exercises?.[0] && (
-                    <p className="mt-3 rounded-xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-3 text-sm font-bold text-[#00BF63]">
-                      First exercise: {latestPlan.days[0].exercises[0].exerciseName}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm font-bold text-white/55">
-                  No backend plans visible yet.
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/40 p-5">
-              <h4 className="text-xl font-black uppercase">
-                Latest Backend Workout Log
-              </h4>
-
-              {latestWorkoutLog ? (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <p className="font-black text-white">{latestWorkoutLog.planName}</p>
-                  <p className="mt-1 text-sm text-white/55">
-                    Client: {latestWorkoutLog.clientName || "N/A"}
-                  </p>
-                  <p className="mt-1 text-sm text-white/55">
-                    Status: {latestWorkoutLog.status}
-                  </p>
-
-                  {latestWorkoutLog.entries[0] && (
-                    <p className="mt-3 rounded-xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-3 text-sm font-bold text-[#00BF63]">
-                      Latest entry: {latestWorkoutLog.entries[0].exerciseName} / {latestWorkoutLog.entries[0].actualWeight || "N/A"}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm font-bold text-white/55">
-                  No backend workout logs visible yet.
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/40 p-5">
-              <h4 className="text-xl font-black uppercase">
-                Backend Messages Preview
-              </h4>
-
-              {latestMessage ? (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <p className="font-black text-[#00BF63]">
-                    {latestMessage.sender}
-                  </p>
-                  <p className="mt-2 text-sm text-white/70">{latestMessage.body}</p>
-                  <p className="mt-2 text-xs text-white/40">{latestMessage.sentAt}</p>
-                </div>
-              ) : (
-                <p className="mt-3 text-sm font-bold text-white/55">
-                  No backend messages visible yet.
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/40 p-5">
-              <h4 className="text-xl font-black uppercase">
-                Backend Notifications Preview
-              </h4>
-
-              {latestNotification ? (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <p className="font-black text-white">{latestNotification.title}</p>
-                  <p className="mt-2 text-sm text-white/70">{latestNotification.body}</p>
-                  <p className="mt-2 text-xs font-black uppercase tracking-wide text-[#00BF63]">
-                    {latestNotification.type}
-                  </p>
-                </div>
-              ) : (
-                <p className="mt-3 text-sm font-bold text-white/55">
-                  No backend notifications visible yet.
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/40 p-5 xl:col-span-2">
-              <h4 className="text-xl font-black uppercase">
-                Backend Notification Preferences
-              </h4>
-
-              {preferences ? (
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                  <MiniProgram
-                    label="Coach Email"
-                    value={preferences.coachEmail || "N/A"}
-                  />
-                  <MiniProgram
-                    label="Email Provider"
-                    value={preferences.futureEmailProvider || "N/A"}
-                  />
-                  <MiniProgram
-                    label="Backend Status"
-                    value={preferences.backendStatus || "N/A"}
-                  />
-                </div>
-              ) : (
-                <p className="mt-3 text-sm font-bold text-white/55">
-                  No backend notification preferences visible. Coach login may be required.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function LoginScreen({ onBackendImport, onPortalLogin, onPortalLogout }) {
-  const hasSupabaseUrl = Boolean(import.meta.env.VITE_SUPABASE_URL);
-  const hasSupabasePublishableKey = Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-  const isSupabaseConfigured = hasSupabaseUrl && hasSupabasePublishableKey;
-
-  const [coachEmail, setCoachEmail] = useState("coach@nolimittest.com");
-  const [coachPassword, setCoachPassword] = useState("");
-  const [clientEmail, setClientEmail] = useState("client@nolimittest.com");
-  const [clientPassword, setClientPassword] = useState("");
-  const [authStatus, setAuthStatus] = useState("No Supabase user signed in yet.");
-  const [authProfile, setAuthProfile] = useState(null);
-  const [authLoading, setAuthLoading] = useState(false);
-
-  function getAuthErrorMessage(error) {
-    const message = error?.message || String(error || "Unknown error");
-
-    if (message.toLowerCase().includes("supabase")) {
-      return message;
-    }
-
-    return "Supabase auth action failed: " + message;
-  }
-
-  function guardSupabaseConfig(actionLabel) {
-    if (isSupabaseConfigured) return true;
-
-    setAuthProfile(null);
-    setAuthStatus(
-      actionLabel +
-        " skipped. Supabase is not configured for this environment. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local, then restart Vite."
-    );
-
-    return false;
-  }
-
-  async function handleCheckSession() {
-    if (!guardSupabaseConfig("Session check")) return;
-
-    setAuthLoading(true);
-    setAuthStatus("Checking Supabase session...");
-
-    try {
-      const session = await getCurrentSession();
-
-      if (!session?.user?.email) {
-        setAuthProfile(null);
-        setAuthStatus("No active Supabase session found.");
-        return;
-      }
-
-      const profile = await getCurrentProfile();
-
-      setAuthProfile(profile);
-
-      if (profile?.role && onPortalLogin) {
-        onPortalLogin(profile);
-      }
-
-      setAuthStatus(
-        "Active Supabase session found for " +
-          session.user.email +
-          ". Role: " +
-          (profile?.role || "profile role not found")
-      );
-    } catch (error) {
-      setAuthProfile(null);
-      setAuthStatus(getAuthErrorMessage(error));
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function handleLogin(event, loginType) {
-    event.preventDefault();
-
-    const email = loginType === "coach" ? coachEmail : clientEmail;
-    const password = loginType === "coach" ? coachPassword : clientPassword;
-
-    if (!email || !password) {
-      setAuthStatus("Enter the " + loginType + " email and password first.");
-      return;
-    }
-
-    if (!guardSupabaseConfig(loginType + " login")) return;
-
-    setAuthLoading(true);
-    setAuthStatus("Signing in " + loginType + " with Supabase...");
-
-    try {
-      const result = await signInWithEmailPassword(email, password);
-      const profile = await getCurrentProfile();
-      const resolvedRole = String(profile?.role || "").toLowerCase();
-
-      setAuthProfile(profile);
-
-      if (!resolvedRole) {
-        setAuthStatus(
-          "Signed in as " +
-            (result?.user?.email || email) +
-            ", but no profile role was found. Add coach/client role in the profiles table before routing portals."
-        );
-        return;
-      }
-
-      if (onPortalLogin) {
-        onPortalLogin(profile);
-      }
-
-      setAuthStatus(
-        "Signed in as " +
-          (result?.user?.email || email) +
-          ". Supabase role: " +
-          resolvedRole
-      );
-    } catch (error) {
-      setAuthProfile(null);
-      setAuthStatus(getAuthErrorMessage(error));
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function handleSignOut() {
-    setAuthLoading(true);
-
-    if (!isSupabaseConfigured) {
-      setAuthProfile(null);
-      setAuthStatus(
-        "Local portal logout complete. Supabase sign out was skipped because Supabase is not configured for this environment."
-      );
-
-      if (onPortalLogout) {
-        onPortalLogout();
-      }
-
-      setAuthLoading(false);
-      return;
-    }
-
-    setAuthStatus("Signing out of Supabase...");
-
-    try {
-      await signOutUser();
-      setAuthProfile(null);
-      setAuthStatus("Signed out of Supabase.");
-
-      if (onPortalLogout) {
-        onPortalLogout();
-      }
-    } catch (error) {
-      setAuthProfile(null);
-      setAuthStatus(getAuthErrorMessage(error));
-
-      if (onPortalLogout) {
-        onPortalLogout();
-      }
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  return (
-    <div>
-      <SectionHeader
-        eyebrow="Login"
-        title="Authentication Later"
-        description="Supabase Auth is connected for coach and client sign-in testing. The main app workflow still stays localStorage-first until migration is finished."
-      />
-
-      <div className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6">
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
-          Supabase Configuration
-        </p>
-
-        <h3 className="mt-2 text-2xl font-black uppercase text-white">
-          Auth Guard Status
-        </h3>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <MiniProgram
-            label="VITE_SUPABASE_URL"
-            value={hasSupabaseUrl ? "Found" : "Missing"}
-          />
-          <MiniProgram
-            label="VITE_SUPABASE_PUBLISHABLE_KEY"
-            value={hasSupabasePublishableKey ? "Found" : "Missing"}
-          />
-          <MiniProgram
-            label="Auth Actions"
-            value={isSupabaseConfigured ? "Ready" : "Safely blocked"}
-          />
-        </div>
-
-        {!isSupabaseConfigured && (
-          <p className="mt-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm font-bold leading-6 text-yellow-100">
-            Supabase is optional right now. The app will not crash if env values are missing.
-            Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local,
-            then restart Vite when you want real auth testing.
-          </p>
-        )}
-      </div>
-
-      <div className="mb-6 rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/10 p-6">
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
-          Backend 4 Auth
-        </p>
-
-        <h3 className="mt-2 text-2xl font-black uppercase text-white">
-          Supabase Login Test Panel
-        </h3>
-
-        <p className="mt-3 text-sm font-bold leading-6 text-[#00BF63]">
-          Supabase/auth should come after the frontend structure is tested and stable.
-        </p>
-
-        <p className="mt-3 text-sm leading-6 text-white/65">
-          This panel tests real Supabase Auth using your test coach and client accounts.
-          Do not put secret keys or service-role keys inside the React frontend.
-        </p>
-
-        <div className="mt-5 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={handleCheckSession}
-            disabled={authLoading}
-            className="rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:opacity-50"
-          >
-            Check Current Session
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={authLoading}
-            className="rounded-full border border-white/15 bg-black/40 px-5 py-3 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63] disabled:opacity-50"
-          >
-            Sign Out
-          </button>
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-white/10 bg-black/40 p-4">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
-            Auth Status
-          </p>
-
-          <p className="mt-2 text-sm font-bold leading-6 text-white/75">
-            {authStatus}
-          </p>
-
-          {authProfile && (
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <MiniProgram label="Profile Email" value={authProfile.email || "N/A"} />
-              <MiniProgram label="Profile Role" value={authProfile.role || "N/A"} />
-              <MiniProgram label="Profile ID" value={authProfile.id || "N/A"} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <form
-          onSubmit={(event) => handleLogin(event, "coach")}
-          className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6"
+          onSubmit={(event) => handlePortalLogin(event, "coach")}
+          className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
         >
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
-            Coach Access
+          <h3 className="text-xl font-black text-white">Coach Login</h3>
+          <p className="mt-2 text-sm leading-6 text-white/55">
+            Open coach tools for assigning clients, editing plans, reviewing progress, and messaging.
           </p>
 
-          <h3 className="mt-2 text-xl font-black uppercase">
-            Coach Login
-          </h3>
-
-          <p className="mt-3 text-sm leading-6 text-white/60">
-            Use the coach test account you created in Supabase Auth. This should return the coach profile role from the profiles table.
-          </p>
-
-          <label className="mt-5 block text-xs font-black uppercase tracking-[0.18em] text-white/45">
+          <label className="mt-4 block text-xs font-black uppercase tracking-[0.2em] text-white/45">
             Coach Email
+            <input
+              value={coachEmail}
+              onChange={(event) => setCoachEmail(event.target.value)}
+              placeholder="coach@email.com"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-white/25 focus:border-[#00BF63]"
+            />
           </label>
-          <input
-            aria-label="Coach Email"
-            type="email"
-            value={coachEmail}
-            onChange={(event) => setCoachEmail(event.target.value)}
-            placeholder="coach@nolimittest.com"
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]"
-          />
 
-          <label className="mt-4 block text-xs font-black uppercase tracking-[0.18em] text-white/45">
+          <label className="mt-4 block text-xs font-black uppercase tracking-[0.2em] text-white/45">
             Coach Password
+            <input
+              type="password"
+              value={coachPassword}
+              onChange={(event) => setCoachPassword(event.target.value)}
+              placeholder="Enter coach password"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-white/25 focus:border-[#00BF63]"
+            />
           </label>
-          <input
-            aria-label="Coach Password"
-            type="password"
-            value={coachPassword}
-            onChange={(event) => setCoachPassword(event.target.value)}
-            placeholder="Enter saved coach password"
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]"
-          />
 
           <button
             type="submit"
-            disabled={authLoading}
-            className="mt-5 w-full rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:opacity-50"
+            className="mt-5 w-full rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-black transition hover:bg-[#00d36f]"
           >
-            Test Supabase Coach Login
+            Coach Login
           </button>
         </form>
 
         <form
-          onSubmit={(event) => handleLogin(event, "client")}
-          className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6"
+          onSubmit={(event) => handlePortalLogin(event, "client")}
+          className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
         >
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
-            Client Access
+          <h3 className="text-xl font-black text-white">Client Login</h3>
+          <p className="mt-2 text-sm leading-6 text-white/55">
+            Open the client portal for viewing the plan, logging workouts, checking progress, and messaging coach.
           </p>
 
-          <h3 className="mt-2 text-xl font-black uppercase">
-            Client Login
-          </h3>
-
-          <p className="mt-3 text-sm leading-6 text-white/60">
-            Use the client test account you created in Supabase Auth. This should return the client profile role from the profiles table.
-          </p>
-
-          <label className="mt-5 block text-xs font-black uppercase tracking-[0.18em] text-white/45">
+          <label className="mt-4 block text-xs font-black uppercase tracking-[0.2em] text-white/45">
             Client Email
+            <input
+              value={clientEmail}
+              onChange={(event) => setClientEmail(event.target.value)}
+              placeholder="client@email.com"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-white/25 focus:border-[#00BF63]"
+            />
           </label>
-          <input
-            aria-label="Client Email"
-            type="email"
-            value={clientEmail}
-            onChange={(event) => setClientEmail(event.target.value)}
-            placeholder="client@nolimittest.com"
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]"
-          />
 
-          <label className="mt-4 block text-xs font-black uppercase tracking-[0.18em] text-white/45">
+          <label className="mt-4 block text-xs font-black uppercase tracking-[0.2em] text-white/45">
             Client Password
+            <input
+              type="password"
+              value={clientPassword}
+              onChange={(event) => setClientPassword(event.target.value)}
+              placeholder="Enter client password"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-white/25 focus:border-[#00BF63]"
+            />
           </label>
-          <input
-            aria-label="Client Password"
-            type="password"
-            value={clientPassword}
-            onChange={(event) => setClientPassword(event.target.value)}
-            placeholder="Enter saved client password"
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]"
-          />
 
           <button
             type="submit"
-            disabled={authLoading}
-            className="mt-5 w-full rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:opacity-50"
+            className="mt-5 w-full rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-black transition hover:bg-[#00d36f]"
           >
-            Test Supabase Client Login
+            Client Login
           </button>
         </form>
       </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6">
-          <h3 className="text-xl font-black uppercase">
-            Role-Based Screen Plan
-          </h3>
-
-          <div className="mt-4 grid gap-3">
-            <MiniProgram label="Coach role" value="Dashboard, clients, plans, activity, messages" />
-            <MiniProgram label="Client role" value="Client portal, tracker, messages, progress" />
-            <MiniProgram label="Auth provider" value="Supabase Auth active for testing" />
-          </div>
-        </div>
-
-        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6">
-          <h3 className="text-xl font-black uppercase">
-            Supabase-Ready Structure
-          </h3>
-
-          <p className="mt-3 text-sm leading-6 text-white/65">
-            Suggested backend tables later: profiles, clients, workout_plans, workout_days,
-            workout_exercises, workout_logs, workout_entries, messages, notifications,
-            and notification_preferences.
-          </p>
-
-          <div className="mt-4 grid gap-3">
-            <MiniProgram label="Database" value="Supabase connected" />
-            <MiniProgram label="Storage" value="Workout data migration comes next" />
-            <MiniProgram label="Security" value="RLS policies installed" />
-          </div>
-        </div>
-
-        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6 xl:col-span-2">
-          <h3 className="text-xl font-black uppercase">
-            Email Notification Prep
-          </h3>
-
-          <p className="mt-3 text-sm leading-6 text-white/65">
-            Email alerts should not be sent directly inside App.jsx. Later, use
-            a backend route or Supabase Edge Function with Resend or SendGrid
-            for personal email notifications.
-          </p>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <MiniProgram label="Recommended backend" value="Supabase" />
-            <MiniProgram label="Email option 1" value="Resend" />
-            <MiniProgram label="Email option 2" value="SendGrid" />
-          </div>
-        </div>
-
-        <div className="rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/10 p-6 xl:col-span-2">
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
-            Backend Rule
-          </p>
-
-          <h3 className="mt-2 text-xl font-black uppercase text-white">
-            Do not send email directly inside App.jsx
-          </h3>
-
-          <p className="mt-3 text-sm font-bold leading-6 text-[#00BF63]">
-            Secret keys stay out of the frontend. Email alerts should run through a backend function later.
-          </p>
-        </div>
-      </div>
-
-      <BackendSyncPanel onBackendImport={onBackendImport} />
-    </div>
+    </section>
   );
 }
-
 
 function WorkoutLogList({ logs, selectedLogId, onSelect, onDelete }) {
   return (

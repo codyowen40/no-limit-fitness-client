@@ -24,8 +24,22 @@ async function expectNoDevelopmentWording(page) {
   await expect(main).not.toContainText(/SendGrid/i);
 }
 
-test.describe("No Limit Fitness account sync readiness", () => {
-  test("coach view loads cleanly without development database panels", async ({ page }) => {
+test.describe("No Limit Fitness production-facing wording", () => {
+  test("public client portal does not expose development wording", async ({ page }) => {
+    await page.addInitScript(({ portalModeKey, testUnlockKey }) => {
+      window.localStorage.removeItem(portalModeKey);
+      window.localStorage.removeItem(testUnlockKey);
+    }, { portalModeKey: PORTAL_MODE_KEY, testUnlockKey: TEST_UNLOCK_KEY });
+
+    await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
+
+    await expect(page.locator("#root")).toBeAttached();
+    await expect(page.locator("main")).toBeVisible();
+
+    await expectNoDevelopmentWording(page);
+  });
+
+  test("internal coach view does not expose development wording", async ({ page }) => {
     await page.addInitScript(({ portalModeKey, testUnlockKey }) => {
       window.localStorage.setItem(testUnlockKey, "true");
       window.localStorage.setItem(portalModeKey, "coach");
@@ -36,19 +50,17 @@ test.describe("No Limit Fitness account sync readiness", () => {
     await expect(page.locator("#root")).toBeAttached();
     await expect(page.locator("main")).toBeVisible();
 
-    await expectNoDevelopmentWording(page);
-  });
+    const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
+    await expect(nav).toBeVisible();
 
-  test("public client URL stays clean", async ({ page }) => {
-    await page.addInitScript(({ portalModeKey, testUnlockKey }) => {
-      window.localStorage.removeItem(portalModeKey);
-      window.localStorage.removeItem(testUnlockKey);
-    }, { portalModeKey: PORTAL_MODE_KEY, testUnlockKey: TEST_UNLOCK_KEY });
+    const loginOrLogoutButton = nav
+      .getByRole("button", { name: /^(Login|Logout)$/ })
+      .first();
 
-    await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
-
-    await expect(page.locator("#root")).toBeAttached();
-    await expect(page.locator("main")).toBeVisible();
+    if ((await loginOrLogoutButton.count()) > 0) {
+      await loginOrLogoutButton.click();
+      await expect(page.locator("main")).toBeVisible();
+    }
 
     await expectNoDevelopmentWording(page);
   });
