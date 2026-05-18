@@ -1797,7 +1797,7 @@ const isLoggedIn =
       setSelectedTrackerPlanId(updatedPlan.id);
       setSelectedTrackerDayId(updatedPlan.days[0]?.id || "");
       setSelectedClientProfileId(updatedPlan.clientId);
-      setBuilderMessage("Plan updated locally. Tracker and plan details now use the edited version.");
+      setBuilderMessage("Plan changes saved. Tracker and plan details now use the edited version.");
       return;
     }
 
@@ -1844,7 +1844,7 @@ const isLoggedIn =
     setPlanCategory("All");
     setSelectedPlanDetailId(plan.id);
     setActiveTab("Plans");
-    setBuilderMessage(`Editing "${plan.planName}". Make changes and press Update Plan Locally.`);
+    setBuilderMessage(`Editing "${plan.planName}". Make changes, then click Save Changes.`);
   }
 
   function duplicateSavedPlan(planId) {
@@ -2378,12 +2378,12 @@ function handlePortalLogout() {
         {normalizedPortalMode === "client" && (
           <nav
             aria-label="Mobile navigation"
-            className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-black/90 px-3 py-2 shadow-2xl shadow-black/60 backdrop-blur md:hidden"
+            className="fixed inset-x-3 bottom-4 z-50 mx-auto max-w-md rounded-[2rem] border border-[#00BF63]/35 bg-black/95 px-3 py-2 shadow-2xl shadow-[#00BF63]/15 ring-1 ring-white/10 backdrop-blur md:hidden"
           >
             {isMobileMoreOpen && (
               <div
                 aria-label="Mobile More menu"
-                className="absolute inset-x-3 bottom-20 rounded-3xl border border-white/10 bg-black/95 p-3 shadow-2xl shadow-black/70"
+                className="absolute inset-x-0 bottom-24 rounded-3xl border border-[#00BF63]/30 bg-black/95 p-3 shadow-2xl shadow-black/70 ring-1 ring-white/10"
               >
                 <p className="px-2 pb-2 text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
                   More Tools
@@ -2463,13 +2463,13 @@ function handlePortalLogout() {
                 aria-label="More"
                 onClick={() => setIsMobileMoreOpen((current) => !current)}
                 className={[
-                  "flex flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2 text-[11px] font-black uppercase tracking-wide transition",
+                  "relative flex flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2 text-[11px] font-black uppercase tracking-wide transition ring-1",
                   isMobileMoreOpen || isMobileMoreActive
-                    ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20"
-                    : "border-white/10 bg-white/[0.04] text-white/70 hover:border-[#00BF63] hover:text-[#00BF63]",
+                    ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20 ring-[#00BF63]/30"
+                    : "border-[#00BF63]/70 bg-[#00BF63]/15 text-[#00BF63] shadow-lg shadow-[#00BF63]/10 ring-[#00BF63]/20 hover:bg-[#00BF63] hover:text-black",
                 ].join(" ")}
               >
-                <span className="text-lg leading-none">•••</span>
+                <span className="text-xl leading-none">☰</span>
                 More
               </button>
             </div>
@@ -3504,7 +3504,28 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
 
   return (
     <div>
-      <SectionHeader eyebrow="Workout Plan Builder" title="Build Training With Intent" description="Create, edit, duplicate, and delete saved plans. Select a client, build training days, add exercises from the larger general library, and program workout details." />
+      <SectionHeader
+        eyebrow="Workout Plan Builder"
+        title="Workout Builder"
+        description="Build, edit, save, duplicate, and delete plans from one coach tool. Follow the steps below: choose the client, add training days, add exercises, then save."
+      />
+
+      <div aria-label="Workout builder quick steps" className="mb-6 grid gap-3 md:grid-cols-4">
+        {[
+          ["1", "Choose Client", "Select who this plan belongs to before saving."],
+          ["2", "Add Days", "Create the training split and name each workout day."],
+          ["3", "Add Exercises", "Search, click Add, then edit sets, reps, rest, and notes."],
+          ["4", "Save / Edit", "Use Save New Plan, Save Changes, Duplicate, or Delete."],
+        ].map(([step, title, text]) => (
+          <div key={step} className="rounded-2xl border border-white/10 bg-black/45 p-4 shadow-lg shadow-black/20">
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-full bg-[#00BF63] text-sm font-black text-black">
+              {step}
+            </div>
+            <p className="font-black uppercase tracking-wide text-white">{title}</p>
+            <p className="mt-1 text-sm font-semibold text-white/60">{text}</p>
+          </div>
+        ))}
+      </div>
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-6">
           <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
@@ -3514,8 +3535,8 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
               <Select label="Select Client" value={planDraft.clientId} onChange={(value) => updatePlanField("clientId", value)} options={clients.map((client) => ({ label: client.name, value: client.id }))} />
             </div>
             <div className="mt-4 grid gap-3 rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4 md:grid-cols-3"><StatCard label="Selected Client" value={selectedClient?.name || "None"} /><StatCard label="Training Days" value={planDraft.days.length} /><StatCard label="Plan Exercises" value={totalExercises} /></div>
-            {editingPlanId && <div className="mt-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm font-bold text-yellow-200">Editing saved plan mode is active. Press Update Plan Locally to save changes to the selected plan, or Reset Builder to cancel editing.</div>}
-            <div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={savePlan} className="flex items-center gap-2 rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white"><Save size={17} />{editingPlanId ? "Update Plan Locally" : "Save Plan Locally"}</button><button type="button" onClick={resetPlanBuilder} className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"><X size={17} />Reset Builder</button></div>
+            {editingPlanId && <div className="mt-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm font-bold text-yellow-200">Editing mode is active. Make changes, then click Save Changes. Use Cancel / Reset if you do not want to keep editing.</div>}
+            <div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={savePlan} className="flex items-center gap-2 rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white"><Save size={17} />{editingPlanId ? "Save Changes" : "Save New Plan"}</button><button type="button" onClick={resetPlanBuilder} className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"><X size={17} />Cancel / Reset</button></div>
             {builderMessage && <p className="mt-4 rounded-2xl border border-[#00BF63]/30 bg-black/50 p-3 text-sm font-bold text-[#00BF63]">{builderMessage}</p>}
           </div>
 
@@ -3614,9 +3635,9 @@ function SavedPlansPanel({ savedPlans, selectedPlanDetail, setSelectedPlanDetail
               {plan.updatedAt && <p className="mt-1 text-xs font-bold uppercase tracking-[0.2em] text-yellow-200">Updated: {plan.updatedAt}</p>}
             </button>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" onClick={() => startEditPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-3 py-2 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"><ClipboardList size={14} />Edit Plan</button>
-              <button type="button" onClick={() => duplicateSavedPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"><Copy size={14} />Duplicate Plan</button>
-              <button type="button" onClick={() => deleteSavedPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-black uppercase text-red-300 transition hover:bg-red-500 hover:text-white"><Trash2 size={14} />Delete Saved Plan</button>
+              <button type="button" onClick={() => startEditPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-3 py-2 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"><ClipboardList size={14} />Edit</button>
+              <button type="button" onClick={() => duplicateSavedPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"><Copy size={14} />Duplicate</button>
+              <button type="button" onClick={() => deleteSavedPlan(plan.id)} className="flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-black uppercase text-red-300 transition hover:bg-red-500 hover:text-white"><Trash2 size={14} />Delete</button>
             </div>
           </div>
         ))}

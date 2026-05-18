@@ -340,11 +340,11 @@ test.describe("No Limit Fitness Bundle 7 mega regression", () => {
     await openTab(page, "Plans");
 
     await page.getByLabel("Plan Name").fill("");
-    await page.getByRole("button", { name: /Save Plan Locally|Update Plan Locally/i }).click();
+    await page.getByRole("button", { name: /Save New Plan|Save Changes|Save New Plan|Save Changes/i }).click();
     await expectMainText(page, "Add a plan name before saving.");
 
     await page.getByLabel("Plan Name").fill("Bundle 7 Validation Plan");
-    await page.getByRole("button", { name: /Save Plan Locally|Update Plan Locally/i }).click();
+    await page.getByRole("button", { name: /Save New Plan|Save Changes|Save New Plan|Save Changes/i }).click();
     await expectMainText(page, "Add at least one exercise before saving.");
   });
 
