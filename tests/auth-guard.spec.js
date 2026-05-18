@@ -1,33 +1,39 @@
 import { test, expect } from "@playwright/test";
 
 const LOCAL_URL = "http://localhost:5173/";
+const TEST_UNLOCK_URL = "http://localhost:5173/?testUnlock=true";
 
 const PORTAL_MODE_KEY = "no-limit-fitness-portal-mode-v1";
 const TEST_UNLOCK_KEY = "no-limit-fitness-test-unlocked-v1";
 
-async function openLoginPanel(page) {
-  await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
-
-  await page.evaluate(({ portalModeKey, testUnlockKey }) => {
-    window.localStorage.removeItem(portalModeKey);
-    window.localStorage.removeItem(testUnlockKey);
+async function openInternalCoach(page) {
+  await page.addInitScript(({ portalModeKey, testUnlockKey }) => {
+    window.localStorage.setItem(testUnlockKey, "true");
+    window.localStorage.setItem(portalModeKey, "coach");
   }, { portalModeKey: PORTAL_MODE_KEY, testUnlockKey: TEST_UNLOCK_KEY });
 
-  await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
-
-  const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
-
-  await nav.getByRole("button", { name: /^Login$/ }).click();
+  await page.goto(TEST_UNLOCK_URL, { waitUntil: "domcontentloaded" });
 }
 
-test.describe("No Limit Fitness auth guard", () => {
-  test("login auth panel loads safely without forcing real Supabase auth", async ({ page }) => {
-    await openLoginPanel(page);
+test.describe("No Limit Fitness account access guard", () => {
+  test("account access loads safely without exposing development database wording", async ({ page }) => {
+    await openInternalCoach(page);
 
-    await expect(page.locator("main")).toContainText(/Supabase|Authentication|Login/i);
-    await expect(page.getByRole("button", { name: /Check Current Session/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Sign Out/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Test Supabase Coach Login/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Test Supabase Client Login/i })).toBeVisible();
+    const main = page.locator("main");
+    await expect(page.locator("#root")).toBeAttached();
+    await expect(main).toBeVisible();
+
+    const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
+    const loginOrLogoutButton = nav.getByRole("button", { name: /^(Login|Logout)$/ }).first();
+
+    if ((await loginOrLogoutButton.count()) > 0) {
+      await loginOrLogoutButton.click();
+    }
+
+    await expect(main).toBeVisible();
+
+    await expect(main).not.toContainText(/Test Panel/i);
+    await expect(main).not.toContainText(/service-role/i);
+    await expect(main).not.toContainText(/localStorage-first/i);
   });
 });

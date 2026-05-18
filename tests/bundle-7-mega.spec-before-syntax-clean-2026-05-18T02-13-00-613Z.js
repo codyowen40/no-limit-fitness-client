@@ -272,6 +272,7 @@ test.describe("No Limit Fitness Bundle 7 mega regression", () => {
     await expectMainText(page, "Safety bar squat");
 
     await openTab(page, "Login");
+    await expectMainText(page, "Do not send email directly inside App.jsx");
   });
 
   test("keeps coach-only and client-only portal navigation rules with seeded data", async ({ page }) => {

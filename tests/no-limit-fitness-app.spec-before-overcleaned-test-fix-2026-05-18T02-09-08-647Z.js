@@ -40,6 +40,10 @@ test.describe("No Limit Fitness stable app test", () => {
       await expect(main).toBeVisible();
     }
 
+    await expect(main).not.toContainText(/Account/i);
+    await expect(main).not.toContainText(/Server/i);
+    await expect(main).not.toContainText(/Data Sync/i);
+    await expect(main).not.toContainText(/Account Guard/i);
     await expect(main).not.toContainText(/Test Panel/i);
   });
 });

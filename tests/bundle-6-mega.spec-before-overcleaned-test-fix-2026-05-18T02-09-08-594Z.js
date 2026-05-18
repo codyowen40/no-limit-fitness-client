@@ -144,6 +144,12 @@ function buildSeedState() {
       planAssigned: true,
       messages: true,
     },
+    backendSettings: {
+      coachEmail: "bundle6-original@nolimittest.com",
+      emailProvider: "Account + Resend",
+      backendStatus: "Bundle 6 original backend placeholder.",
+      notes: "Email alerts should be sent from a backend later. Do not send email directly inside App.jsx.",
+    },
   };
 }
 
@@ -233,7 +239,7 @@ test.describe("No Limit Fitness Bundle 6 mega regression", () => {
     await expect(nav.getByRole("button", { name: /^Messages(?:\s+\d+)?$/ })).toBeVisible();
   });
 
-  test("keeps notification preferences after refresh", async ({ page }) => {
+  test("keeps notification preferences and notification settings after refresh", async ({ page }) => {
     await expect(
       page.getByRole("heading", { name: "Coach-to-client workout tracking system." })
     ).toBeVisible();
@@ -243,11 +249,20 @@ test.describe("No Limit Fitness Bundle 6 mega regression", () => {
     await expect(page.getByLabel("Client skipped workout")).not.toBeChecked();
 
     await page.getByLabel("Client skipped workout").check();
+    await page.getByLabel("Coach Email For Future Alerts").fill("bundle6-updated@nolimittest.com");
+    await page.getByLabel("Future Email Provider").selectOption("App undecided");
+    await page.getByLabel("Sync Status").fill("Bundle 6 settings persisted after refresh.");
 
     await page.reload({ waitUntil: "domcontentloaded" });
 
     await expect(page.getByLabel("Client skipped workout")).toBeChecked();
-
+    await expect(page.getByLabel("Coach Email For Future Alerts")).toHaveValue(
+      "bundle6-updated@nolimittest.com"
+    );
+    await expect(page.getByLabel("Future Email Provider")).toHaveValue("App undecided");
+    await expect(page.getByLabel("Sync Status")).toHaveValue(
+      "Bundle 6 settings persisted after refresh."
+    );
   });
 
   test("sends coach and client messages and keeps them after refresh", async ({ page }) => {

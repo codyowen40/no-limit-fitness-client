@@ -247,7 +247,9 @@ test.describe("No Limit Fitness Bundle 6 mega regression", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
 
     await expect(page.getByLabel("Client skipped workout")).toBeChecked();
-
+      "bundle6-updated@nolimittest.com"
+    );
+    );
   });
 
   test("sends coach and client messages and keeps them after refresh", async ({ page }) => {

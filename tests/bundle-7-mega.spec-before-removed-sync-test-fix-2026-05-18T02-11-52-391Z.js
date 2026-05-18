@@ -161,6 +161,12 @@ function buildSeedState() {
       planAssigned: true,
       messages: true,
     },
+    backendSettings: {
+      coachEmail: "coach-bundle7@nolimittest.com",
+      emailProvider: "Account + Resend",
+      backendStatus: "Bundle 7 frontend placeholder check",
+      notes: "Bundle 7 confirms notification settings stay local until Account import is intentional.",
+    },
   };
 }
 
@@ -205,6 +211,8 @@ async function openTab(page, tabName) {
   await expect(page.locator("main")).toBeVisible();
 }
 
+
+
 async function openTrackerForAlpha(page) {
   await openTab(page, "Tracker");
 
@@ -236,7 +244,7 @@ async function expectMainText(page, text) {
 }
 
 test.describe("No Limit Fitness Bundle 7 mega regression", () => {
-  test("loads a full seeded local app state and keeps the production storage shape", async ({ page }) => {
+  test("loads a full seeded local app state and keeps the full storage shape", async ({ page }) => {
     await openSeededApp(page);
 
     const stored = await readStoredState(page);
@@ -245,9 +253,10 @@ test.describe("No Limit Fitness Bundle 7 mega regression", () => {
     expect(stored.workoutLogs).toHaveLength(1);
     expect(stored.conversations).toHaveLength(2);
     expect(stored.notificationPreferences.messages).toBe(true);
+    expect(stored.backendSettings.emailProvider).toBe("Account + Resend");
   });
 
-  test("shows seeded plans, clients, messages, and logs across demo tabs", async ({ page }) => {
+  test("shows seeded plans, clients, messages, logs, and notification settings across demo tabs", async ({ page }) => {
     await openSeededApp(page);
 
     await openTab(page, "Clients");
@@ -272,6 +281,8 @@ test.describe("No Limit Fitness Bundle 7 mega regression", () => {
     await expectMainText(page, "Safety bar squat");
 
     await openTab(page, "Login");
+    await expectMainText(page, "Shared Data Sync");
+    await expectMainText(page, "Do not send email directly inside App.jsx");
   });
 
   test("keeps coach-only and client-only portal navigation rules with seeded data", async ({ page }) => {
@@ -317,6 +328,7 @@ test.describe("No Limit Fitness Bundle 7 mega regression", () => {
         },
       ],
       notificationPreferences: { messages: false },
+      backendSettings: { coachEmail: "partial-coach@nolimittest.com" },
     };
 
     await openSeededApp(page, "demo", partialState);
@@ -333,6 +345,7 @@ test.describe("No Limit Fitness Bundle 7 mega regression", () => {
     expect(stored.conversations[0].messages).toEqual([]);
     expect(stored.notificationPreferences.completedWorkout).toBe(true);
     expect(stored.notificationPreferences.messages).toBe(false);
+    expect(stored.backendSettings.emailProvider).toBe("Account + Resend");
   });
 
   test("keeps plan builder validation safe before saving an incomplete custom plan", async ({ page }) => {

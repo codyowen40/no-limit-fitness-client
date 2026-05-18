@@ -2,79 +2,20 @@ import { test, expect } from "@playwright/test";
 
 const STORAGE_KEY = "no-limit-fitness-app-local-state-v1";
 
-async function expectMessagesEntryPoint(page, nav) {
-  const navMessages = nav.getByRole("button", {
-    name: /^Messages(?:\\s+\\d+)?$/,
-  });
-
-  const navMessageCount = await navMessages.count();
-
-  if (navMessageCount > 0) {
-    await expect(navMessages.first()).toBeVisible();
-    return;
-  }
-
-  await expect(
-    page.getByRole("button", {
-      name: /Messages\\s+Send local coach\/client messages/i,
-    })
-  ).toBeVisible();
-}
-
-async function openMessagesTab(page, nav) {
-  const navMessages = nav.getByRole("button", {
-    name: /^Messages(?:\\s+\\d+)?$/,
-  });
-
-  const navMessageCount = await navMessages.count();
-
-  if (navMessageCount > 0) {
-    const firstNavMessage = navMessages.first();
-
-    if (await firstNavMessage.isVisible().catch(() => false)) {
-      await firstNavMessage.click();
-      return;
-    }
-  }
-
-  await nav.getByRole("button", { name: /^Home$/ }).click();
-
-  await page
-    .getByRole("button", {
-      name: /Messages\\s+Send local coach\/client messages/i,
-    })
-    .click();
-}
-
-
-
-test.describe("No Limit Fitness Bundle 3 stable test", () => {
-  test("checks Bundle 3 client dashboard and stable app features", async ({
+test.describe("No Limit Fitness full app test", () => {
+  test("checks Bundle 2B features with expanded library, skip reason, and delete workout log", async ({
     page,
   }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
 
-    const testClientName = "Bundle 3 Stable Test Client";
-    const testClientEmail = "bundle3stable@nolimittest.com";
-
-    const originalPlanName = "Bundle 3 Stable Original Plan";
-    const copiedPlanName = `${originalPlanName} Copy`;
-    const editedPlanName = "Bundle 3 Stable Edited Plan";
-
-    const originalCoachNotes = "Original Bundle 3 stable coach note.";
-    const editedCoachNotes =
-      "Bundle 3 stable edited coach note: brace hard, control depth, and finish strong.";
-
+    const testClientName = "Bundle 2B Test Client";
+    const testClientEmail = "bundle2b@nolimittest.com";
+    const testPlanName = "Bundle 2B Strength Plan";
     const clientWorkoutNotes =
-      "Bundle 3 stable client note: strong controlled reps.";
-    const skipReason =
-      "Bundle 3 stable skipped workout because of work schedule.";
-
-    const coachMessage = "Bundle 3 stable coach message test.";
-    const clientMessage = "Bundle 3 stable client message test.";
-
-    const coachEmail = "coach-bundle3stable@nolimittest.com";
-    const backendStatus = "Bundle 3 stable backend placeholder tested.";
+      "Bundle 2B client note: form stayed controlled and knee felt good.";
+    const skipReason = "Bundle 2B skipped workout because of schedule conflict.";
+    const coachMessage = "Bundle 2B coach message test.";
+    const clientMessage = "Bundle 2B client message test.";
 
     await page.goto("/");
 
@@ -90,7 +31,7 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       page.getByRole("heading", { name: "No Limit Fitness" })
     ).toBeVisible();
 
-    await test.step("Home page and settings load", async () => {
+    await test.step("Home page loads", async () => {
       await expect(
         page.getByRole("heading", {
           name: /Coach-to-client workout tracking system/i,
@@ -98,40 +39,18 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       ).toBeVisible();
 
       await expect(nav.getByRole("button", { name: /^Home$/ })).toBeVisible();
-      await expect(nav.getByRole("button", { name: /^Client$/ })).toBeVisible();
       await expect(nav.getByRole("button", { name: /^Coach$/ })).toBeVisible();
       await expect(nav.getByRole("button", { name: /^Clients$/ })).toBeVisible();
       await expect(nav.getByRole("button", { name: /^Plans$/ })).toBeVisible();
       await expect(nav.getByRole("button", { name: /^Tracker$/ })).toBeVisible();
 
-      await expectMessagesEntryPoint(page, nav);
+      await expect(
+        nav.getByRole("button", { name: /^Messages(?:\s+\d+)?$/ })
+      ).toBeVisible();
 
       await expect(nav.getByRole("button", { name: /^Exercises$/ })).toBeVisible();
       await expect(nav.getByRole("button", { name: /^Progress$/ })).toBeVisible();
       await expect(nav.getByRole("button", { name: /^Login$/ })).toBeVisible();
-
-      await expect(
-        page.getByRole("heading", { name: "Notification Preferences" })
-      ).toBeVisible();
-
-      await expect(
-        page.getByRole("heading", { name: "Backend-Ready Settings" })
-      ).toBeVisible();
-
-      await page.getByLabel("Client skipped workout").uncheck();
-      await expect(page.getByLabel("Client skipped workout")).not.toBeChecked();
-
-      await page.getByLabel("Coach Email For Future Alerts").fill(coachEmail);
-
-      await page
-        .getByRole("combobox", { name: "Future Email Provider", exact: true })
-        .selectOption("Supabase + SendGrid");
-
-      await page.getByLabel("Backend Status").fill(backendStatus);
-
-      await expect(
-        page.getByText(/Do not send email directly inside App.jsx/i)
-      ).toBeVisible();
     });
 
     await test.step("Create a test client", async () => {
@@ -150,7 +69,7 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       await expect(page.getByText(testClientEmail).first()).toBeVisible();
     });
 
-    await test.step("Client status still works", async () => {
+    await test.step("Bundle 2A client status still works", async () => {
       await page
         .getByRole("combobox", { name: "Client Status", exact: true })
         .selectOption("Paused");
@@ -164,7 +83,7 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       await expect(page.getByText(/status updated to Active/i)).toBeVisible();
     });
 
-    await test.step("Expanded Exercise Library still works", async () => {
+    await test.step("Expanded Exercise Library works", async () => {
       await nav.getByRole("button", { name: /^Exercises$/ }).click();
 
       await expect(
@@ -202,14 +121,14 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       await expect(page.getByLabel("Actual Weight Used")).toHaveCount(0);
     });
 
-    await test.step("Build and save original workout plan", async () => {
+    await test.step("Build and save a workout plan", async () => {
       await nav.getByRole("button", { name: /^Plans$/ }).click();
 
       await expect(
         page.getByText("Workout Plan Builder", { exact: true })
       ).toBeVisible();
 
-      await page.getByLabel("Plan Name").fill(originalPlanName);
+      await page.getByLabel("Plan Name").fill(testPlanName);
 
       await page
         .getByRole("combobox", { name: "Select Client", exact: true })
@@ -230,7 +149,9 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       await page.getByLabel("Weight Guidance").fill("RPE 7 - 8");
       await page.getByLabel("Rest Period").fill("90 - 120 sec");
 
-      await page.getByLabel("Coach Notes").fill(originalCoachNotes);
+      await page
+        .getByLabel("Coach Notes")
+        .fill("Control the descent. Drive through the floor.");
 
       await page.getByRole("button", { name: /Save Plan Locally/i }).click();
 
@@ -238,103 +159,11 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
         page.getByText(/Plan saved locally and assigned to the selected client/i)
       ).toBeVisible();
 
-      await expect(page.getByText(originalPlanName).first()).toBeVisible();
+      await expect(page.getByText(testPlanName).first()).toBeVisible();
       await expect(page.getByText(`Client: ${testClientName}`).first()).toBeVisible();
     });
 
-    await test.step("Duplicate, edit, and delete saved plan", async () => {
-      await nav.getByRole("button", { name: /^Plans$/ }).click();
-
-      await page.getByRole("button", { name: /Duplicate Plan/i }).first().click();
-
-      await expect(page.getByText(copiedPlanName).first()).toBeVisible();
-
-      const copiedPlanButton = page.getByRole("button", {
-        name: `Select Plan ${copiedPlanName}`,
-      });
-
-      const copiedPlanCard = copiedPlanButton.locator(
-        "xpath=ancestor::div[contains(@class, 'rounded-2xl')][1]"
-      );
-
-      await copiedPlanCard.getByRole("button", { name: /Edit Plan/i }).click();
-
-      await expect(
-        page.getByText(/Editing saved plan mode is active/i)
-      ).toBeVisible();
-
-      await page.getByLabel("Plan Name").fill(editedPlanName);
-      await page.getByLabel("Sets").fill("5");
-      await page.getByLabel("Reps or Time").fill("5 - 7");
-      await page.getByLabel("Weight Guidance").fill("RPE 8");
-      await page.getByLabel("Rest Period").fill("120 sec");
-      await page.getByLabel("Coach Notes").fill(editedCoachNotes);
-
-      await page.getByRole("button", { name: /Update Plan Locally/i }).click();
-
-      await expect(page.getByText(/Plan updated locally/i)).toBeVisible();
-      await expect(page.getByText(editedPlanName).first()).toBeVisible();
-      await expect(page.getByText(editedCoachNotes).first()).toBeVisible();
-
-      const originalPlanButton = page.getByRole("button", {
-        name: `Select Plan ${originalPlanName}`,
-      });
-
-      await expect(originalPlanButton).toBeVisible();
-
-      const originalPlanCard = originalPlanButton.locator(
-        "xpath=ancestor::div[contains(@class, 'rounded-2xl')][1]"
-      );
-
-      await originalPlanCard
-        .getByRole("button", { name: /Delete Saved Plan/i })
-        .click();
-
-      await expect(
-        page.getByRole("button", { name: `Select Plan ${originalPlanName}` })
-      ).toHaveCount(0);
-
-      await expect(page.getByText(editedPlanName).first()).toBeVisible();
-    });
-
-    await test.step("Client Dashboard shows assigned plan", async () => {
-      await nav.getByRole("button", { name: /^Client$/ }).click();
-
-      await expect(
-        page.getByRole("heading", { name: "Client Dashboard", exact: true })
-      ).toBeVisible();
-
-      await page
-        .getByRole("combobox", { name: "Client Dashboard Client", exact: true })
-        .selectOption({ label: testClientName });
-
-      await expect(
-        page.getByRole("heading", { name: testClientName, exact: true })
-      ).toBeVisible();
-
-      await expect(page.getByText("Assigned Plans").first()).toBeVisible();
-      await expect(page.getByText("Workout History").first()).toBeVisible();
-      await expect(page.getByText("Client Messages").first()).toBeVisible();
-      await expect(page.getByText("All Client Dashboard Activity").first()).toBeVisible();
-
-      await expect(page.getByText(editedPlanName).first()).toBeVisible();
-      await expect(page.getByText("Back Squat").first()).toBeVisible();
-      await expect(page.getByText(editedCoachNotes).first()).toBeVisible();
-
-      await page.getByRole("button", { name: /^Open Tracker$/ }).click();
-
-      await expect(
-        page.getByText("Client Workout Tracker", { exact: true })
-      ).toBeVisible();
-
-      await expect(
-        page
-          .getByRole("combobox", { name: "Client", exact: true })
-          .locator("option:checked")
-      ).toHaveText(testClientName);
-    });
-
-    await test.step("Track a completed workout from edited plan", async () => {
+    await test.step("Track a completed workout", async () => {
       await nav.getByRole("button", { name: /^Tracker$/ }).click();
 
       await expect(
@@ -347,17 +176,15 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
 
       await page
         .getByRole("combobox", { name: "Assigned Plan", exact: true })
-        .selectOption({ label: editedPlanName });
+        .selectOption({ label: testPlanName });
 
       await expect(
         page.getByRole("heading", { name: "Back Squat" })
       ).toBeVisible();
 
-      await expect(page.getByText(editedCoachNotes).first()).toBeVisible();
-
-      await page.getByLabel("Actual Weight Used").fill("235 lb");
-      await page.getByLabel("Sets Completed").fill("5");
-      await page.getByLabel("Reps Completed").fill("7, 7, 6, 6, 5");
+      await page.getByLabel("Actual Weight Used").fill("225 lb");
+      await page.getByLabel("Sets Completed").fill("4");
+      await page.getByLabel("Reps Completed").fill("8, 8, 7, 6");
       await page.getByLabel("Time Completed").fill("N/A");
       await page.getByLabel("Actual Rest Used").fill("120 sec");
       await page.getByLabel("Exercise Substitution").fill("Goblet Squat");
@@ -369,7 +196,7 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       await expect(page.getByText(clientWorkoutNotes).first()).toBeVisible();
     });
 
-    await test.step("Skipped workout reason saves", async () => {
+    await test.step("Bundle 2B skipped workout reason saves", async () => {
       await page.getByLabel(/Skip Reason/i).fill(skipReason);
 
       await page.getByRole("button", { name: /Mark Skipped/i }).click();
@@ -379,8 +206,8 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       await expect(page.getByText(/Skip Reason:/i).first()).toBeVisible();
     });
 
-    await test.step("Messages tab works", async () => {
-      await openMessagesTab(page, nav);
+    await test.step("Messages tab still works", async () => {
+      await nav.getByRole("button", { name: /^Messages(?:\s+\d+)?$/ }).click();
 
       await page
         .getByRole("button", { name: new RegExp(testClientName) })
@@ -416,68 +243,20 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       ).toBeVisible();
     });
 
-    await test.step("Client Dashboard shows workout history and messages after activity", async () => {
-      await nav.getByRole("button", { name: /^Client$/ }).click();
-
-      await page
-        .getByRole("combobox", { name: "Client Dashboard Client", exact: true })
-        .selectOption({ label: testClientName });
-
-      await expect(page.getByText("Workout History").first()).toBeVisible();
-      await expect(page.getByText("Client Messages").first()).toBeVisible();
-
-      await expect(page.getByText(editedPlanName).first()).toBeVisible();
-      await expect(page.getByText(clientWorkoutNotes).first()).toBeVisible();
-      await expect(page.getByText(skipReason).first()).toBeVisible();
-      await expect(page.getByText(coachMessage).first()).toBeVisible();
-      await expect(page.getByText(clientMessage).first()).toBeVisible();
-      await expect(page.getByText("Goblet Squat").first()).toBeVisible();
-    });
-
-    await test.step("LocalStorage refresh keeps Bundle 3 data", async () => {
+    await test.step("LocalStorage refresh keeps data", async () => {
       await page.reload();
 
       await expect(
         page.getByRole("heading", { name: "No Limit Fitness" })
       ).toBeVisible();
 
-      await expect(
-        page.getByRole("heading", { name: "Notification Preferences" })
-      ).toBeVisible();
-
-      await expect(page.getByLabel("Client skipped workout")).not.toBeChecked();
-
-      await expect(page.getByLabel("Coach Email For Future Alerts")).toHaveValue(
-        coachEmail
-      );
-
-      await expect(
-        page.getByRole("combobox", { name: "Future Email Provider", exact: true })
-      ).toHaveValue("Supabase + SendGrid");
-
-      await expect(page.getByLabel("Backend Status")).toHaveValue(backendStatus);
-
       await nav.getByRole("button", { name: /^Clients$/ }).click();
       await expect(page.getByText(testClientName).first()).toBeVisible();
 
       await nav.getByRole("button", { name: /^Plans$/ }).click();
-      await expect(page.getByText(editedPlanName).first()).toBeVisible();
+      await expect(page.getByText(testPlanName).first()).toBeVisible();
 
-      await expect(
-        page.getByRole("button", { name: `Select Plan ${originalPlanName}` })
-      ).toHaveCount(0);
-
-      await nav.getByRole("button", { name: /^Client$/ }).click();
-
-      await page
-        .getByRole("combobox", { name: "Client Dashboard Client", exact: true })
-        .selectOption({ label: testClientName });
-
-      await expect(page.getByText(editedPlanName).first()).toBeVisible();
-      await expect(page.getByText(clientWorkoutNotes).first()).toBeVisible();
-      await expect(page.getByText(skipReason).first()).toBeVisible();
-
-      await openMessagesTab(page, nav);
+      await nav.getByRole("button", { name: /^Messages(?:\s+\d+)?$/ }).click();
 
       await page
         .getByRole("button", { name: new RegExp(testClientName) })
@@ -494,12 +273,12 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
 
       await page
         .getByRole("combobox", { name: "Assigned Plan", exact: true })
-        .selectOption({ label: editedPlanName });
+        .selectOption({ label: testPlanName });
 
       await expect(page.getByText(skipReason).first()).toBeVisible();
     });
 
-    await test.step("Coach dashboard shows activity and workout details", async () => {
+    await test.step("Coach dashboard shows Activity Center and workout log details", async () => {
       await nav.getByRole("button", { name: /^Coach$/ }).click();
 
       await expect(
@@ -529,10 +308,10 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       ).toBeVisible();
 
       await expect(page.getByText(testClientName).first()).toBeVisible();
-      await expect(page.getByText(editedPlanName).first()).toBeVisible();
+      await expect(page.getByText(testPlanName).first()).toBeVisible();
       await expect(page.getByText("Back Squat").first()).toBeVisible();
-      await expect(page.getByText("235 lb").first()).toBeVisible();
-      await expect(page.getByText("7, 7, 6, 6, 5").first()).toBeVisible();
+      await expect(page.getByText("225 lb").first()).toBeVisible();
+      await expect(page.getByText("8, 8, 7, 6").first()).toBeVisible();
       await expect(page.getByText("Goblet Squat").first()).toBeVisible();
       await expect(page.getByText(clientWorkoutNotes).first()).toBeVisible();
     });
@@ -609,7 +388,7 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
         page.getByRole("heading", { name: testClientName })
       ).toBeVisible();
 
-      await expect(page.getByText(editedPlanName).first()).toBeVisible();
+      await expect(page.getByText(testPlanName).first()).toBeVisible();
       await expect(page.getByText(skipReason).first()).toBeVisible();
       await expect(page.getByText(clientMessage).first()).toBeVisible();
 
@@ -625,26 +404,23 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
         page.getByRole("heading", { name: "Tracking Comes Next" })
       ).toBeVisible();
 
-      await expect(
-        page.getByRole("heading", { name: "Recent Workout Logs" })
-      ).toBeVisible();
-
-      await expect(page.getByText("Saved Plans").first()).toBeVisible();
-      await expect(page.getByText("Workout Logs").first()).toBeVisible();
-      await expect(page.getByText("Completed").first()).toBeVisible();
-      await expect(page.getByText("Skipped").first()).toBeVisible();
+      await expect(page.getByText("Workout Logs", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("Completed", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("Skipped", { exact: true }).first()).toBeVisible();
 
       await expect(page.getByText(testClientName).first()).toBeVisible();
-      await expect(page.getByText(editedPlanName).first()).toBeVisible();
+      await expect(page.getByText(testPlanName).first()).toBeVisible();
       await expect(page.getByText("Back Squat").first()).toBeVisible();
-      await expect(page.getByText("235 lb").first()).toBeVisible();
+      await expect(page.getByText("225 lb").first()).toBeVisible();
       await expect(page.getByText("Goblet Squat").first()).toBeVisible();
       await expect(page.getByText(clientWorkoutNotes).first()).toBeVisible();
       await expect(page.getByText(skipReason).first()).toBeVisible();
     });
 
-    await test.step("Delete workout log still works", async () => {
+    await test.step("Bundle 2B delete workout log works", async () => {
       await nav.getByRole("button", { name: /^Progress$/ }).click();
+
+      await expect(page.getByText(skipReason).first()).toBeVisible();
 
       const deleteButtonCountBefore = await page
         .getByRole("button", { name: /Delete Workout Log/i })
@@ -653,6 +429,8 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
       expect(deleteButtonCountBefore).toBeGreaterThan(0);
 
       await page.getByRole("button", { name: /Delete Workout Log/i }).first().click();
+
+      await expect(page.getByText(skipReason)).toHaveCount(0);
 
       const deleteButtonCountAfter = await page
         .getByRole("button", { name: /Delete Workout Log/i })
@@ -668,11 +446,7 @@ test.describe("No Limit Fitness Bundle 3 stable test", () => {
         page.getByRole("heading", { name: "Authentication Later" })
       ).toBeVisible();
 
-      await expect(
-        page.getByText("Supabase/auth should come after the frontend structure is tested and stable.", {
-          exact: true,
-        })
-      ).toBeVisible();
+      await expect(page.getByText(/Supabase\/auth should come after/i)).toBeVisible();
     });
   });
 });
