@@ -159,6 +159,23 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
   });
 
+  test("plain public client URL ignores stale test unlock storage", async ({ page }) => {
+    await page.addInitScript(({ portalModeKey, testUnlockKey }) => {
+      window.localStorage.setItem(testUnlockKey, "true");
+      window.localStorage.setItem(portalModeKey, "demo");
+    }, { portalModeKey: PORTAL_MODE_KEY, testUnlockKey: TEST_UNLOCK_KEY });
+
+    await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
+
+    const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
+
+    await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
+    await expect(page.getByText(/Portal Mode/i)).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /^Coach$/ })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /^Clients$/ })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /^Plans$/ })).toHaveCount(0);
+  });
+
   test("keeps full internal demo navigation available for coach testing", async ({ page }) => {
     await openInternalDemo(page);
 

@@ -505,6 +505,16 @@ const TEST_UNLOCK_STORAGE_KEY = "no-limit-fitness-test-unlocked-v1";
 const PUBLIC_PORTAL_MODE = "client";
 const PUBLIC_LANDING_TAB = "Client";
 
+function hasCurrentTestUnlockUrl() {
+  if (typeof window === "undefined") return false;
+
+  try {
+    return new URLSearchParams(window.location.search).get("testUnlock") === "true";
+  } catch {
+    return false;
+  }
+}
+
 const PORTAL_VISIBLE_TABS_BY_MODE = {
   demo: [
     "Home",
@@ -539,22 +549,11 @@ const PORTAL_LANDING_TAB_BY_MODE = {
 };
 
 function getPortalTestUnlocked() {
-  if (typeof window === "undefined") return false;
-
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const urlUnlock = params.get("testUnlock") === "true";
-    const storageUnlock =
-      window.localStorage.getItem(TEST_UNLOCK_STORAGE_KEY) === "true";
-
-    return urlUnlock || storageUnlock;
-  } catch {
-    return false;
-  }
+  return hasCurrentTestUnlockUrl();
 }
 
 function isPortalTestUnlocked() {
-  return getPortalTestUnlocked();
+  return hasCurrentTestUnlockUrl();
 }
 
 function getInitialPortalMode() {
@@ -1293,7 +1292,29 @@ export default function App() {
     return "Home";
   });
 
-  const [portalMode, setPortalMode] = useState(getInitialPortalMode);
+  const [portalMode, setPortalMode] = useState(() =>
+    getPortalTestUnlocked() ? getInitialPortalMode() : PUBLIC_PORTAL_MODE
+  );
+
+  // BUNDLE_12J_PUBLIC_CLIENT_LOCK
+  useEffect(() => {
+    if (getPortalTestUnlocked()) return;
+
+    try {
+      window.localStorage.removeItem(TEST_UNLOCK_STORAGE_KEY);
+      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, PUBLIC_PORTAL_MODE);
+    } catch {
+      // LocalStorage can fail in restricted browser modes.
+    }
+
+    document.body.dataset.portalMode = PUBLIC_PORTAL_MODE;
+
+    if (portalMode !== PUBLIC_PORTAL_MODE) {
+      setPortalMode(PUBLIC_PORTAL_MODE);
+    }
+
+    setActiveTab(PUBLIC_LANDING_TAB);
+  }, [portalMode]);
   useEffect(() => {
     const unlocked = getPortalTestUnlocked();
     const normalizedMode = String(portalMode || "login").toLowerCase();
@@ -2398,7 +2419,7 @@ function handlePortalLogout() {
             </nav>
           </div>
 
-          {isPortalTestUnlocked() && (
+          {getPortalTestUnlocked() && (
             <PortalModeControls
             portalMode={portalMode}
             setPortalMode={setPortalMode}
