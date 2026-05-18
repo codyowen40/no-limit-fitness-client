@@ -482,7 +482,7 @@ test.describe("No Limit Fitness Bundle 7 mega regression", () => {
     await openSeededApp(page);
     await openTab(page, "Exercises");
 
-    await page.getByPlaceholder("Search by exercise, muscle, category, or equipment...").fill("Back Squat");
+    await page.getByPlaceholder("Search exercises, muscle groups, equipment, or substitutions...").fill("Back Squat");
     await expectMainText(page, "Back Squat");
     await expectMainText(page, "Quads, glutes, hamstrings, core, upper back");
     await expect(page.locator("main")).not.toContainText("Sets:");
@@ -509,3 +509,4 @@ test.describe("No Limit Fitness Bundle 7 mega regression", () => {
     await expect(page.locator("main")).not.toContainText("Seeded Bundle 7 progress note.");
   });
 });
+

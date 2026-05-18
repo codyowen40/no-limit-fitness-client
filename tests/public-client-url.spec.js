@@ -53,7 +53,7 @@ test.describe("No Limit Fitness public client URL", () => {
     await expectNavButton(nav, /^Tracker$/);
     await expectNavButton(nav, /^(Login|Logout)$/);
 
-    await expectNoNavButton(nav, /^Exercises$/);
+    await expect(nav.getByRole("button", { name: /^Exercises$/ })).toBeVisible();
     await expectNoNavButton(nav, /^Coach$/);
     await expectNoNavButton(nav, /^Clients$/);
     await expectNoNavButton(nav, /^Plans$/);
@@ -83,3 +83,5 @@ test.describe("No Limit Fitness public client URL", () => {
     await expectNavButton(nav, /^Tracker$/);
   });
 });
+
+

@@ -40,7 +40,7 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(nav.getByRole("button", { name: /^Tracker$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^(Login|Logout)$/ })).toBeVisible();
 
-    await expect(nav.getByRole("button", { name: /^Exercises$/ })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /^Exercises$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Coach$/ })).toHaveCount(0);
     await expect(nav.getByRole("button", { name: /^Clients$/ })).toHaveCount(0);
     await expect(nav.getByRole("button", { name: /^Plans$/ })).toHaveCount(0);
@@ -51,6 +51,15 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(page.getByRole("button", { name: /Log Workout/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /Message Coach/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /View Progress/i })).toBeVisible();
+    await nav.getByRole("button", { name: /^Exercises$/ }).click();
+    await expect(page.locator("main")).toContainText("Exercise Library");
+    await expect(page.locator("main")).toContainText("safe substitutions");
+    await nav.getByRole("button", { name: /^Exercises$/ }).click();
+    await expect(page.locator("main")).toContainText("Exercise Library");
+    await expect(page.locator("main")).toContainText("safe substitutions");
+
+    await nav.getByRole("button", { name: /^Client$/ }).click();
+    await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
 
     await page.getByRole("button", { name: /Log Workout/i }).click();
     await expect(page.locator("main")).toBeVisible();
@@ -67,3 +76,4 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(nav.getByRole("button", { name: /^Plans$/ })).toBeVisible();
   });
 });
+

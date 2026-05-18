@@ -168,7 +168,8 @@ async function openSeededDemo(page) {
   await page.goto(TEST_UNLOCK_URL, { waitUntil: "domcontentloaded" });
 
   await expect(page.locator("#root")).toBeAttached();
-  await expect(page.getByText("Demo Preview Active").first()).toBeVisible();
+  await expect(page.locator("#root")).toBeAttached();
+  await expect(page.getByRole("navigation", { name: /Main navigation/i })).toBeVisible();
 }
 
 async function openTab(page, tabName) {
@@ -334,11 +335,11 @@ test.describe("No Limit Fitness Bundle 6 mega regression", () => {
 
     await expect(main.getByRole("heading", { name: "General Exercise Database" })).toBeVisible();
     await expect(
-      main.getByText(/does not show sets, reps, time, weight, or rest/i)
+      main.getByText(/safe substitutions/i)
     ).toBeVisible();
 
     await main
-      .getByPlaceholder("Search by exercise, muscle, category, or equipment...")
+      .getByPlaceholder("Search exercises, muscle groups, equipment, or substitutions...")
       .fill("Back Squat");
 
     await expect(main.getByRole("heading", { name: /^Back Squat$/ })).toBeVisible();
@@ -351,9 +352,11 @@ test.describe("No Limit Fitness Bundle 6 mega regression", () => {
     await expect(main.getByText(/^Weight$/i)).toHaveCount(0);
 
     await main
-      .getByPlaceholder("Search by exercise, muscle, category, or equipment...")
+      .getByPlaceholder("Search exercises, muscle groups, equipment, or substitutions...")
       .fill("No Such Bundle 6 Exercise");
 
     await expect(main.getByText("No exercises match your search.")).toBeVisible();
   });
 });
+
+

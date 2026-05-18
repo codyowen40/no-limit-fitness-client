@@ -528,7 +528,7 @@ const PORTAL_VISIBLE_TABS_BY_MODE = {
     "Progress",
     "Login",
   ],
-  client: ["Home", "Client", "Messages", "Progress", "Tracker", "Login"],
+  client: ["Home", "Client", "Tracker", "Progress", "Messages", "Exercises", "Login"],
 };
 
 const PORTAL_LANDING_TAB_BY_MODE = {
@@ -1512,7 +1512,7 @@ const isLoggedIn =
   const renderedTabs = tabs.filter((tab) => visibleTabsSet.has(tab.id));
   const homeNavTabs = renderedTabs.filter((tab) => tab.isHomeAction);
   const mainNavTabs = renderedTabs.filter(
-    (tab) => !tab.isAccountAction && !tab.isHomeAction
+    (tab) => !tab.isHomeAction && !tab.isAccountAction
   );
   const accountNavTabs = renderedTabs.filter((tab) => tab.isAccountAction);
 
@@ -3651,9 +3651,9 @@ function ExercisesScreen({ librarySearch, setLibrarySearch, libraryCategory, set
   const categoryCount = libraryCategory === "All" ? totalExerciseCount : filteredLibraryExercises.length;
   return (
     <div>
-      <SectionHeader eyebrow="Exercise Library" title="General Exercise Database" description="This larger library is searchable and alphabetical. It does not show sets, reps, time, weight, or rest because those belong inside the Workout Plan Builder and Client Workout Tracker." />
+      <SectionHeader eyebrow="Exercise Library" title="General Exercise Database" description="Search movements by exercise, muscle group, category, or equipment. Use this client-safe view for safe substitutions and exercise notes without changing your assigned plan." />
       <div className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto]"><SearchInput value={librarySearch} onChange={setLibrarySearch} placeholder="Search by exercise, muscle, category, or equipment..." /><div className="flex flex-wrap gap-2">{exerciseCategories.map((category) => <button key={category} type="button" onClick={() => setLibraryCategory(category)} className={`rounded-full border px-4 py-2 text-sm font-black transition ${libraryCategory === category ? "border-[#00BF63] bg-[#00BF63] text-black" : "border-white/10 bg-black/40 text-white hover:border-[#00BF63]"}`}>{category}</button>)}</div></div>
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto]"><SearchInput value={librarySearch} onChange={setLibrarySearch} placeholder="Search exercises, muscle groups, equipment, or substitutions..." /><div className="flex flex-wrap gap-2">{exerciseCategories.map((category) => <button key={category} type="button" onClick={() => setLibraryCategory(category)} className={`rounded-full border px-4 py-2 text-sm font-black transition ${libraryCategory === category ? "border-[#00BF63] bg-[#00BF63] text-black" : "border-white/10 bg-black/40 text-white hover:border-[#00BF63]"}`}>{category}</button>)}</div></div>
         <p className="mt-4 text-sm font-bold text-white/60">Showing {filteredLibraryExercises.length} exercise(s). Total library: {totalExerciseCount}. Current category count: {categoryCount}.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filteredLibraryExercises.map((exercise) => <ExerciseCard key={exercise.name} exercise={exercise} />)}</div>
@@ -4226,3 +4226,4 @@ function EmptyState({ text }) {
 }
 
 // Bundle 2C update complete marker
+
