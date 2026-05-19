@@ -216,7 +216,7 @@ test.describe("No Limit Fitness Bundle 6 mega regression", () => {
     await expect(nav.getByRole("button", { name: /^Coach$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Clients$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Plans$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Client$/ })).not.toBeVisible();
+    await expect(nav.getByRole("button", { name: /^Client$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Messages(?:\s+\d+)?$/ })).toBeVisible();
 
     await page.evaluate((portalModeKey) => {

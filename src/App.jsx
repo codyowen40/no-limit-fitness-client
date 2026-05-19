@@ -528,7 +528,7 @@ const PORTAL_VISIBLE_TABS_BY_MODE = {
     "Progress",
     "Login",
   ],
-  coach: [
+  coach: ["Client", 
     "Home",
     "Coach",
     "Clients",
@@ -1386,7 +1386,7 @@ export default function App() {
   const [planDraft, setPlanDraft] = useState({
     planName: "",
     clientId: initialState.clients[0]?.id || "",
-    days: [{ id: makeId("day"), name: "Day 1 - Upper Body", exercises: [] }],
+    days: [{ id: makeId("day"), name: "", exercises: [] }],
   });
 
   const [selectedDayId, setSelectedDayId] = useState(planDraft.days[0].id);
@@ -1749,7 +1749,14 @@ const isLoggedIn =
   }
 
   function addTrainingDay() {
-    const newDay = { id: makeId("day"), name: `Day ${planDraft.days.length + 1}`, exercises: [] };
+    const unnamedDay = planDraft.days.find((day) => !String(day.name || "").trim());
+    if (unnamedDay) {
+      setSelectedDayId(unnamedDay.id);
+      setBuilderMessage("Name every training day before adding another day.");
+      return;
+    }
+
+    const newDay = { id: makeId("day"), name: "", exercises: [] };
     setPlanDraft((current) => ({ ...current, days: [...current.days, newDay] }));
     setSelectedDayId(newDay.id);
     setBuilderMessage("");
@@ -1818,6 +1825,14 @@ const isLoggedIn =
     if (!planDraft.clientId) return setBuilderMessage("Select a client before saving.");
 
     const assignedClient = clients.find((client) => client.id === planDraft.clientId);
+    const unnamedTrainingDay = planDraft.days.find((day) => !String(day.name || "").trim());
+
+    if (unnamedTrainingDay) {
+      setSelectedDayId(unnamedTrainingDay.id);
+      setBuilderMessage("Name every training day before saving.");
+      return;
+    }
+
     const exerciseCount = planDraft.days.reduce((total, day) => total + day.exercises.length, 0);
     if (exerciseCount === 0) return setBuilderMessage("Add at least one exercise before saving.");
 
@@ -1874,7 +1889,7 @@ const isLoggedIn =
   }
 
   function resetPlanBuilder() {
-    const newDay = { id: makeId("day"), name: "Day 1 - Upper Body", exercises: [] };
+    const newDay = { id: makeId("day"), name: "", exercises: [] };
     setPlanDraft({ planName: "", clientId: clients[0]?.id || "", days: [newDay] });
     setSelectedDayId(newDay.id);
     setPlanExerciseSearch("");
@@ -2122,7 +2137,7 @@ const isLoggedIn =
 
   function clearLocalData() {
     const fallback = createDefaultState();
-    const newDay = { id: makeId("day"), name: "Day 1 - Upper Body", exercises: [] };
+    const newDay = { id: makeId("day"), name: "", exercises: [] };
     if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
     setClients(fallback.clients);
     setSavedPlans([]);
@@ -2216,7 +2231,7 @@ const isLoggedIn =
 
     const newDay = {
       id: makeId("day"),
-      name: "Day 1 - Upper Body",
+      name: "",
       exercises: [],
     };
 
@@ -2572,7 +2587,7 @@ function handlePortalLogout() {
             />
           )}
 
-          {activeTab === "Client" && (
+          {activeTab === "Client" && normalizedPortalMode !== "client" && (
             <ClientDashboardScreen
               clients={clients}
               selectedClientProfileId={selectedClientProfileId}

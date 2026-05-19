@@ -41,9 +41,7 @@ const nutritionGoals = [
     coachExplanation:
       "Lean Bulk uses a small calorie surplus. The goal is to support muscle growth without pushing weight gain too fast.",
   },
-];
-
-const activityLevels = [
+, { id: "bulk", label: "Bulk", adjustment: 0.15, proteinPerPound: 0.85, fatRatio: 0.25, shortExplanation: "Larger surplus for gaining size and strength.", coachExplanation: "Bulk uses a stronger calorie surplus. The goal is to support weight gain, muscle growth, and hard training while still keeping the plan structured.", } ]; const activityLevels = [
   {
     id: "mostly-sitting",
     label: "Mostly sitting",
@@ -78,7 +76,7 @@ const activityLevels = [
   },
 ];
 
-const mealPatterns = {
+const mealPatterns = { 1: [1],
   2: [0.45, 0.55],
   3: [0.25, 0.35, 0.4],
   4: [0.17, 0.29, 0.37, 0.17],
@@ -296,7 +294,7 @@ function calculateNutritionTargets(form) {
   const feet = clampNumber(form.heightFeet, 4, 7, 5);
   const inches = clampNumber(form.heightInches, 0, 11, 10);
   const weightPounds = clampNumber(form.weightPounds, 90, 500, 185);
-  const meals = Math.min(6, Math.max(2, Number.parseInt(form.mealsPerDay, 10) || 4));
+  const meals = Math.min(6, Math.max(1, Number.parseInt(form.mealsPerDay, 10) || 4));
 
   const heightCm = feet * 30.48 + inches * 2.54;
   const weightKg = weightPounds / 2.20462;
@@ -728,7 +726,7 @@ export default function ClientNutritionMacroHelper() {
                     onChange={(event) => updateField("mealsPerDay", event.target.value)}
                     className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-base font-black text-white outline-none transition focus:border-[#00BF63]"
                   >
-                    {["2", "3", "4", "5", "6"].map((mealCount) => (
+                    {["1", "2", "3", "4", "5", "6"].map((mealCount) => (
                       <option key={mealCount} value={mealCount}>
                         {mealCount}
                       </option>

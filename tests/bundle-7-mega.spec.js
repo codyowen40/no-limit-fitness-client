@@ -281,7 +281,7 @@ test.describe("No Limit Fitness Bundle 7 mega regression", () => {
     await expect(nav.getByRole("button", { name: /Coach/i })).toBeVisible();
     await expect(nav.getByRole("button", { name: /Clients/i })).toBeVisible();
     await expect(nav.getByRole("button", { name: /Plans/i })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /Client$/i })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /Client$/i })).toBeVisible();
     await expect(nav.getByRole("button", { name: /Tracker/i })).toBeVisible();
 
     await page.evaluate(
@@ -345,7 +345,7 @@ test.describe("No Limit Fitness Bundle 7 mega regression", () => {
 
     await page.getByLabel("Plan Name").fill("Bundle 7 Validation Plan");
     await page.getByRole("button", { name: /Save New Plan|Save Changes|Save New Plan|Save Changes/i }).click();
-    await expectMainText(page, "Add at least one exercise before saving.");
+    await expectMainText(page, "Name every training day before saving."); await page.getByPlaceholder("Example: Day 1 - Lower Body").fill("Bundle 7 Validation Day"); await page.getByRole("button", { name: /Save New Plan|Save Changes|Save New Plan|Save Changes/i }).click(); await expectMainText(page, "Add at least one exercise before saving.");
   });
 
   test("completes a seeded workout, writes actual performance, and keeps it after refresh", async ({ page }) => {
