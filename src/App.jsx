@@ -502,6 +502,7 @@ function buildServerConversationsForApp(clients, messages) {
 
 const PORTAL_MODE_STORAGE_KEY = "no-limit-fitness-portal-mode-v1";
 const TEST_UNLOCK_STORAGE_KEY = "no-limit-fitness-test-unlocked-v1";
+const COACH_SESSION_LOCK_STORAGE_KEY = "no-limit-fitness-coach-session-lock-v1";
 const PUBLIC_PORTAL_MODE = "client";
 const PUBLIC_LANDING_TAB = "Client";
 
@@ -550,6 +551,23 @@ const PORTAL_LANDING_TAB_BY_MODE = {
 
 function getPortalTestUnlocked() {
   return hasCurrentTestUnlockUrl();
+}
+
+function hasCoachSessionLock() {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const savedMode = String(
+      window.localStorage.getItem(PORTAL_MODE_STORAGE_KEY) || ""
+    ).toLowerCase();
+
+    const coachLock =
+      window.localStorage.getItem(COACH_SESSION_LOCK_STORAGE_KEY) === "true";
+
+    return coachLock || savedMode === "coach";
+  } catch {
+    return false;
+  }
 }
 
 function isPortalTestUnlocked() {
@@ -1285,7 +1303,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const mode = getInitialPortalMode();
 
-    if (!getPortalTestUnlocked()) return PUBLIC_LANDING_TAB;
+    if (!getPortalTestUnlocked() && !hasCoachSessionLock()) return PUBLIC_LANDING_TAB;
     if (mode === "coach") return "Coach";
     if (mode === "client") return "Client";
 
@@ -1293,65 +1311,114 @@ export default function App() {
   });
 
   const [portalMode, setPortalMode] = useState(() =>
-    getPortalTestUnlocked() ? getInitialPortalMode() : PUBLIC_PORTAL_MODE
+    getPortalTestUnlocked() || hasCoachSessionLock()
+      ? getInitialPortalMode()
+      : PUBLIC_PORTAL_MODE
   );
 
-  // BUNDLE_12J_PUBLIC_CLIENT_LOCK
-  useEffect(() => {
-    if (getPortalTestUnlocked()) return;
+  // BUNDLE_12M1C_COACH_PORTAL_LOCK
+useEffect(() => {
+  if (getPortalTestUnlocked()) return;
 
+  const coachLocked = hasCoachSessionLock();
+
+  if (coachLocked) {
     try {
       window.localStorage.removeItem(TEST_UNLOCK_STORAGE_KEY);
-      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, PUBLIC_PORTAL_MODE);
+      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, "coach");
+      window.localStorage.setItem(COACH_SESSION_LOCK_STORAGE_KEY, "true");
     } catch {
       // LocalStorage can fail in restricted browser modes.
     }
 
-    document.body.dataset.portalMode = PUBLIC_PORTAL_MODE;
+    document.body.dataset.portalMode = "coach";
+
+    if (portalMode !== "coach") {
+      setPortalMode("coach");
+    }
+
+    const coachTabs = PORTAL_VISIBLE_TABS_BY_MODE.coach || [];
+    if (!coachTabs.includes(activeTab) || activeTab === "Client") {
+      setActiveTab("Coach");
+    }
+
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(TEST_UNLOCK_STORAGE_KEY);
+    window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, PUBLIC_PORTAL_MODE);
+    window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
+  } catch {
+    // LocalStorage can fail in restricted browser modes.
+  }
+
+  document.body.dataset.portalMode = PUBLIC_PORTAL_MODE;
+
+  if (portalMode !== PUBLIC_PORTAL_MODE) {
+    setPortalMode(PUBLIC_PORTAL_MODE);
+  }
+
+  const publicVisibleTabs = PORTAL_VISIBLE_TABS_BY_MODE[PUBLIC_PORTAL_MODE] || [];
+  if (!publicVisibleTabs.includes(activeTab)) {
+    setActiveTab(PUBLIC_LANDING_TAB);
+  }
+}, [portalMode, activeTab]);
+  useEffect(() => {
+  const unlocked = getPortalTestUnlocked();
+  const coachLocked = !unlocked && hasCoachSessionLock();
+  const normalizedMode = coachLocked
+    ? "coach"
+    : String(portalMode || "login").toLowerCase();
+
+  try {
+    window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, normalizedMode);
+    if (normalizedMode === "coach") {
+      window.localStorage.setItem(COACH_SESSION_LOCK_STORAGE_KEY, "true");
+    }
+    if (normalizedMode === "client" || normalizedMode === "login") {
+      window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
+    }
+  } catch {
+    // LocalStorage can fail in restricted browser modes.
+  }
+
+  document.body.dataset.portalMode = normalizedMode;
+
+  if (!unlocked && !coachLocked) {
+    const publicVisibleTabs = PORTAL_VISIBLE_TABS_BY_MODE[PUBLIC_PORTAL_MODE] || [];
+
+    if (!publicVisibleTabs.includes(activeTab)) {
+      setActiveTab(PUBLIC_LANDING_TAB);
+    }
 
     if (portalMode !== PUBLIC_PORTAL_MODE) {
       setPortalMode(PUBLIC_PORTAL_MODE);
     }
 
-    setActiveTab(PUBLIC_LANDING_TAB);
-  }, [portalMode]);
-  useEffect(() => {
-    const unlocked = getPortalTestUnlocked();
-    const normalizedMode = String(portalMode || "login").toLowerCase();
+    return;
+  }
 
-    try {
-      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, normalizedMode);
-    } catch {
-      // LocalStorage can fail in restricted browser modes.
-    }
+  const visibleTabs =
+    PORTAL_VISIBLE_TABS_BY_MODE[normalizedMode] ||
+    PORTAL_VISIBLE_TABS_BY_MODE.coach ||
+    [];
 
-    document.body.dataset.portalMode = normalizedMode;
+  const landingTab =
+    PORTAL_LANDING_TAB_BY_MODE[normalizedMode] ||
+    PORTAL_LANDING_TAB_BY_MODE.coach ||
+    "Coach";
 
-    if (!unlocked) {
-      const publicVisibleTabs =
-        PORTAL_VISIBLE_TABS_BY_MODE[PUBLIC_PORTAL_MODE] || [];
+  if (!visibleTabs.includes(activeTab)) {
+    setActiveTab(landingTab);
+  }
 
-      if (!publicVisibleTabs.includes(activeTab)) {
-        setActiveTab(PUBLIC_LANDING_TAB);
-      }
+  if (portalMode !== normalizedMode) {
+    setPortalMode(normalizedMode);
+  }
+}, [portalMode, activeTab]);
 
-      if (portalMode !== PUBLIC_PORTAL_MODE) {
-        setPortalMode(PUBLIC_PORTAL_MODE);
-      }
-
-      return;
-    }
-
-    const visibleTabs =
-      PORTAL_VISIBLE_TABS_BY_MODE[normalizedMode] || PORTAL_VISIBLE_TABS_BY_MODE.demo;
-    const landingTab =
-      PORTAL_LANDING_TAB_BY_MODE[normalizedMode] || PORTAL_LANDING_TAB_BY_MODE.demo;
-
-    if (!visibleTabs.includes(activeTab)) {
-      setActiveTab(landingTab);
-    }
-  }, [portalMode, activeTab]);
-  const [clients, setClients] = useState(initialState.clients);
+const [clients, setClients] = useState(initialState.clients);
   const [clientForm, setClientForm] = useState({ name: "", email: "" });
   const [selectedClientProfileId, setSelectedClientProfileId] = useState(initialState.clients[0]?.id || "");
   const [clientActionNotice, setClientActionNotice] = useState("");
@@ -1522,7 +1589,7 @@ export default function App() {
     [conversations]
   );
   const normalizedPortalMode = String(portalMode || PUBLIC_PORTAL_MODE).toLowerCase();
-  const isPortalUnlocked = getPortalTestUnlocked();
+  const isPortalUnlocked = getPortalTestUnlocked() || hasCoachSessionLock();
 const isLoggedIn =
     isPortalUnlocked &&
     (normalizedPortalMode === "coach" || normalizedPortalMode === "client");
@@ -2268,13 +2335,27 @@ const isLoggedIn =
     const role = String(profile?.role || "").toLowerCase();
 
     if (role === "coach") {
-      setPortalMode("coach");
+    try {
+      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, "coach");
+      window.localStorage.setItem(COACH_SESSION_LOCK_STORAGE_KEY, "true");
+    } catch {
+      // LocalStorage can fail in restricted browser modes.
+    }
+
+    setPortalMode("coach");
       setActiveTab("Coach");
       return;
     }
 
     if (role === "client") {
-      setPortalMode("client");
+    try {
+      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, "client");
+      window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
+    } catch {
+      // LocalStorage can fail in restricted browser modes.
+    }
+
+    setPortalMode("client");
       setActiveTab("Client");
       return;
     }
@@ -2288,6 +2369,7 @@ const isLoggedIn =
 function handlePortalLogout() {
     try {
       window.localStorage.removeItem(TEST_UNLOCK_STORAGE_KEY);
+      window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
       window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, "login");
     } catch {
       // LocalStorage can fail in restricted browser modes.
