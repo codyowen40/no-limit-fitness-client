@@ -3967,40 +3967,246 @@ function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTr
   );
 }
 
-function MessagesScreen({ clients, conversations, selectedConversationId, selectConversation, messageSender, setMessageSender, messageDraft, setMessageDraft, sendMessage, markCoachMessagesRead, markClientMessagesRead, messageNotice, unreadCoachCount, unreadClientCount }) {
-  const selectedConversation = conversations.find((conversation) => conversation.clientId === selectedConversationId) || conversations[0];
+function MessagesScreen({
+  clients,
+  conversations,
+  selectedConversationId,
+  selectConversation,
+  messageSender,
+  setMessageSender,
+  messageDraft,
+  setMessageDraft,
+  sendMessage,
+  markCoachMessagesRead,
+  markClientMessagesRead,
+  messageNotice,
+  unreadCoachCount,
+  unreadClientCount,
+}) {
+  const [messageSearch, setMessageSearch] = useState("");
+
+  const normalizedMessageSearch = messageSearch.trim().toLowerCase();
+
+  const conversationMatchesSearch = (conversation) => {
+    if (!normalizedMessageSearch) return true;
+
+    const client = clients.find((item) => item.id === conversation.clientId);
+
+    const searchableText = [
+      conversation.clientName,
+      client?.email,
+      ...conversation.messages.flatMap((message) => [
+        message.sender,
+        message.body,
+        message.sentAt,
+      ]),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchableText.includes(normalizedMessageSearch);
+  };
+
+  const filteredConversations = conversations.filter(conversationMatchesSearch);
+
+  const selectedConversation =
+    conversations.find((conversation) => conversation.clientId === selectedConversationId) ||
+    filteredConversations[0] ||
+    conversations[0];
+
   const selectedClient = clients.find((client) => client.id === selectedConversation?.clientId);
+
+  const visibleMessages = selectedConversation
+    ? selectedConversation.messages.filter((message) => {
+        if (!normalizedMessageSearch) return true;
+
+        return [message.sender, message.body, message.sentAt]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(normalizedMessageSearch));
+      })
+    : [];
+
+  const messagesToShow =
+    normalizedMessageSearch && visibleMessages.length > 0
+      ? visibleMessages
+      : selectedConversation?.messages || [];
 
   return (
     <div>
-      <SectionHeader eyebrow="Messages" title="Coach/Client Messaging" description="Send local in-app messages between coach and clients. This is frontend-only for now, with unread indicators saved in localStorage." />
-      <div className="mb-6 grid gap-4 md:grid-cols-3"><StatCard label="Conversations" value={conversations.length} /><StatCard label="Coach Unread" value={unreadCoachCount} /><StatCard label="Client Unread" value={unreadClientCount} /></div>
+      <SectionHeader
+        eyebrow="Messages"
+        title="Coach/Client Messaging"
+        description="Search conversations and message text while keeping unread indicators saved locally."
+      />
+
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <StatCard label="Conversations" value={conversations.length} />
+        <StatCard label="Coach Unread" value={unreadCoachCount} />
+        <StatCard label="Client Unread" value={unreadClientCount} />
+      </div>
+
+      <div className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
+        <label className="block">
+          <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-white/55">
+            Search Conversations
+          </span>
+          <input
+            value={messageSearch}
+            onChange={(event) => setMessageSearch(event.target.value)}
+            placeholder="Search by client, email, sender, or message text..."
+            className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
+          />
+        </label>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-          <div className="mb-4 flex items-center gap-3"><MessageSquare className="text-[#00BF63]" /><h3 className="text-xl font-black uppercase">Conversation List</h3></div>
+        <div
+          data-testid="message-conversation-list"
+          className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5"
+        >
+          <div className="mb-4 flex items-center gap-3">
+            <span className="h-3 w-3 rounded-full bg-[#00BF63]" />
+            <h3 className="text-xl font-black uppercase">Conversation List</h3>
+          </div>
+
           <div className="space-y-3">
-            {conversations.map((conversation) => {
+            {filteredConversations.map((conversation) => {
               const coachUnread = conversation.messages.filter((message) => message.unreadForCoach).length;
               const clientUnread = conversation.messages.filter((message) => message.unreadForClient).length;
               const lastMessage = conversation.messages[conversation.messages.length - 1];
+
               return (
-                <button key={conversation.clientId} type="button" onClick={() => selectConversation(conversation.clientId)} className={`w-full rounded-2xl border p-4 text-left transition ${selectedConversation?.clientId === conversation.clientId ? "border-[#00BF63] bg-[#00BF63]/10" : "border-white/10 bg-black/40 hover:border-[#00BF63]/60"}`}>
-                  <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-lg font-black">{conversation.clientName}</p><div className="flex flex-wrap gap-2">{coachUnread > 0 && <UnreadPill label={`Coach ${coachUnread}`} />}{clientUnread > 0 && <UnreadPill label={`Client ${clientUnread}`} />}</div></div>
-                  <p className="mt-2 text-sm text-white/55">{lastMessage ? `${lastMessage.sender}: ${lastMessage.body}` : "No messages yet."}</p>
+                <button
+                  key={conversation.clientId}
+                  type="button"
+                  onClick={() => selectConversation(conversation.clientId)}
+                  className={`w-full rounded-2xl border p-4 text-left transition ${
+                    selectedConversation?.clientId === conversation.clientId
+                      ? "border-[#00BF63] bg-[#00BF63]/10"
+                      : "border-white/10 bg-black/40 hover:border-[#00BF63]/60"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-lg font-black">{conversation.clientName}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {coachUnread > 0 && <UnreadPill label={`Coach ${coachUnread}`} />}
+                      {clientUnread > 0 && <UnreadPill label={`Client ${clientUnread}`} />}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-sm text-white/55">
+                    {lastMessage ? `${lastMessage.sender}: ${lastMessage.body}` : "No messages yet."}
+                  </p>
                 </button>
               );
             })}
+
+            {filteredConversations.length === 0 && (
+              <p className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm text-white/55">
+                No conversations match that search.
+              </p>
+            )}
           </div>
         </div>
+
         <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
           {selectedConversation ? (
             <>
-              <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Active Thread</p><h3 className="mt-1 text-2xl font-black uppercase">{selectedConversation.clientName}</h3><p className="mt-1 text-sm text-white/55">{selectedClient?.email || "No email added"}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => markCoachMessagesRead(selectedConversation.clientId)} className="rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-4 py-2 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black">Mark Coach Read</button><button type="button" onClick={() => markClientMessagesRead(selectedConversation.clientId)} className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]">Mark Client Read</button></div></div>
-              {messageNotice && <p className="mb-4 rounded-2xl border border-[#00BF63]/30 bg-black/50 p-3 text-sm font-bold text-[#00BF63]">{messageNotice}</p>}
-              <div className="mb-5 max-h-[520px] space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-black/40 p-4">{selectedConversation.messages.map((message) => <MessageBubble key={message.id} message={message} />)}{selectedConversation.messages.length === 0 && <EmptyState text="No messages in this conversation yet." />}</div>
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-4"><div className="mb-3 grid gap-3 md:grid-cols-[220px_1fr]"><Select label="Send As" value={messageSender} onChange={setMessageSender} options={[{ label: "Coach", value: "Coach" }, { label: "Client", value: "Client" }]} /><TextArea label="Message" value={messageDraft} onChange={setMessageDraft} placeholder="Type a coach/client message..." /></div><button type="button" onClick={sendMessage} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#00BF63] px-5 py-3 font-black uppercase text-black transition hover:bg-white"><Send size={18} />Send Message</button></div>
+              <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
+                    Active Thread
+                  </p>
+                  <h3 className="mt-1 text-2xl font-black uppercase">
+                    {selectedConversation.clientName}
+                  </h3>
+                  <p className="mt-1 text-sm text-white/55">
+                    {selectedClient?.email || "No email added"}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => markCoachMessagesRead(selectedConversation.clientId)}
+                    className="rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-4 py-2 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+                  >
+                    Mark Coach Read
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => markClientMessagesRead(selectedConversation.clientId)}
+                    className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                  >
+                    Mark Client Read
+                  </button>
+                </div>
+              </div>
+
+              {messageNotice && (
+                <p className="mb-4 rounded-2xl border border-[#00BF63]/30 bg-black/50 p-3 text-sm font-bold text-[#00BF63]">
+                  {messageNotice}
+                </p>
+              )}
+
+              <div className="mb-5 max-h-[520px] space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-black/40 p-4">
+                {messagesToShow.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`rounded-2xl border p-4 ${
+                      message.sender === "Coach"
+                        ? "border-[#00BF63]/30 bg-[#00BF63]/10"
+                        : "border-white/10 bg-white/[0.04]"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-black uppercase text-white">
+                        {message.sender}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {message.unreadForCoach && <UnreadPill label="Coach" />}
+                        {message.unreadForClient && <UnreadPill label="Client" />}
+                      </div>
+                    </div>
+                    <p className="mt-2 text-sm text-white/70">{message.body}</p>
+                    <p className="mt-2 text-xs text-white/40">{message.sentAt}</p>
+                  </div>
+                ))}
+
+                {messagesToShow.length === 0 && (
+                  <EmptyState text="No messages in this conversation match that search." />
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                <div className="mb-3 grid gap-3 md:grid-cols-[220px_1fr]">
+                  <Select
+                    label="Send As"
+                    value={messageSender}
+                    onChange={setMessageSender}
+                    options={[
+                      { label: "Coach", value: "Coach" },
+                      { label: "Client", value: "Client" },
+                    ]}
+                  />
+                  <TextArea
+                    label="Message"
+                    value={messageDraft}
+                    onChange={setMessageDraft}
+                    placeholder="Type a coach/client message..."
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={sendMessage}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#00BF63] px-5 py-3 font-black uppercase text-black transition hover:bg-white"
+                > Send Message
+                </button>
+              </div>
             </>
-          ) : <EmptyState text="Select a conversation to start messaging." />}
+          ) : (
+            <EmptyState text="Select a conversation to start messaging." />
+          )}
         </div>
       </div>
     </div>
