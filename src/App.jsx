@@ -2634,7 +2634,6 @@ function handlePortalLogout() {
               openMessagesForClient={openMessagesForClient}
               openPlansForClient={openPlansForClient}
               updateClientStatus={updateClientStatus}
-              safeDeleteClient={safeDeleteClient}
               clientActionNotice={clientActionNotice}
             />
           )}
@@ -3482,7 +3481,7 @@ function ClientsScreen({ clients, clientForm, setClientForm, addClient, selected
             </div>
           </div>
         </div>
-        <ClientProfileDetails client={selectedClient} savedPlans={savedPlans} workoutLogs={workoutLogs} conversations={conversations} openTrackerForClient={openTrackerForClient} openMessagesForClient={openMessagesForClient} openPlansForClient={openPlansForClient} updateClientStatus={updateClientStatus} safeDeleteClient={safeDeleteClient} />
+        <ClientProfileDetails client={selectedClient} savedPlans={savedPlans} workoutLogs={workoutLogs} conversations={conversations} openTrackerForClient={openTrackerForClient} openMessagesForClient={openMessagesForClient} openPlansForClient={openPlansForClient} updateClientStatus={updateClientStatus} />
       </div>
     </div>
   );
@@ -3518,7 +3517,6 @@ function ClientProfileDetails({ client, savedPlans, workoutLogs, conversations, 
 
       <div className="mb-5 grid gap-3 md:grid-cols-[1fr_auto]">
         <Select label="Client Status" value={client.status} onChange={(value) => updateClientStatus(client.id, value)} options={[{ label: "Active", value: "Active" }, { label: "Paused", value: "Paused" }, { label: "Inactive", value: "Inactive" }]} />
-        <button type="button" onClick={() => safeDeleteClient(client.id)} className="mt-auto flex items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-black uppercase text-red-300 transition hover:bg-red-500 hover:text-white"><Trash2 size={17} />Safe Delete Client</button>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
