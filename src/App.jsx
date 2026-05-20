@@ -1747,14 +1747,14 @@ const isLoggedIn =
   }
 
   const filteredLibraryExercises = useMemo(() => {
-    const search = librarySearch.toLowerCase();
+    const search = librarySearch.trim().toLowerCase();
+
     return exerciseLibrary.filter((exercise) => {
       const matchesSearch =
-        exercise.name.toLowerCase().includes(search) ||
-        exercise.muscles.toLowerCase().includes(search) ||
-        exercise.equipment.toLowerCase().includes(search) ||
-        exercise.categories.join(" ").toLowerCase().includes(search);
-      const matchesCategory = libraryCategory === "All" || exercise.categories.includes(libraryCategory);
+        !search || getClientSafeExerciseSearchText(exercise).includes(search);
+      const matchesCategory =
+        libraryCategory === "All" || exercise.categories.includes(libraryCategory);
+
       return matchesSearch && matchesCategory;
     });
   }, [librarySearch, libraryCategory]);
@@ -4648,17 +4648,220 @@ function MessagesScreen({
   );
 }
 
+// NLF_CLIENT_SAFE_EXERCISE_LIBRARY_START
+function uniqueClientExerciseItems(items) {
+  return Array.from(
+    new Set(
+      (Array.isArray(items) ? items : [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function getClientSafeExerciseInstructions(exercise) {
+  const rawInstruction =
+    exercise?.instructions ||
+    exercise?.instruction ||
+    exercise?.notes ||
+    exercise?.coachNotes ||
+    exercise?.description ||
+    "";
+
+  if (rawInstruction) return String(rawInstruction);
+
+  const name = String(exercise?.name || "exercise").toLowerCase();
+  const categories = Array.isArray(exercise?.categories) ? exercise.categories : [];
+
+  if (categories.includes("Mobility")) {
+    return "Move with control, own the range of motion, and keep the reps smooth. Do not rush the position.";
+  }
+
+  if (categories.includes("Conditioning") || categories.includes("CrossFit")) {
+    return "Keep the pace controlled enough to maintain form. Scale the speed, load, or range before form breaks down.";
+  }
+
+  if (name.includes("squat") || name.includes("lunge") || name.includes("step-up")) {
+    return "Brace first, keep the movement controlled, and drive through the full foot. Use the assigned depth and tempo from your plan.";
+  }
+
+  if (name.includes("deadlift") || name.includes("rdl") || name.includes("hinge")) {
+    return "Set your brace, keep the weight close, and move with control. Use the assigned load guidance from your coach.";
+  }
+
+  if (name.includes("press") || name.includes("bench") || name.includes("push-up") || name.includes("dip")) {
+    return "Control the lowering phase, press with intent, and keep the reps clean. Stop the set before form falls apart.";
+  }
+
+  if (name.includes("row") || name.includes("pull") || name.includes("chin-up") || name.includes("pulldown")) {
+    return "Start each rep under control, pull through the target muscles, and avoid rushing the return.";
+  }
+
+  return "Use controlled reps, stay within a safe range, and follow the sets, reps, rest, and coach notes in your assigned plan.";
+}
+
+function getClientSafeExerciseSubstitutions(exercise) {
+  const provided =
+    exercise?.substitutions ||
+    exercise?.alternatives ||
+    exercise?.substitutionOptions ||
+    exercise?.swaps ||
+    [];
+
+  const providedItems = Array.isArray(provided)
+    ? provided
+    : String(provided || "")
+        .split(/[,\n]/)
+        .map((item) => item.trim());
+
+  const name = String(exercise?.name || "").toLowerCase();
+  const equipment = String(exercise?.equipment || "").toLowerCase();
+  const categories = Array.isArray(exercise?.categories) ? exercise.categories : [];
+  const generated = [];
+
+  if (name.includes("squat")) {
+    generated.push("Goblet Squat", "Box Squat", "Leg Press");
+  }
+
+  if (name.includes("lunge") || name.includes("split squat")) {
+    generated.push("Reverse Lunge", "Step-Up", "Assisted Split Squat");
+  }
+
+  if (name.includes("deadlift") || name.includes("rdl")) {
+    generated.push("Trap Bar Deadlift", "Romanian Deadlift", "Hip Hinge Pattern");
+  }
+
+  if (name.includes("bench") || name.includes("press") || name.includes("push-up")) {
+    generated.push("Dumbbell Press", "Push-Up", "Machine Press");
+  }
+
+  if (name.includes("row") || name.includes("pull-up") || name.includes("chin-up") || name.includes("pulldown")) {
+    generated.push("Band Row", "Cable Row", "Assisted Pull-Up");
+  }
+
+  if (name.includes("curl")) {
+    generated.push("Dumbbell Curl", "Cable Curl", "Band Curl");
+  }
+
+  if (name.includes("carry")) {
+    generated.push("Farmer Carry", "Suitcase Carry", "Sandbag Carry");
+  }
+
+  if (categories.includes("Mobility")) {
+    generated.push("Reduced Range Variation", "Assisted Mobility Drill", "Tempo Mobility Drill");
+  }
+
+  if (categories.includes("Conditioning") || categories.includes("CrossFit")) {
+    generated.push("Low-Impact Bike", "Row Erg", "Marching Intervals");
+  }
+
+  if (equipment.includes("barbell")) {
+    generated.push("Dumbbell Variation", "Machine Variation", "Bodyweight Pattern");
+  }
+
+  if (equipment.includes("cable")) {
+    generated.push("Band Variation", "Dumbbell Variation", "Machine Variation");
+  }
+
+  if (equipment.includes("bodyweight")) {
+    generated.push("Assisted Variation", "Tempo Bodyweight Variation", "Reduced Range of Motion");
+  }
+
+  if (generated.length === 0) {
+    generated.push("Lighter Load Variation", "Machine Variation", "Bodyweight Variation");
+  }
+
+  return uniqueClientExerciseItems([...providedItems, ...generated]).slice(0, 4);
+}
+
+function getClientSafeExerciseSearchText(exercise) {
+  return [
+    exercise?.name,
+    exercise?.muscles,
+    exercise?.equipment,
+    Array.isArray(exercise?.categories) ? exercise.categories.join(" ") : "",
+    getClientSafeExerciseInstructions(exercise),
+    getClientSafeExerciseSubstitutions(exercise).join(" "),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+// NLF_CLIENT_SAFE_EXERCISE_LIBRARY_END
+
 function ExercisesScreen({ librarySearch, setLibrarySearch, libraryCategory, setLibraryCategory, filteredLibraryExercises, totalExerciseCount }) {
-  const categoryCount = libraryCategory === "All" ? totalExerciseCount : filteredLibraryExercises.length;
+  const categoryCount =
+    libraryCategory === "All" ? totalExerciseCount : filteredLibraryExercises.length;
+
   return (
     <div>
-      <SectionHeader eyebrow="Exercise Library" title="General Exercise Database" description="Search movements by exercise, muscle group, category, or equipment. Use this client-safe view for safe substitutions and exercise notes without changing your assigned plan." />
-      <div className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto]"><SearchInput value={librarySearch} onChange={setLibrarySearch} placeholder="Search exercises, muscle groups, equipment, or substitutions..." /><div className="flex flex-wrap gap-2">{exerciseCategories.map((category) => <button key={category} type="button" onClick={() => setLibraryCategory(category)} className={`rounded-full border px-4 py-2 text-sm font-black transition ${libraryCategory === category ? "border-[#00BF63] bg-[#00BF63] text-black" : "border-white/10 bg-black/40 text-white hover:border-[#00BF63]"}`}>{category}</button>)}</div></div>
-        <p className="mt-4 text-sm font-bold text-white/60">Showing {filteredLibraryExercises.length} exercise(s). Total library: {totalExerciseCount}. Current category count: {categoryCount}.</p>
+      <SectionHeader
+        eyebrow="Exercises"
+        title="Client-Safe Exercise Library"
+        description="Search exercise names, muscle groups, equipment, instructions, and substitution options without exposing coach-only edit controls."
+      />
+
+      <div
+        data-testid="client-safe-exercise-library"
+        className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5"
+      >
+        <div className="mb-5">
+          <h2 className="text-2xl font-black text-white">
+            General Exercise Database
+          </h2>
+          <p className="mt-2 text-sm font-bold leading-6 text-white/60">
+            Browse movement guidance, equipment needs, muscle groups, and safe substitutions without programming fields.
+          </p>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+          <SearchInput
+            value={librarySearch}
+            onChange={setLibrarySearch}
+            placeholder="Search exercises, muscle groups, equipment, or substitutions..."
+          />
+
+          <div className="flex flex-wrap gap-2">
+            {exerciseCategories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setLibraryCategory(category)}
+                className={`rounded-full border px-4 py-2 text-sm font-black transition ${
+                  libraryCategory === category
+                    ? "border-[#00BF63] bg-[#00BF63] text-black"
+                    : "border-white/10 bg-black/40 text-white hover:border-[#00BF63]"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <MiniProgram label="Showing" value={filteredLibraryExercises.length} />
+          <MiniProgram label="Total Library" value={totalExerciseCount} />
+          <MiniProgram label="Category Count" value={categoryCount} />
+        </div>
+
+        <p
+          data-testid="exercise-library-count"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-3 text-sm font-bold text-[#00BF63]"
+        >
+          Showing {filteredLibraryExercises.length} exercise(s). Coach edit controls are not available in this client-safe view.
+        </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filteredLibraryExercises.map((exercise) => <ExerciseCard key={exercise.name} exercise={exercise} />)}</div>
-      {filteredLibraryExercises.length === 0 && <EmptyState text="No exercises match your search." />}
+
+      <div data-testid="client-safe-exercise-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {filteredLibraryExercises.map((exercise) => (
+          <ExerciseCard key={exercise.name} exercise={exercise} />
+        ))}
+      </div>
+
+      {filteredLibraryExercises.length === 0 && (
+        <EmptyState text="No exercises match your search. Try a muscle group, equipment type, or substitution term." />
+      )}
     </div>
   );
 }
@@ -5165,11 +5368,70 @@ function MessageBubble({ message }) {
 }
 
 function ExerciseCard({ exercise }) {
+  const instructions = getClientSafeExerciseInstructions(exercise);
+  const substitutions = getClientSafeExerciseSubstitutions(exercise);
+
   return (
-    <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 transition hover:border-[#00BF63]/60 hover:bg-[#00BF63]/10">
-      <div className="mb-3 flex flex-wrap gap-2">{exercise.categories.map((category) => <CategoryPill key={category}>{category}</CategoryPill>)}</div>
+    <div
+      data-testid="exercise-card"
+      className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 transition hover:border-[#00BF63]/60 hover:bg-[#00BF63]/10"
+    >
+      <div className="mb-3 flex flex-wrap gap-2">
+        {exercise.categories.map((category) => (
+          <CategoryPill key={category}>{category}</CategoryPill>
+        ))}
+      </div>
+
       <h3 className="text-2xl font-black">{exercise.name}</h3>
-      <div className="mt-4 space-y-2 text-sm text-white/65"><p><span className="font-black text-white">Muscles worked:</span> {exercise.muscles}</p><p><span className="font-black text-white">Equipment:</span> {exercise.equipment}</p></div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <MiniProgram label="Muscle Group" value={exercise.muscles} />
+        <MiniProgram label="Equipment" value={exercise.equipment} />
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm leading-6 text-white/70">
+        <p>
+          <span className="font-black text-white">Muscles worked:</span> {exercise.muscles}
+        </p>
+        <p>
+          <span className="font-black text-white">Equipment:</span> {exercise.equipment}
+        </p>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm leading-6 text-white/70">
+        <p>
+          <span className="font-black text-white">Muscles worked:</span> {exercise.muscles}
+        </p>
+        <p>
+          <span className="font-black text-white">Equipment:</span> {exercise.equipment}
+        </p>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
+          Instructions/Notes
+        </p>
+        <p className="mt-2 text-sm leading-6 text-white/70">{instructions}</p>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00BF63]">
+          Substitution Options
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {substitutions.map((substitution) => (
+            <span
+              key={substitution}
+              className="rounded-full border border-[#00BF63]/30 bg-black/35 px-3 py-1 text-xs font-black uppercase text-white/75"
+            >
+              {substitution}
+            </span>
+          ))}
+        </div>
+        <p className="mt-3 text-xs font-bold leading-5 text-white/50">
+          Use substitutions when equipment is unavailable or your coach approves the swap.
+        </p>
+      </div>
     </div>
   );
 }
