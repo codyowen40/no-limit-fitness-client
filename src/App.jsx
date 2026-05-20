@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import ClientNutritionMacroHelper from "./ClientNutritionMacroHelper.jsx";
 import {
   Activity,
@@ -188,7 +188,7 @@ const starterConversations = [
       {
         id: "msg-2",
         sender: "Client",
-        body: "Sounds good coach. I’m ready to start.",
+        body: "Sounds good coach. Iâ€™m ready to start.",
         sentAt: "Sample message",
         timestamp: 2,
         unreadForCoach: true,
@@ -1041,7 +1041,7 @@ function getFriendlyExerciseDose(exercise) {
     pieces.push("Rest " + rest);
   }
 
-  return pieces.join(" • ") || exercise.notes || "See coach notes";
+  return pieces.join(" â€¢ ") || exercise.notes || "See coach notes";
 }
 
 function findFriendlyAssignedPlan({ clients, savedPlans }) {
@@ -1158,7 +1158,7 @@ function ClientPortalMyPlanPanel({
                 {getFriendlyDayTitle(todayDay, 0)}
               </h2>
               <p className="mt-2 text-sm leading-6 text-white/60">
-                {getFriendlyPlanTitle(plan)} — {getFriendlyPlanGoal(plan)}
+                {getFriendlyPlanTitle(plan)} â€” {getFriendlyPlanGoal(plan)}
               </p>
 
               <div className="mt-4 grid gap-2">
@@ -2120,23 +2120,53 @@ const isLoggedIn =
     const client = clients.find((item) => item.id === clientId);
     if (!client) return;
 
-    const hasPlans = savedPlans.some((plan) => plan.clientId === clientId);
-    const hasLogs = workoutLogs.some((log) => log.clientId === clientId);
-    const conversation = conversations.find((item) => item.clientId === clientId);
-    const hasMessages = conversation && conversation.messages.length > 0;
+    const archivedAt = new Date().toISOString();
 
-    if (hasPlans || hasLogs || hasMessages) {
-      setClientActionNotice(`${client.name} has plans, logs, or messages. Safe delete blocked. Change status to Inactive instead.`);
-      return;
-    }
+    const fallbackClient =
+      clients.find(
+        (item) => item.id !== clientId && getClientCoachingStatus(item) === "active"
+      ) ||
+      clients.find((item) => item.id !== clientId) ||
+      null;
 
-    const remainingClients = clients.filter((item) => item.id !== clientId);
-    setClients(remainingClients);
-    setConversations((current) => current.filter((conversation) => conversation.clientId !== clientId));
-    setSelectedClientProfileId(remainingClients[0]?.id || "");
-    setTrackerClientId((current) => (current === clientId ? remainingClients[0]?.id || "" : current));
-    setPlanDraft((current) => ({ ...current, clientId: current.clientId === clientId ? remainingClients[0]?.id || "" : current.clientId }));
-    setClientActionNotice(`${client.name} deleted safely.`);
+    setClients((current) =>
+      current.map((item) =>
+        item.id === clientId
+          ? {
+              ...normalizeClientCoachingRecord(item),
+              coachingStatus: "archived",
+              status: "Archived",
+              archivedAt,
+              archiveReason: item.archiveReason || "Archived by Safe Delete",
+            }
+          : item
+      )
+    );
+
+    setSelectedClientProfileId((current) =>
+      current === clientId ? fallbackClient?.id || "" : current
+    );
+
+    setTrackerClientId((current) =>
+      current === clientId ? fallbackClient?.id || "" : current
+    );
+
+    setSelectedConversationId((current) =>
+      current === clientId ? fallbackClient?.id || "" : current
+    );
+
+    setPlanDraft((current) => ({
+      ...current,
+      clientId:
+        current.clientId === clientId
+          ? fallbackClient?.id || ""
+          : current.clientId,
+    }));
+
+    setClientActionNotice(
+      client.name +
+        " archived. Safe Delete now preserves records and removes the client from active workflow."
+    );
   }
 
   function updateTrackingDraft(planId, dayId, exerciseId, field, value) {
@@ -2687,7 +2717,7 @@ function handlePortalLogout() {
                     : "border-[#00BF63]/70 bg-[#00BF63]/15 text-[#00BF63] shadow-lg shadow-[#00BF63]/10 ring-[#00BF63]/20 hover:bg-[#00BF63] hover:text-black",
                 ].join(" ")}
               >
-                <span className="text-xl leading-none">☰</span>
+                <span className="text-xl leading-none">â˜°</span>
                 More
               </button>
             </div>
@@ -2707,18 +2737,7 @@ function handlePortalLogout() {
           />
         )}
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_END */}
-        {/* NLF_COACH_ASSIGNMENT_PANEL_START */}
-        {activeTab === "Clients" && normalizedPortalMode !== "client" && (
-          <CoachClientAssignmentPanel
-            clients={normalizedCoachClients}
-            clientActionNotice={clientActionNotice}
-            onAssignClient={assignClientToCoach}
-            onArchiveClient={archiveClientForCoach}
-            onReactivateClient={reactivateClientForCoach}
-            onViewArchivedClient={viewArchivedClientForCoach}
-          />
-        )}
-        {/* NLF_COACH_ASSIGNMENT_PANEL_END */}
+        {/* Bundle 12N: ClientsScreen is now the single coach client-management surface. */}
           {activeTab === "Home" && (
             <HomeScreen
               setActiveTab={setActiveTab}
@@ -2784,10 +2803,15 @@ function handlePortalLogout() {
               openMessagesForClient={openMessagesForClient}
               openPlansForClient={openPlansForClient}
               updateClientStatus={updateClientStatus}
+              safeDeleteClient={safeDeleteClient}
               clientActionNotice={clientActionNotice}
+              onAssignClient={assignClientToCoach}
+              onArchiveClient={archiveClientForCoach}
+              onReactivateClient={reactivateClientForCoach}
+              onViewArchivedClient={viewArchivedClientForCoach}
               onUnassignClient={unassignClientFromCoach}
-  fullDeleteArchivedClient={fullDeleteArchivedClient}
-/>
+              fullDeleteArchivedClient={fullDeleteArchivedClient}
+            />
           )}
 
           {activeTab === "Plans" && (
@@ -4050,7 +4074,7 @@ function ClientProfileDetails({ client, savedPlans, workoutLogs, conversations, 
           {assignedPlans.map((plan) => (
             <div key={plan.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <p className="font-black">{plan.planName}</p>
-              <p className="mt-1 text-sm text-white/55">Days: {plan.days.length} • Exercises: {plan.days.reduce((total, day) => total + day.exercises.length, 0)}</p>
+              <p className="mt-1 text-sm text-white/55">Days: {plan.days.length} â€¢ Exercises: {plan.days.reduce((total, day) => total + day.exercises.length, 0)}</p>
               <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-[#00BF63]">{plan.createdAt}</p>
             </div>
           ))}
@@ -4239,7 +4263,7 @@ function TrainingDayBuilder({ planDraft, selectedDay, selectedDayId, setSelected
             {selectedDay.exercises.map((exercise, index) => (
               <div key={exercise.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                 <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><div className="mt-2 flex flex-wrap gap-2">{exercise.categories.map((category) => <CategoryPill key={category}>{category}</CategoryPill>)}</div><p className="mt-2 text-sm text-white/50">{exercise.muscles} • {exercise.equipment}</p></div>
+                  <div><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><div className="mt-2 flex flex-wrap gap-2">{exercise.categories.map((category) => <CategoryPill key={category}>{category}</CategoryPill>)}</div><p className="mt-2 text-sm text-white/50">{exercise.muscles} â€¢ {exercise.equipment}</p></div>
                   <button type="button" onClick={() => removePlanExercise(selectedDay.id, exercise.id)} className="rounded-full border border-red-500/30 bg-red-500/10 p-2 text-red-300 transition hover:bg-red-500 hover:text-white" aria-label="Remove exercise"><Trash2 size={18} /></button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -4269,7 +4293,7 @@ function SavedPlansPanel({ savedPlans, selectedPlanDetail, setSelectedPlanDetail
             <button type="button" onClick={() => setSelectedPlanDetailId(plan.id)} aria-label={`Select Plan ${plan.planName}`} className="w-full text-left">
               <p className="text-lg font-black">{plan.planName}</p>
               <p className="mt-1 text-sm text-white/60">Client: {plan.clientName}</p>
-              <p className="mt-1 text-sm text-white/60">Days: {plan.days.length} • Exercises: {plan.days.reduce((total, day) => total + day.exercises.length, 0)}</p>
+              <p className="mt-1 text-sm text-white/60">Days: {plan.days.length} â€¢ Exercises: {plan.days.reduce((total, day) => total + day.exercises.length, 0)}</p>
               <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-[#00BF63]">Created: {plan.createdAt}</p>
               {plan.updatedAt && <p className="mt-1 text-xs font-bold uppercase tracking-[0.2em] text-yellow-200">Updated: {plan.updatedAt}</p>}
             </button>
@@ -4382,7 +4406,7 @@ function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTr
         const update = (field, value) => updateTrackingDraft(selectedPlan.id, selectedDay.id, exercise.id, field, value);
         return (
           <div key={exercise.id} className="rounded-2xl border border-white/10 bg-black/40 p-4">
-            <div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><p className="mt-1 text-sm text-white/50">{exercise.muscles} • {exercise.equipment}</p></div>
+            <div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><p className="mt-1 text-sm text-white/50">{exercise.muscles} â€¢ {exercise.equipment}</p></div>
             <div className="mb-4 grid gap-3 md:grid-cols-4"><MiniProgram label="Assigned Sets" value={exercise.sets} /><MiniProgram label="Assigned Reps/Time" value={exercise.repsOrTime} /><MiniProgram label="Weight Guidance" value={exercise.weightGuidance} /><MiniProgram label="Assigned Rest" value={exercise.rest} /></div>
             {exercise.notes && <div className="mb-4 rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-3"><p className="text-xs font-black uppercase tracking-[0.2em] text-[#00BF63]">Coach Notes</p><p className="mt-1 text-sm text-white/70">{exercise.notes}</p></div>}
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -5396,18 +5420,7 @@ function ExerciseCard({ exercise }) {
         <p>
           <span className="font-black text-white">Equipment:</span> {exercise.equipment}
         </p>
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm leading-6 text-white/70">
-        <p>
-          <span className="font-black text-white">Muscles worked:</span> {exercise.muscles}
-        </p>
-        <p>
-          <span className="font-black text-white">Equipment:</span> {exercise.equipment}
-        </p>
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+      </div><div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
           Instructions/Notes
         </p>
@@ -5481,12 +5494,13 @@ function StatusPill({ status }) {
 }
 
 function MiniProgram({ label, value }) {
-  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">{label}</p><p className="mt-2 text-sm font-black text-white">{value || "—"}</p></div>;
+  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">{label}</p><p className="mt-2 text-sm font-black text-white">{value || "â€”"}</p></div>;
 }
 
 function EmptyState({ text }) {
   return <div className="rounded-2xl border border-dashed border-white/15 bg-black/30 p-6 text-center text-sm font-bold text-white/45">{text}</div>;
 }
 
-// Bundle 2C update complete marker
+// Bundle 12N update complete marker
+
 
