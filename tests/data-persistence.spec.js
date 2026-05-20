@@ -19,7 +19,7 @@ async function openUnlockedDemo(page, options = {}) {
       }
 
       window.localStorage.setItem(testUnlockKey, "true");
-      window.localStorage.setItem(portalModeKey, "demo");
+      window.localStorage.setItem(portalModeKey, "coach");
     },
     {
       storageKey: STORAGE_KEY,
@@ -32,7 +32,7 @@ async function openUnlockedDemo(page, options = {}) {
   await page.goto(TEST_UNLOCK_URL, { waitUntil: "domcontentloaded" });
 
   await expect(page.locator("#root")).toBeAttached();
-  await expect(page.getByText("Demo Preview Active").first()).toBeVisible();
+  await expect(page.getByRole("navigation").first()).toBeVisible();
 }
 
 async function openClientsPage(page) {
@@ -86,7 +86,7 @@ test.describe("No Limit Fitness local data persistence", () => {
 
     await page.reload({ waitUntil: "domcontentloaded" });
 
-    await expect(page.getByText("Demo Preview Active").first()).toBeVisible();
+    await expect(page.getByRole("navigation").first()).toBeVisible();
 
     await nav.getByRole("button", { name: /^Clients$/ }).click();
 
@@ -100,7 +100,7 @@ test.describe("No Limit Fitness local data persistence", () => {
     await page.evaluate(({ storageKey, portalModeKey, testUnlockKey }) => {
       window.localStorage.setItem(storageKey, "{bad-json");
       window.localStorage.setItem(testUnlockKey, "true");
-      window.localStorage.setItem(portalModeKey, "demo");
+      window.localStorage.setItem(portalModeKey, "coach");
     }, {
       storageKey: STORAGE_KEY,
       portalModeKey: PORTAL_MODE_KEY,
@@ -110,7 +110,7 @@ test.describe("No Limit Fitness local data persistence", () => {
     await page.goto(TEST_UNLOCK_URL, { waitUntil: "domcontentloaded" });
 
     await expect(page.locator("#root")).toBeAttached();
-    await expect(page.getByText("Demo Preview Active").first()).toBeVisible();
+    await expect(page.getByRole("navigation").first()).toBeVisible();
 
     await openClientsPage(page);
 

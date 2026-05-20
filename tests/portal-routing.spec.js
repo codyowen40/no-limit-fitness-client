@@ -5,6 +5,7 @@ const TEST_UNLOCK_URL = "http://localhost:5173/?testUnlock=true";
 
 const PORTAL_MODE_KEY = "no-limit-fitness-portal-mode-v1";
 const TEST_UNLOCK_KEY = "no-limit-fitness-test-unlocked-v1";
+const COACH_LOCK_KEY = "no-limit-fitness-coach-session-lock-v1";
 
 async function openCleanPublicUrl(page) {
   await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
@@ -20,12 +21,27 @@ async function openCleanPublicUrl(page) {
 async function openUnlockedMode(page, mode) {
   await page.goto(LOCAL_URL, { waitUntil: "domcontentloaded" });
 
-  await page.evaluate(({ portalModeKey, testUnlockKey, nextMode }) => {
-    window.localStorage.setItem(portalModeKey, nextMode);
-    window.localStorage.setItem(testUnlockKey, "true");
-  }, { portalModeKey: PORTAL_MODE_KEY, testUnlockKey: TEST_UNLOCK_KEY, nextMode: mode });
+  await page.evaluate(
+    ({ portalModeKey, testUnlockKey, coachLockKey, mode }) => {
+      window.localStorage.setItem(portalModeKey, mode);
+      window.localStorage.setItem(testUnlockKey, "true");
+
+      if (mode === "coach") {
+        window.localStorage.setItem(coachLockKey, "true");
+      } else {
+        window.localStorage.removeItem(coachLockKey);
+      }
+    },
+    {
+      portalModeKey: PORTAL_MODE_KEY,
+      testUnlockKey: TEST_UNLOCK_KEY,
+      coachLockKey: COACH_LOCK_KEY,
+      mode,
+    }
+  );
 
   await page.goto(TEST_UNLOCK_URL, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("navigation", { name: /Main navigation/i }).first()).toBeVisible();
 }
 
 test.describe("No Limit Fitness portal routing", () => {
@@ -38,7 +54,7 @@ test.describe("No Limit Fitness portal routing", () => {
     await expect(page.getByLabel("Portal mode controls")).toHaveCount(0);
 
     await expect(nav.getByRole("button", { name: /^Client$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /Messages/i })).toBeVisible();
+  await expect(nav.getByRole("button", { name: /Messages/i }).first()).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Progress$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Tracker$/ })).toBeVisible();
 
@@ -47,29 +63,18 @@ test.describe("No Limit Fitness portal routing", () => {
     await expect(nav.getByRole("button", { name: /^Plans$/ })).toHaveCount(0);
   });
 
-  test("internal test unlock still supports demo coach and client portal routing", async ({ page }) => {
-    await openUnlockedMode(page, "demo");
+  test("internal test unlock opens coach routing without demo controls", async ({ page }) => {
+  await openUnlockedMode(page, "coach");
 
-    const controls = page.getByLabel("Portal mode controls").first();
-    const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
+  const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
 
-    await expect(controls).toBeVisible();
-    await expect(page.getByText("Demo Preview Active")).toBeVisible();
+  await expect(page.getByLabel("Portal mode controls")).toHaveCount(0);
+  await expect(page.getByText("Demo Preview Active")).toHaveCount(0);
+  await expect(page.getByText("Portal Mode")).toHaveCount(0);
 
-    await controls.getByRole("button", { name: "Coach Portal" }).click();
-    await expect(page.getByText("Coach Portal Active")).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Coach$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Clients$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Plans$/ })).toBeVisible();
-
-    await controls.getByRole("button", { name: "Client Portal" }).click();
-    await expect(page.getByText("Client Portal Active")).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Client$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^Tracker$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /Messages/i })).toBeVisible();
-
-    await expect(nav.getByRole("button", { name: /^Coach$/ })).toHaveCount(0);
-    await expect(nav.getByRole("button", { name: /^Clients$/ })).toHaveCount(0);
-    await expect(nav.getByRole("button", { name: /^Plans$/ })).toHaveCount(0);
-  });
+  await expect(nav.getByRole("button", { name: /^Coach$/ })).toBeVisible();
+  await expect(nav.getByRole("button", { name: /^Clients$/ })).toBeVisible();
+  await expect(nav.getByRole("button", { name: /^Plans$/ })).toBeVisible();
+  await expect(nav.getByRole("button", { name: /Messages/i }).first()).toBeVisible();
+});
 });

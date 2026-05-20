@@ -2515,15 +2515,7 @@ function handlePortalLogout() {
               )}
             </nav>
           </div>
-
-          {getPortalTestUnlocked() && (
-            <PortalModeControls
-            portalMode={portalMode}
-            setPortalMode={setPortalMode}
-            setActiveTab={setActiveTab}
-          />
-          )}
-        </header>
+</header>
 
         {normalizedPortalMode === "client" && (
           <nav
