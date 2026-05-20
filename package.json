@@ -35,7 +35,9 @@
     "test:bundle11b:headed": "playwright test tests/client-portal-polish.spec.js --headed",
     "test:no-dev-ui": "playwright test tests/no-dev-ui-wording.spec.js",
     "test:no-dev-ui:headed": "playwright test tests/no-dev-ui-wording.spec.js --headed",
-    "test": "npm run test:stable"
+    "test": "npm run test:stable",
+    "check": "npm run check:release",
+    "test:ci": "npm run test:stable"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
