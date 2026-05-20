@@ -194,3 +194,36 @@ test.describe("No Limit Fitness client portal polish", () => {
     await expect(page.getByRole("button", { name: /^Clear Builder$/ })).toBeVisible();
   });
 });
+
+test("Bundle 12S client nutrition macros guide stays visible in My Plan", async ({ page }) => {
+  await page.goto("/");
+
+  const dashboard = page.getByLabel("Client My Plan dashboard").first();
+
+  if (!(await dashboard.isVisible().catch(() => false))) {
+    const navigationTargets = [
+      page.getByRole("button", { name: /^Client$/ }).first(),
+      page.getByRole("link", { name: /^Client$/ }).first(),
+      page.getByRole("button", { name: /client portal/i }).first(),
+      page.getByRole("link", { name: /client portal/i }).first(),
+      page.getByRole("button", { name: /my plan/i }).first(),
+      page.getByRole("link", { name: /my plan/i }).first(),
+    ];
+
+    for (const target of navigationTargets) {
+      if (await target.count()) {
+        await target.click().catch(() => {});
+        if (await dashboard.isVisible().catch(() => false)) break;
+      }
+    }
+  }
+
+  await expect(dashboard).toBeVisible();
+
+  const nutrition = page.getByLabel("Client nutrition and macros guide").first();
+  await expect(nutrition).toBeVisible();
+  await expect(nutrition).toContainText(/calories/i);
+  await expect(nutrition).toContainText(/protein/i);
+  await expect(nutrition).toContainText(/carbs/i);
+  await expect(nutrition).toContainText(/fats/i);
+});

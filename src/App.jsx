@@ -1106,6 +1106,7 @@ function ClientPortalMyPlanPanel({
       aria-label="Client My Plan dashboard"
       className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
     >
+        <ClientNutritionMacrosPanel />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.3em] text-[#00BF63]">
@@ -5387,6 +5388,113 @@ function MessageBubble({ message }) {
   );
 }
 
+
+function ClientNutritionMacrosPanel() {
+  const macroCards = [
+    {
+      label: "Calories",
+      value: "2,200 - 2,500",
+      note: "Start here, then adjust based on weight trend, energy, and training performance.",
+    },
+    {
+      label: "Protein",
+      value: "160g - 200g",
+      note: "Keeps recovery, muscle retention, and strength progress supported.",
+    },
+    {
+      label: "Carbs",
+      value: "220g - 300g",
+      note: "Fuel for hard sessions, steps, and daily energy.",
+    },
+    {
+      label: "Fats",
+      value: "60g - 80g",
+      note: "Supports hormones, joints, and steady appetite control.",
+    },
+  ];
+
+  const goalOptions = [
+    {
+      title: "Fat Loss",
+      text: "Slight calorie deficit, high protein, steady carbs around training.",
+    },
+    {
+      title: "Lean Muscle",
+      text: "Small calorie surplus, consistent meals, progressive training.",
+    },
+    {
+      title: "Maintenance",
+      text: "Stable calories, balanced macros, keep performance moving.",
+    },
+  ];
+
+  const mealBreakdown = [
+    "Breakfast: protein + carbs",
+    "Lunch: protein + carbs + vegetables",
+    "Pre/Post Workout: easy carbs + lean protein",
+    "Dinner: protein + vegetables + fats",
+  ];
+
+  return (
+    <section
+      aria-label="Client nutrition and macros guide"
+      data-testid="client-nutrition-macros"
+      className="mt-4 rounded-3xl border border-[#00BF63]/25 bg-black/45 p-4 shadow-xl shadow-black/30"
+    >
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-[#00BF63]">
+            Nutrition / Macros
+          </p>
+          <h3 className="mt-1 text-xl font-black text-white">
+            Simple macro starting point
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
+            Use this as a client-friendly starting guide. Adjust calories and macros based on goal,
+            consistency, weekly check-ins, and how training performance feels.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/70">
+          Coach-reviewed before final use
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {macroCards.map((item) => (
+          <div key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-white/45">
+              {item.label}
+            </p>
+            <p className="mt-2 text-2xl font-black text-white">{item.value}</p>
+            <p className="mt-2 text-xs leading-5 text-white/60">{item.note}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        {goalOptions.map((goal) => (
+          <div key={goal.title} className="rounded-2xl border border-[#00BF63]/15 bg-[#00BF63]/5 p-4">
+            <p className="font-black text-white">{goal.title}</p>
+            <p className="mt-2 text-sm leading-6 text-white/65">{goal.text}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/10 bg-black/35 p-4">
+        <p className="font-black text-white">Simple meal macro breakdown</p>
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          {mealBreakdown.map((meal) => (
+            <div key={meal} className="rounded-xl bg-white/[0.04] px-3 py-2 text-sm text-white/70">
+              {meal}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
 function ExerciseCard({ exercise }) {
   const instructions = getClientSafeExerciseInstructions(exercise);
   const substitutions = getClientSafeExerciseSubstitutions(exercise);
@@ -5497,7 +5605,7 @@ function EmptyState({ text }) {
   return <div className="rounded-2xl border border-dashed border-white/15 bg-black/30 p-6 text-center text-sm font-bold text-white/45">{text}</div>;
 }
 
-// Bundle 12N update complete marker
+// Bundle 12S nutrition macros guide stable
 
 
 
