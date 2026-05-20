@@ -1548,6 +1548,82 @@ const [clients, setClients] = useState(initialState.clients);
     setClientActionNotice(clientName + " reactivated for active coaching.");
   };
 
+  const unassignClientFromCoach = (clientId) => {
+    const client = clients.find((item) => item.id === clientId);
+
+    setClients((previousClients) =>
+      previousClients.map((item) =>
+        item.id === clientId
+          ? {
+              ...item,
+              coachId: "",
+              coachName: "",
+              coachingStatus: "unassigned",
+              status: "Unassigned",
+              assignedAt: "",
+              archivedAt: "",
+              archiveReason: "",
+            }
+          : item
+      )
+    );
+
+    setClientActionNotice(
+      (client?.name || "Client") + " unassigned from active coaching."
+    );
+  };
+
+  const fullDeleteArchivedClient = (clientId) => {
+    const client = clients.find((item) => item.id === clientId);
+
+    if (!client) return;
+
+    const statusText = String(client.coachingStatus || client.status || "").toLowerCase();
+    const isArchived = statusText.includes("archived") || Boolean(client.archivedAt);
+
+    if (!isArchived) {
+      setClientActionNotice("Archive this client before using Full Delete.");
+      return;
+    }
+
+    const remainingClients = clients.filter((item) => item.id !== clientId);
+    const fallbackClient =
+      remainingClients.find((item) =>
+        String(item.coachingStatus || item.status || "").toLowerCase().includes("active")
+      ) ||
+      remainingClients[0] ||
+      null;
+
+    setClients(remainingClients);
+    setSavedPlans((current) => current.filter((plan) => plan.clientId !== clientId));
+    setWorkoutLogs((current) => current.filter((log) => log.clientId !== clientId));
+    setConversations((current) =>
+      current.filter((conversation) => conversation.clientId !== clientId)
+    );
+    setReadActivityIds((current) =>
+      current.filter((activityId) => !String(activityId).includes(clientId))
+    );
+
+    setSelectedClientProfileId((current) =>
+      current === clientId ? fallbackClient?.id || "" : current
+    );
+    setTrackerClientId((current) =>
+      current === clientId ? fallbackClient?.id || "" : current
+    );
+    setSelectedConversationId((current) =>
+      current === clientId ? fallbackClient?.id || "" : current
+    );
+    setPlanDraft((current) => ({
+      ...current,
+      clientId: current.clientId === clientId ? fallbackClient?.id || "" : current.clientId,
+    }));
+
+    setClientActionNotice(
+      client.name +
+        " fully deleted from archived records. Profile, plans, logs, and messages were removed."
+    );
+  };
+
   const viewArchivedClientForCoach = (clientId) => {
     setSelectedClientProfileId(clientId);
 
@@ -2709,7 +2785,9 @@ function handlePortalLogout() {
               openPlansForClient={openPlansForClient}
               updateClientStatus={updateClientStatus}
               clientActionNotice={clientActionNotice}
-            />
+              onUnassignClient={unassignClientFromCoach}
+  fullDeleteArchivedClient={fullDeleteArchivedClient}
+/>
           )}
 
           {activeTab === "Plans" && (
@@ -3525,38 +3603,403 @@ function CoachScreen({ notifications, savedPlans, workoutLogs, selectedWorkoutLo
   );
 }
 
-function ClientsScreen({ clients, clientForm, setClientForm, addClient, selectedClientProfileId, setSelectedClientProfileId, savedPlans, workoutLogs, conversations, openTrackerForClient, openMessagesForClient, openPlansForClient, updateClientStatus, safeDeleteClient, clientActionNotice }) {
-  const selectedClient = clients.find((client) => client.id === selectedClientProfileId) || clients[0];
+function ClientsScreen({
+  clients,
+  clientForm,
+  setClientForm,
+  addClient,
+  selectedClientProfileId,
+  setSelectedClientProfileId,
+  savedPlans,
+  workoutLogs,
+  conversations,
+  openTrackerForClient,
+  openMessagesForClient,
+  openPlansForClient,
+  updateClientStatus,
+  safeDeleteClient,
+  clientActionNotice,
+  onAssignClient,
+  onArchiveClient,
+  onReactivateClient,
+  onViewArchivedClient,
+  onUnassignClient,
+  fullDeleteArchivedClient,
+}) {
+  const [clientSearch, setClientSearch] = useState("");
+  const [showActiveClientList, setShowActiveClientList] = useState(true);
+  const [showArchivedClients, setShowArchivedClients] = useState(false);
+  const [selectedArchivedClientId, setSelectedArchivedClientId] = useState("");
+
+  const getCoachStatus = (client) => {
+    const statusText = String(client.coachingStatus || client.status || "").toLowerCase();
+
+    if (statusText.includes("archived") || client.archivedAt) return "archived";
+    if (statusText.includes("unassigned")) return "unassigned";
+    if (statusText.includes("active")) return "active";
+
+    return client.coachId ? "active" : "unassigned";
+  };
+
+  const formatDate = (value) => {
+    if (!value) return "Not set";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+  };
+
+  const searchableText = (client) =>
+    [client.name, client.email, client.status, client.coachingStatus, client.coachName]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+  const normalizedSearch = clientSearch.trim().toLowerCase();
+
+  const matchesSearch = (client) => {
+    if (!normalizedSearch) return true;
+    return searchableText(client).includes(normalizedSearch);
+  };
+
+  const activeClients = clients.filter((client) => getCoachStatus(client) === "active");
+  const unassignedClients = clients.filter((client) => getCoachStatus(client) === "unassigned");
+  const archivedClients = clients.filter((client) => getCoachStatus(client) === "archived");
+
+  const searchedActiveClients = activeClients.filter(matchesSearch);
+  const searchedUnassignedClients = unassignedClients.filter(matchesSearch);
+
+  const selectedClient =
+    normalizedSearch
+      ? searchedActiveClients.find((client) => client.id === selectedClientProfileId) ||
+        searchedActiveClients[0] ||
+        null
+      : activeClients.find((client) => client.id === selectedClientProfileId) ||
+        activeClients[0] ||
+        null;
+
+  const selectedArchivedClient =
+    archivedClients.find((client) => client.id === selectedArchivedClientId) || null;
+
+  const renderStatusPill = (status) => {
+    const classes =
+      status === "active"
+        ? "border-[#00BF63]/40 bg-[#00BF63]/10 text-[#00BF63]"
+        : status === "archived"
+          ? "border-zinc-400/40 bg-zinc-400/10 text-zinc-200"
+          : "border-yellow-400/40 bg-yellow-400/10 text-yellow-200";
+
+    return (
+      <span className={"rounded-full border px-3 py-1 text-xs font-black uppercase " + classes}>
+        {status}
+      </span>
+    );
+  };
+
+  const renderClientCard = (client) => {
+    const status = getCoachStatus(client);
+    const isSelected = selectedClient?.id === client.id;
+
+    return (
+      <div
+        key={client.id}
+        className={
+          "rounded-2xl border p-4 transition " +
+          (isSelected ? "border-[#00BF63] bg-[#00BF63]/10" : "border-white/10 bg-black/40")
+        }
+      >
+        <button
+          type="button"
+          onClick={() => setSelectedClientProfileId(client.id)}
+          className="w-full text-left"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-lg font-black text-white">{client.name}</p>
+              <p className="text-sm text-white/55">{client.email}</p>
+            </div>
+            {renderStatusPill(status)}
+          </div>
+          <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-white/45">
+            Assigned: {formatDate(client.assignedAt)}
+          </p>
+        </button>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {status === "active" && (
+            <>
+              <button
+                type="button"
+                onClick={() => onArchiveClient?.(client.id)}
+                className="rounded-full border border-yellow-400/40 bg-yellow-400/10 px-4 py-2 text-xs font-black uppercase text-yellow-200 transition hover:bg-yellow-400 hover:text-black"
+              >
+                Archive Client
+              </button>
+              <button
+                type="button"
+                onClick={() => onUnassignClient?.(client.id)}
+                className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+              >
+                Unassign
+              </button>
+            </>
+          )}
+
+          {status === "unassigned" && (
+            <button
+              type="button"
+              onClick={() => onAssignClient?.(client.id)}
+              className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black transition hover:bg-white"
+            >
+              Assign
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderArchivedClientCard = (client) => {
+    const isSelected = selectedArchivedClientId === client.id;
+
+    return (
+      <div
+        key={client.id}
+        className={
+          "rounded-2xl border p-4 transition " +
+          (isSelected ? "border-zinc-200 bg-zinc-500/15" : "border-zinc-500/30 bg-zinc-500/10")
+        }
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-lg font-black text-white">{client.name}</p>
+            <p className="text-sm text-white/55">{client.email}</p>
+            <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-white/45">
+              Archived: {formatDate(client.archivedAt)}
+            </p>
+          </div>
+          {renderStatusPill("archived")}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedArchivedClientId(client.id);
+              onViewArchivedClient?.(client.id);
+            }}
+            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+          >
+            View Past Data
+          </button>
+          <button
+            type="button"
+            onClick={() => onReactivateClient?.(client.id)}
+            className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black transition hover:bg-white"
+          >
+            Reactivate
+          </button>
+          <button
+            type="button"
+            onClick={() => fullDeleteArchivedClient?.(client.id)}
+            className="rounded-full border border-red-500/40 bg-red-500/15 px-4 py-2 text-xs font-black uppercase text-red-200 transition hover:bg-red-500 hover:text-white"
+          >
+            Full Delete Archived Client
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div>
-      <SectionHeader eyebrow="Clients" title="Client Management" description="Create clients locally, update client status, use safe delete, open a detailed client profile, review assigned plans, recent logs, and recent messages." />
-      {clientActionNotice && <p className="mb-5 rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4 text-sm font-bold text-[#00BF63]">{clientActionNotice}</p>}
-      <div className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
-        <div className="space-y-6">
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-            <h3 className="mb-4 text-xl font-black uppercase">Add Client</h3>
-            <div className="space-y-3">
-              <Input label="Client Name" value={clientForm.name} onChange={(value) => setClientForm((current) => ({ ...current, name: value }))} placeholder="Enter client name" />
-              <Input label="Client Email" value={clientForm.email} onChange={(value) => setClientForm((current) => ({ ...current, email: value }))} placeholder="Enter client email" />
-              <button type="button" onClick={addClient} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#00BF63] px-5 py-3 font-black uppercase text-black transition hover:bg-white"><Plus size={18} />Add Client</button>
-            </div>
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+          Clients
+        </p>
+        <h2 className="mt-2 text-3xl font-black uppercase text-white">
+          Client Management
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm text-white/60">
+          Add clients, manage active coaching, search the client list, and keep archived clients separated from the active workflow.
+        </p>
+      </div>
+
+      {clientActionNotice && (
+        <p className="rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4 text-sm font-bold text-[#00BF63]">
+          {clientActionNotice}
+        </p>
+      )}
+
+      <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
+        <h3 className="text-xl font-black uppercase">Add Client</h3>
+        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+          <label className="block">
+            <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-white/55">
+              Client Name
+            </span>
+            <input
+              value={clientForm.name}
+              onChange={(event) =>
+                setClientForm((current) => ({ ...current, name: event.target.value }))
+              }
+              placeholder="Enter client name"
+              className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-white/55">
+              Client Email
+            </span>
+            <input
+              value={clientForm.email}
+              onChange={(event) =>
+                setClientForm((current) => ({ ...current, email: event.target.value }))
+              }
+              placeholder="Enter client email"
+              className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={addClient}
+            className="mt-auto rounded-2xl bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white"
+          >
+            Add Client
+          </button>
+        </div>
+      </section>
+
+      <section
+        data-testid="active-client-window"
+        className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5"
+      >
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+              Client Directory
+            </p>
+            <h3 className="text-2xl font-black uppercase">Active Client Window</h3>
+            <p className="mt-1 text-sm text-white/55">
+              Search active and unassigned clients. Archived clients stay hidden below.
+            </p>
           </div>
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-            <h3 className="mb-4 text-xl font-black uppercase">Client List</h3>
+          <button
+            type="button"
+            onClick={() => setShowActiveClientList((current) => !current)}
+            className="rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-4 py-2 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+          >
+            {showActiveClientList ? "Hide Client List" : "Show Client List"}
+          </button>
+        </div>
+
+        <div className={showActiveClientList ? "space-y-4" : "hidden"}>
+          <label className="block">
+            <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-white/55">
+              Search Clients
+            </span>
+            <input
+              aria-label="Search Clients"
+              value={clientSearch}
+              onChange={(event) => setClientSearch(event.target.value)}
+              placeholder="Search active or unassigned clients..."
+              className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
+            />
+          </label>
+
+          <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
             <div className="space-y-3">
-              {clients.map((client) => (
-                <button key={client.id} type="button" onClick={() => setSelectedClientProfileId(client.id)} className={`w-full rounded-2xl border p-4 text-left transition ${selectedClient?.id === client.id ? "border-[#00BF63] bg-[#00BF63]/10" : "border-white/10 bg-black/40 hover:border-[#00BF63]/60"}`}>
-                  <p className="text-lg font-black">{client.name}</p>
-                  <p className="mt-1 text-sm text-white/55">{client.email}</p>
-                  <span className="mt-3 inline-flex rounded-full bg-[#00BF63]/15 px-3 py-1 text-xs font-black uppercase tracking-wide text-[#00BF63]">{client.status}</span>
-                </button>
-              ))}
+              <p className="text-sm font-black uppercase text-white/70">
+                Active Clients ({searchedActiveClients.length})
+              </p>
+              {searchedActiveClients.map(renderClientCard)}
+              {searchedActiveClients.length === 0 && (
+                <EmptyState text="No active clients match that search." />
+              )}
+
+              {searchedUnassignedClients.length > 0 && (
+                <div className="pt-3">
+                  <p className="mb-3 text-sm font-black uppercase text-white/70">
+                    Unassigned Clients ({searchedUnassignedClients.length})
+                  </p>
+                  <div className="space-y-3">
+                    {searchedUnassignedClients.map(renderClientCard)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/35 p-4">
+              {selectedClient ? (
+                <ClientProfileDetails
+                  client={selectedClient}
+                  savedPlans={savedPlans}
+                  workoutLogs={workoutLogs}
+                  conversations={conversations}
+                  openTrackerForClient={openTrackerForClient}
+                  openMessagesForClient={openMessagesForClient}
+                  openPlansForClient={openPlansForClient}
+                  updateClientStatus={updateClientStatus}
+                />
+              ) : (
+                <EmptyState text="No active client selected." />
+              )}
             </div>
           </div>
         </div>
-        <ClientProfileDetails client={selectedClient} savedPlans={savedPlans} workoutLogs={workoutLogs} conversations={conversations} openTrackerForClient={openTrackerForClient} openMessagesForClient={openMessagesForClient} openPlansForClient={openPlansForClient} updateClientStatus={updateClientStatus} />
-      </div>
+      </section>
+
+      <section
+        data-testid="archived-client-window"
+        className="rounded-[1.5rem] border border-zinc-500/20 bg-zinc-500/5 p-5"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">
+              Archived Clients
+            </p>
+            <h3 className="text-2xl font-black uppercase">Archived Client Window</h3>
+            <p className="mt-1 text-sm text-white/55">
+              Archived clients stay out of active workflow. Full Delete is only available here.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowArchivedClients((current) => !current)}
+            className="rounded-full border border-zinc-400/40 bg-zinc-400/10 px-4 py-2 text-xs font-black uppercase text-zinc-200 transition hover:bg-zinc-200 hover:text-black"
+          >
+            {showArchivedClients
+              ? "Hide Archived Clients"
+              : "Show Archived Clients (" + archivedClients.length + ")"}
+          </button>
+        </div>
+
+        {showArchivedClients && (
+          <div className="mt-5 space-y-4">
+            <div className="space-y-3">
+              {archivedClients.map(renderArchivedClientCard)}
+              {archivedClients.length === 0 && (
+                <EmptyState text="No archived clients yet." />
+              )}
+            </div>
+
+            {selectedArchivedClient && (
+              <div className="rounded-2xl border border-zinc-500/30 bg-black/35 p-4">
+                <ClientProfileDetails
+                  client={selectedArchivedClient}
+                  savedPlans={savedPlans}
+                  workoutLogs={workoutLogs}
+                  conversations={conversations}
+                  openTrackerForClient={openTrackerForClient}
+                  openMessagesForClient={openMessagesForClient}
+                  openPlansForClient={openPlansForClient}
+                  updateClientStatus={updateClientStatus}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
