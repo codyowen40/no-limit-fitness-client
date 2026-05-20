@@ -3772,9 +3772,7 @@ function ClientsScreen({
               type="button"
               onClick={() => onAssignClient?.(client.id)}
               className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black transition hover:bg-white"
-            >
-              Assign
-            </button>
+            >Assign to Me</button>
           )}
         </div>
       </div>
@@ -3818,9 +3816,7 @@ function ClientsScreen({
             type="button"
             onClick={() => onReactivateClient?.(client.id)}
             className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black transition hover:bg-white"
-          >
-            Reactivate
-          </button>
+          >Reactivate Client</button>
           <button
             type="button"
             onClick={() => fullDeleteArchivedClient?.(client.id)}
@@ -3834,11 +3830,9 @@ function ClientsScreen({
   };
 
   return (
-    <div className="space-y-6">
+    <section aria-label="Coach client assignment manager" className="space-y-6">
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
-          Clients
-        </p>
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">Coach Assignment</p>
         <h2 className="mt-2 text-3xl font-black uppercase text-white">
           Client Management
         </h2>
@@ -3941,16 +3935,18 @@ function ClientsScreen({
                 <EmptyState text="No active clients match that search." />
               )}
 
-              {searchedUnassignedClients.length > 0 && (
-                <div className="pt-3">
-                  <p className="mb-3 text-sm font-black uppercase text-white/70">
-                    Unassigned Clients ({searchedUnassignedClients.length})
-                  </p>
+              <div className="pt-3">
+                <p className="mb-3 text-sm font-black uppercase text-white/70">
+                  Unassigned Clients ({searchedUnassignedClients.length})
+                </p>
+                {searchedUnassignedClients.length > 0 ? (
                   <div className="space-y-3">
                     {searchedUnassignedClients.map(renderClientCard)}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <EmptyState text="No unassigned clients match that search." />
+                )}
+              </div>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-black/35 p-4">
@@ -4024,7 +4020,7 @@ function ClientsScreen({
           </div>
         )}
       </section>
-    </div>
+    </section>
   );
 }
 
@@ -5502,5 +5498,6 @@ function EmptyState({ text }) {
 }
 
 // Bundle 12N update complete marker
+
 
 
