@@ -1106,6 +1106,46 @@ function ClientPortalMyPlanPanel({
       aria-label="Client My Plan dashboard"
       className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
     >
+        <section
+          aria-label="Client exercise search and substitution guide"
+          data-nlf-bundle-12u-exercise-guide-live="true"
+          className="mb-5 rounded-3xl border border-white/10 bg-black/40 p-5 shadow-xl shadow-black/20"
+        >
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+                Exercise Library
+              </p>
+              <h3 className="mt-2 text-xl font-black text-white">
+                Exercise Search and Substitution Guide
+              </h3>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
+                Search movements by exercise name, muscle group, equipment, instructions, and safe substitutions so the client can adjust without needing coach-only controls.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-sm font-black text-white">Search cues</p>
+              <p className="mt-1 text-sm leading-6 text-white/65">
+                Exercise name, muscle group, equipment, and movement pattern.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-sm font-black text-white">Substitution rules</p>
+              <p className="mt-1 text-sm leading-6 text-white/65">
+                Match the same muscle group and similar movement before changing intensity.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-sm font-black text-white">Client-safe notes</p>
+              <p className="mt-1 text-sm leading-6 text-white/65">
+                Keep changes simple, controlled, and aligned with the assigned plan.
+              </p>
+            </div>
+          </div>
+        </section>
         <ClientNutritionMacrosPanel />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
@@ -2572,7 +2612,7 @@ function handlePortalLogout() {
                               ? "bg-black text-[#00BF63]"
                               : "bg-[#00BF63] text-black",
                           ].join(" ")}
-                        >
+                         aria-hidden="true">
                           {tab.badge}
                         </span>
                       )}
@@ -2668,7 +2708,7 @@ function handlePortalLogout() {
                               "rounded-full px-2 py-0.5 text-xs font-black",
                               isActive ? "bg-black text-[#00BF63]" : "bg-[#00BF63] text-black",
                             ].join(" ")}
-                          >
+                           aria-hidden="true">
                             {tab.badge}
                           </span>
                         )}
@@ -5607,5 +5647,4 @@ function EmptyState({ text }) {
 
 // Bundle 12S nutrition macros guide stable
 
-
-
+// Bundle 12U messages nav accessibility fix marker
