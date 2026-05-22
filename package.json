@@ -41,7 +41,8 @@
     "test:bundle12u": "playwright test tests/bundle-12u-client-release-lock.spec.js",
     "test:bundle12u:headed": "playwright test tests/bundle-12u-client-release-lock.spec.js --headed",
     "health:repo": "node scripts/health-repo.cjs",
-    "backup:local": "node scripts/backup-local.cjs"
+    "backup:local": "node scripts/backup-local.cjs",
+    "map:repo": "node scripts/repo-map.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
