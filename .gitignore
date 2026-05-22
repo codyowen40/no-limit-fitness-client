@@ -55,3 +55,7 @@ src/*.backup.jsx
 src/*.bundle*.backup-*
 local-backups/
 *.backup
+local-backups/
+*.backup
+*.backup.*
+bundle_*.cjs
