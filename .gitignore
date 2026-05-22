@@ -53,3 +53,5 @@ bundle_*_patch.ps1
 *.bundle*.backup-*
 src/*.backup.jsx
 src/*.bundle*.backup-*
+local-backups/
+*.backup

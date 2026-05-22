@@ -39,7 +39,9 @@
     "check": "npm run check:release",
     "test:ci": "npm run test:stable",
     "test:bundle12u": "playwright test tests/bundle-12u-client-release-lock.spec.js",
-    "test:bundle12u:headed": "playwright test tests/bundle-12u-client-release-lock.spec.js --headed"
+    "test:bundle12u:headed": "playwright test tests/bundle-12u-client-release-lock.spec.js --headed",
+    "health:repo": "node scripts/health-repo.cjs",
+    "backup:local": "node scripts/backup-local.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
