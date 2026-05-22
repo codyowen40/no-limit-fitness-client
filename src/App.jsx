@@ -140,6 +140,11 @@ const exerciseLibrary = [
   ex("Seated Cable Row", ["Bodybuilding"], "Lats, upper back, biceps", "Cable row machine"),
   ex("Shoulder CARs", ["Mobility", "Sports Performance"], "Shoulders, rotator cuff, upper back", "Bodyweight"),
   ex("Shuttle Run", ["Conditioning", "Sports Performance"], "Quads, glutes, calves, lungs", "Cones, open space"),
+  ex("Walk", ["Conditioning", "Recovery", "General Fitness"], "Calves, glutes, hamstrings, quads, lungs", "Treadmill or open space"),
+  ex("Run", ["Conditioning", "Sports Performance", "Fat Loss"], "Quads, glutes, calves, hamstrings, lungs", "Treadmill, track, or open space"),
+  ex("Stair Master", ["Conditioning", "Fat Loss", "Legs"], "Glutes, quads, hamstrings, calves, lungs", "Stair master machine"),
+  ex("Elliptical", ["Conditioning", "Low Impact", "Fat Loss"], "Quads, glutes, hamstrings, calves, lungs", "Elliptical machine"),
+  ex("Stationary Bike", ["Conditioning", "Low Impact", "Fat Loss"], "Quads, hamstrings, glutes, calves, lungs", "Stationary bike"),
   ex("Single-Leg RDL", ["Sports Performance", "Bodybuilding", "Mobility"], "Hamstrings, glutes, balance, core", "Bodyweight, dumbbells optional"),
   ex("Sit-Up", ["Calisthenics", "Conditioning"], "Abs, hip flexors", "Bodyweight"),
   ex("Ski Erg", ["Conditioning", "CrossFit", "Sports Performance"], "Lats, triceps, abs, lungs", "Ski erg"),
@@ -504,7 +509,7 @@ const PORTAL_MODE_STORAGE_KEY = "no-limit-fitness-portal-mode-v1";
 const TEST_UNLOCK_STORAGE_KEY = "no-limit-fitness-test-unlocked-v1";
 const COACH_SESSION_LOCK_STORAGE_KEY = "no-limit-fitness-coach-session-lock-v1";
 const PUBLIC_PORTAL_MODE = "client";
-const PUBLIC_LANDING_TAB = "Client";
+const PUBLIC_LANDING_TAB = "Login";
 
 function hasCurrentTestUnlockUrl() {
   if (typeof window === "undefined") return false;
@@ -540,7 +545,7 @@ const PORTAL_VISIBLE_TABS_BY_MODE = {
     "Progress",
     "Login",
   ],
-  client: ["Home", "Client", "Tracker", "Progress", "Messages", "Exercises", "Login"],
+  client: ["Home", "Client", "Nutrition", "Plans", "Tracker", "Progress", "Messages", "Exercises", "Login"],
 };
 
 const PORTAL_LANDING_TAB_BY_MODE = {
@@ -1099,7 +1104,13 @@ function ClientPortalMyPlanPanel({
 
   const recentLogs = Array.isArray(workoutLogs) ? workoutLogs.slice(-3).reverse() : [];
   const todayExercises = getFriendlyDayExercises(todayDay).slice(0, 5);
-  const [isNutritionCoachOpen, setIsNutritionCoachOpen] = useState(false);
+  const [isNutritionCoachOpen, setIsNutritionCoachOpen] = useState(Boolean(forceNutritionCoachOpen));
+
+  useEffect(() => {
+    if (forceNutritionCoachOpen) {
+      setIsNutritionCoachOpen(true);
+    }
+  }, [forceNutritionCoachOpen]);
 
   return (
     <section
@@ -1184,6 +1195,22 @@ function ClientPortalMyPlanPanel({
           >
             View Progress
           </button>
+              <button
+                type="button"
+                data-nlf-client-build-plan-action="true"
+                onClick={onOpenPlans || (() => {})}
+                className="rounded-2xl border border-[#00BF63]/40 bg-[#00BF63]/10 px-4 py-3 text-left text-sm font-black text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+              >
+                Build a Plan
+              </button>
+              <button
+                type="button"
+                data-nlf-client-edit-plan-action="true"
+                onClick={onOpenPlans || (() => {})}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-sm font-black text-white transition hover:border-[#00BF63]/70 hover:text-[#00BF63]"
+              >
+                Edit Workout Plan
+              </button>
         </div>
       </div>
 
@@ -1339,7 +1366,160 @@ function ClientPortalMyPlanPanel({
 }
 // NLF_CLIENT_PORTAL_POLISH_HELPERS_END
 
-export default function App() {
+
+// NLF_BUNDLE_12Z_LOGIN_GATE_START
+function getNoLimitPublicAccountAccess() {
+  try {
+    return window.localStorage.getItem("nlf-public-account-access-v1") === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveNoLimitPublicAccountAccess(profile) {
+  try {
+    window.localStorage.setItem("nlf-public-account-access-v1", "true");
+    window.localStorage.setItem("nlf-public-account-profile-v1", JSON.stringify(profile));
+    window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, "client");
+  } catch {
+    // LocalStorage can fail in restricted browser modes.
+  }
+}
+
+function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
+  const isSignup = authMode === "signup";
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [accountStatus, setAccountStatus] = useState("");
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const safeEmail = email.trim();
+    const safePassword = password.trim();
+
+    if (!safeEmail || !safePassword) {
+      setAccountStatus("Enter an email and password to continue.");
+      return;
+    }
+
+    const profile = {
+      name: name.trim() || "No Limit Client",
+      email: safeEmail,
+      createdAt: new Date().toISOString(),
+      mode: isSignup ? "signup" : "login",
+    };
+
+    saveNoLimitPublicAccountAccess(profile);
+    setAccountStatus(isSignup ? "Account created. Opening your client portal." : "Login accepted. Opening your client portal.");
+    onUnlock(profile);
+  }
+
+  return (
+    <main className="min-h-screen bg-black text-white">
+      <div
+        className="fixed inset-0 bg-cover bg-center opacity-20"
+        style={{ backgroundImage: "url('/images/gym-background.webp')" }}
+      />
+      <div className="fixed inset-0 bg-gradient-to-b from-black via-black/95 to-black" />
+
+      <section
+        aria-label="No Limit Fitness login page"
+        className="relative z-10 mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-5 py-10"
+      >
+        <div className="rounded-[2rem] border border-[#00BF63]/25 bg-zinc-950/90 p-6 shadow-2xl shadow-black/60 md:p-8">
+          <div className="flex items-center gap-4">
+            <img
+              src="/images/logo.png"
+              alt="No Limit Fitness"
+              className="h-16 w-16 rounded-2xl object-contain"
+            />
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.32em] text-[#00BF63]">
+                No Limit Fitness
+              </p>
+              <h1 className="mt-1 text-3xl font-black uppercase leading-none text-white">
+                {isSignup ? "Create Account" : "Client Login"}
+              </h1>
+            </div>
+          </div>
+
+          <p className="mt-5 text-sm leading-6 text-white/65">
+            Sign in or create an account to access your training plan, tracker, progress, messages, exercises, and nutrition tools.
+          </p>
+
+          <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
+            {isSignup && (
+              <label className="grid gap-2 text-sm font-bold text-white/80">
+                Name
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
+                  placeholder="Your name"
+                  autoComplete="name"
+                />
+              </label>
+            )}
+
+            <label className="grid gap-2 text-sm font-bold text-white/80">
+              Email
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
+                placeholder="you@example.com"
+                autoComplete="email"
+                type="email"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-bold text-white/80">
+              Password
+              <input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
+                placeholder="Password"
+                autoComplete={isSignup ? "new-password" : "current-password"}
+                type="password"
+              />
+            </label>
+
+            {accountStatus && (
+              <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/75">
+                {accountStatus}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="rounded-2xl bg-[#00BF63] px-5 py-4 text-sm font-black uppercase tracking-[0.22em] text-black transition hover:bg-[#00d36f]"
+            >
+              {isSignup ? "Create Account" : "Log In"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setAccountStatus("");
+                setAuthMode(isSignup ? "login" : "signup");
+              }}
+              className="rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+            >
+              {isSignup ? "Back to Login" : "Sign Up"}
+            </button>
+          </form>
+        </div>
+      </section>
+    </main>
+  );
+}
+// NLF_BUNDLE_12Z_LOGIN_GATE_END
+
+
+function NoLimitFitnessAppShell() {
   const [initialState] = useState(loadInitialState);
   const [activeTab, setActiveTab] = useState(() => {
     const mode = getInitialPortalMode();
@@ -1766,7 +1946,7 @@ const isLoggedIn =
   const mobilePrimaryTabs = mobilePrimaryTabIds
     .map((tabId) => renderedTabs.find((tab) => tab.id === tabId))
     .filter(Boolean);
-  const mobileMoreOrder = ["Home", "Messages", "Exercises", "Login", "Coach", "Clients", "Plans"];
+  const mobileMoreOrder = ["Home", "Nutrition", "Plans", "Messages", "Exercises", "Login", "Coach", "Clients"];
   const mobileMoreTabs = renderedTabs
     .filter((tab) => !mobilePrimaryTabIds.includes(tab.id))
     .sort((a, b) => {
@@ -2526,6 +2706,140 @@ function handlePortalLogout() {
     setActiveTab("Login");
   }
 
+  // Bundle 12Y.1 public account gate start
+  function handlePublicAccountSubmit(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const authAction = String(formData.get("authAction") || "signup");
+    const name = String(formData.get("name") || "").trim() || "No Limit Client";
+    const email = String(formData.get("email") || "").trim().toLowerCase();
+
+    if (!email) {
+      setAccountStatus("Enter your email to continue.");
+      return;
+    }
+
+    const existingClient = clients.find(
+      (client) => String(client.email || "").trim().toLowerCase() === email
+    );
+
+    const clientId = existingClient?.id || "public-client-" + Date.now();
+    const clientName = existingClient?.name || name;
+
+    if (!existingClient) {
+      setClients((current) => [
+        ...current,
+        {
+          id: clientId,
+          name: clientName,
+          email,
+          status: "Active",
+          coachingStatus: "active",
+          coachId: "",
+          coachName: "",
+          createdAt: new Date().toISOString(),
+          accountSource: "Public sign up",
+        },
+      ]);
+    }
+
+    setSelectedClientProfileId(clientId);
+    setTrackerClientId(clientId);
+    setSelectedConversationId(clientId);
+
+    handlePortalLogin("client");
+    setActiveTab("Client");
+    setAccountStatus(
+      authAction === "login"
+        ? "Logged in. Opening your client portal."
+        : "Account created. Opening your client portal."
+    );
+  }
+
+  const hasActiveTestUnlockUrl =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("testUnlock") === "true";
+
+  if (!isLoggedIn && !hasActiveTestUnlockUrl) {
+    return (
+      <main className="min-h-screen bg-black px-4 py-8 text-white">
+        <section className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-xl flex-col justify-center">
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40">
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-[#00BF63]">
+              No Limit Fitness
+            </p>
+
+            <h1 className="mt-4 text-3xl font-black uppercase tracking-wide sm:text-4xl">
+              Client Login
+            </h1>
+
+            <p className="mt-3 text-sm leading-6 text-white/70">
+              Log in or create your client account to open your training plan, tracker, progress,
+              messages, exercises, and nutrition coach.
+            </p>
+
+            <form
+              aria-label="No Limit Fitness login and sign up"
+              className="mt-6 space-y-4"
+              onSubmit={handlePublicAccountSubmit}
+            >
+              <label className="block text-sm font-black uppercase tracking-wide text-white/70">
+                Name
+                <input
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Your name"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-base font-semibold text-white outline-none transition placeholder:text-white/30 focus:border-[#00BF63]"
+                />
+              </label>
+
+              <label className="block text-sm font-black uppercase tracking-wide text-white/70">
+                Email
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="you@email.com"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-base font-semibold text-white outline-none transition placeholder:text-white/30 focus:border-[#00BF63]"
+                />
+              </label>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="submit"
+                  name="authAction"
+                  value="login"
+                  className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-black uppercase tracking-wide text-white transition hover:border-[#00BF63] hover:bg-[#00BF63] hover:text-black"
+                >
+                  Login
+                </button>
+
+                <button
+                  type="submit"
+                  name="authAction"
+                  value="signup"
+                  className="rounded-full border border-[#00BF63] bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-white"
+                >
+                  Sign Up
+                </button>
+              </div>
+            </form>
+
+            {accountStatus ? (
+              <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-semibold text-white/70">
+                {accountStatus}
+              </p>
+            ) : null}
+          </div>
+        </section>
+      </main>
+    );
+  }
+  // Bundle 12Y.1 public account gate end
+
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="fixed inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: "url('/images/gym-background.webp')" }} />
@@ -2775,7 +3089,9 @@ function handlePortalLogout() {
             onOpenTracker={() => setActiveTab("Tracker")}
             onOpenMessages={() => setActiveTab("Messages")}
             onOpenProgress={() => setActiveTab("Progress")}
-          />
+                onOpenPlans={() => setActiveTab("Plans")}
+                forceNutritionCoachOpen={activeTab === "Nutrition"}
+              />
         )}
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_END */}
         {/* Bundle 12N: ClientsScreen is now the single coach client-management surface. */}
@@ -5648,3 +5964,28 @@ function EmptyState({ text }) {
 // Bundle 12S nutrition macros guide stable
 
 // Bundle 12U messages nav accessibility fix marker
+
+// Bundle 12Y.1 client plan nutrition update complete
+
+
+// NLF_BUNDLE_12Z_APP_EXPORT_START
+export default function App() {
+  const [authMode, setAuthMode] = useState("login");
+  const [accountUnlocked, setAccountUnlocked] = useState(() => getNoLimitPublicAccountAccess());
+
+  const internalTestUnlocked = getPortalTestUnlocked() || hasCoachSessionLock();
+
+  if (!internalTestUnlocked && !accountUnlocked) {
+    return (
+      <NoLimitFitnessPublicLoginGate
+        authMode={authMode}
+        setAuthMode={setAuthMode}
+        onUnlock={() => setAccountUnlocked(true)}
+      />
+    );
+  }
+
+  return <NoLimitFitnessAppShell />;
+}
+// NLF_BUNDLE_12Z_APP_EXPORT_END
+
