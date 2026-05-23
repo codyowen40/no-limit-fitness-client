@@ -1160,6 +1160,50 @@ function findFriendlyAssignedPlan({ clients, savedPlans }) {
   };
 }
 
+// NLF_BUNDLE_12W_CLIENT_PLAN_DRAFT_HELPERS
+const CLIENT_PLAN_DRAFT_STORAGE_KEY = "no-limit-fitness-client-plan-draft-v1";
+
+function getStoredClientPlanDraft() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(CLIENT_PLAN_DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+
+    if (!parsed || typeof parsed !== "object") return null;
+
+    return {
+      title: String(parsed.title || "Starter Workout Plan"),
+      goal: String(parsed.goal || "Build consistency, strength, and conditioning."),
+      days: String(parsed.days || "3"),
+      savedAt: String(parsed.savedAt || ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredClientPlanDraft(draft) {
+  if (typeof window === "undefined") return null;
+
+  const cleanDraft = {
+    title: String(draft?.title || "Starter Workout Plan"),
+    goal: String(draft?.goal || "Build consistency, strength, and conditioning."),
+    days: String(draft?.days || "3"),
+    savedAt: new Date().toISOString(),
+  };
+
+  try {
+    window.localStorage.setItem(CLIENT_PLAN_DRAFT_STORAGE_KEY, JSON.stringify(cleanDraft));
+  } catch {
+    // Ignore localStorage failures in restricted browser modes.
+  }
+
+  return cleanDraft;
+}
+
 function ClientPortalMyPlanPanel({
   clients,
   savedPlans,
@@ -1172,11 +1216,45 @@ function ClientPortalMyPlanPanel({
 }) {
 
   // NLF_BUNDLE_12V_CLIENT_PLAN_BUILDER_STATE
+  const storedClientPlanDraft = getStoredClientPlanDraft();
   const [isClientPlanBuilderOpen, setIsClientPlanBuilderOpen] = useState(false);
-  const [clientPlanDraftTitle, setClientPlanDraftTitle] = useState("Starter Workout Plan");
-  const [clientPlanDraftGoal, setClientPlanDraftGoal] = useState("Build consistency, strength, and conditioning.");
-  const [clientPlanDraftDays, setClientPlanDraftDays] = useState("3");
+  const [clientSavedPlanDraft, setClientSavedPlanDraft] = useState(storedClientPlanDraft);
+  const [clientPlanDraftTitle, setClientPlanDraftTitle] = useState(
+    storedClientPlanDraft?.title || "Starter Workout Plan"
+  );
+  const [clientPlanDraftGoal, setClientPlanDraftGoal] = useState(
+    storedClientPlanDraft?.goal || "Build consistency, strength, and conditioning."
+  );
+  const [clientPlanDraftDays, setClientPlanDraftDays] = useState(storedClientPlanDraft?.days || "3");
   const [clientPlanDraftStatus, setClientPlanDraftStatus] = useState("");
+
+  const handleSaveClientPlanDraft = () => {
+    const savedDraft = saveStoredClientPlanDraft({
+      title: clientPlanDraftTitle,
+      goal: clientPlanDraftGoal,
+      days: clientPlanDraftDays,
+    });
+
+    setClientSavedPlanDraft(savedDraft);
+    setClientPlanDraftStatus("Workout plan draft saved for coach review.");
+  };
+
+  const handleEditClientPlanDraft = () => {
+    if (clientSavedPlanDraft) {
+      setClientPlanDraftTitle(clientSavedPlanDraft.title);
+      setClientPlanDraftGoal(clientSavedPlanDraft.goal);
+      setClientPlanDraftDays(clientSavedPlanDraft.days);
+    }
+
+    setClientPlanDraftStatus("");
+    setIsClientPlanBuilderOpen(true);
+
+    window.setTimeout(() => {
+      document
+        .querySelector('[data-testid="client-build-edit-plan-flow"]')
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
 
   const { client, plan, planDays, todayDay } = findFriendlyAssignedPlan({
     clients,
@@ -1343,6 +1421,40 @@ function ClientPortalMyPlanPanel({
           </p>
         </section>
 
+        {/* NLF_BUNDLE_12W_SAVED_CLIENT_PLAN_DRAFT_CARD */}
+        {clientSavedPlanDraft && (
+          <section
+            data-testid="client-saved-plan-draft"
+            aria-label="Client saved workout plan draft"
+            className="mb-5 rounded-3xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-5 shadow-xl shadow-black/20"
+          >
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+                  Saved Draft
+                </p>
+                <h3 className="mt-2 text-xl font-black text-white">
+                  {clientSavedPlanDraft.title}
+                </h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
+                  {clientSavedPlanDraft.goal}
+                </p>
+                <p className="mt-2 text-sm font-bold text-[#00BF63]">
+                  {clientSavedPlanDraft.days} training days per week
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleEditClientPlanDraft}
+                className="rounded-full border border-[#00BF63]/50 px-5 py-3 text-sm font-black uppercase tracking-wide text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+              >
+                Edit Saved Draft
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* NLF_BUNDLE_12V_CLIENT_PLAN_BUILDER_PANEL */}
         {isClientPlanBuilderOpen && (
           <section
@@ -1375,6 +1487,7 @@ function ClientPortalMyPlanPanel({
               <label className="grid gap-2 text-sm font-bold text-white/80 md:col-span-1">
                 Plan Name
                 <input
+                  data-testid="client-plan-draft-title-input"
                   value={clientPlanDraftTitle}
                   onChange={(event) => setClientPlanDraftTitle(event.target.value)}
                   className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
@@ -1385,6 +1498,7 @@ function ClientPortalMyPlanPanel({
               <label className="grid gap-2 text-sm font-bold text-white/80 md:col-span-1">
                 Training Days
                 <select
+                  data-testid="client-plan-draft-days-select"
                   value={clientPlanDraftDays}
                   onChange={(event) => setClientPlanDraftDays(event.target.value)}
                   className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
@@ -1399,6 +1513,7 @@ function ClientPortalMyPlanPanel({
               <label className="grid gap-2 text-sm font-bold text-white/80 md:col-span-1">
                 Goal
                 <input
+                  data-testid="client-plan-draft-goal-input"
                   value={clientPlanDraftGoal}
                   onChange={(event) => setClientPlanDraftGoal(event.target.value)}
                   className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
@@ -1428,7 +1543,7 @@ function ClientPortalMyPlanPanel({
             <div className="mt-5 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => setClientPlanDraftStatus("Workout plan draft saved for coach review.")}
+                onClick={handleSaveClientPlanDraft}
                 className="rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-white"
               >
                 Save Plan Draft
