@@ -1163,6 +1163,121 @@ function findFriendlyAssignedPlan({ clients, savedPlans }) {
 // NLF_BUNDLE_12W_CLIENT_PLAN_DRAFT_HELPERS
 const CLIENT_PLAN_DRAFT_STORAGE_KEY = "no-limit-fitness-client-plan-draft-v1";
 
+// NLF_BUNDLE_12X_COACH_REVIEW_HELPERS
+const CLIENT_PLAN_DRAFT_REVIEW_STATUS_KEY =
+  "no-limit-fitness-client-plan-draft-review-status-v1";
+const CLIENT_APPROVED_PLAN_STORAGE_KEY =
+  "no-limit-fitness-client-approved-plan-v1";
+
+function getClientPlanDraftReviewStatus() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(CLIENT_PLAN_DRAFT_REVIEW_STATUS_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    return {
+      status: String(parsed.status || "pending"),
+      message: String(parsed.message || ""),
+      updatedAt: String(parsed.updatedAt || ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveClientPlanDraftReviewStatus(status) {
+  const cleanStatus = {
+    status: String(status?.status || "pending"),
+    message: String(status?.message || ""),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(
+        CLIENT_PLAN_DRAFT_REVIEW_STATUS_KEY,
+        JSON.stringify(cleanStatus)
+      );
+    } catch {
+      // Ignore localStorage failures in restricted browser modes.
+    }
+  }
+
+  return cleanStatus;
+}
+
+function getClientPlanReviewLabel(status) {
+  const value = String(status?.status || "").toLowerCase();
+
+  if (value === "approved") return "Approved by Coach";
+  if (value === "returned") return "Returned for Client Edits";
+  if (value === "pending") return "Pending Coach Review";
+
+  return "Not Submitted";
+}
+
+function buildApprovedClientPlanFromDraft(draft) {
+  const title = String(draft?.title || "Starter Workout Plan");
+  const goal = String(draft?.goal || "Build consistency, strength, and conditioning.");
+  const days = String(draft?.days || "3");
+  const dayCount = Math.min(6, Math.max(1, Number.parseInt(days, 10) || 3));
+
+  return {
+    id: "client-approved-plan-v1",
+    planName: `${title} - Coach Approved`,
+    title,
+    goal,
+    days,
+    approvedAt: new Date().toISOString(),
+    trainingDays: Array.from({ length: dayCount }, (_, index) => ({
+      name: `Day ${index + 1}`,
+      focus:
+        index === 0
+          ? "Foundation and movement quality"
+          : index === 1
+            ? "Strength and controlled loading"
+            : "Conditioning and support work",
+    })),
+  };
+}
+
+function getStoredApprovedClientPlan() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(CLIENT_APPROVED_PLAN_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveApprovedClientPlanFromDraft(draft) {
+  const approvedPlan = buildApprovedClientPlanFromDraft(draft);
+
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(
+        CLIENT_APPROVED_PLAN_STORAGE_KEY,
+        JSON.stringify(approvedPlan)
+      );
+    } catch {
+      // Ignore localStorage failures in restricted browser modes.
+    }
+  }
+
+  return approvedPlan;
+}
+
 function getStoredClientPlanDraft() {
   if (typeof window === "undefined") return null;
 
@@ -1228,6 +1343,12 @@ function ClientPortalMyPlanPanel({
   const [clientPlanDraftDays, setClientPlanDraftDays] = useState(storedClientPlanDraft?.days || "3");
   const [clientPlanDraftStatus, setClientPlanDraftStatus] = useState("");
 
+  // NLF_BUNDLE_12X_CLIENT_REVIEW_STATE
+  const [clientPlanDraftReviewStatus, setClientPlanDraftReviewStatus] = useState(() =>
+    getClientPlanDraftReviewStatus()
+  );
+  const approvedClientPlan = getStoredApprovedClientPlan();
+
   const handleSaveClientPlanDraft = () => {
     const savedDraft = saveStoredClientPlanDraft({
       title: clientPlanDraftTitle,
@@ -1236,6 +1357,12 @@ function ClientPortalMyPlanPanel({
     });
 
     setClientSavedPlanDraft(savedDraft);
+    setClientPlanDraftReviewStatus(
+      saveClientPlanDraftReviewStatus({
+        status: "pending",
+        message: "Workout plan draft submitted for coach review.",
+      })
+    );
     setClientPlanDraftStatus("Workout plan draft saved for coach review.");
   };
 
@@ -1442,6 +1569,13 @@ function ClientPortalMyPlanPanel({
                 <p className="mt-2 text-sm font-bold text-[#00BF63]">
                   {clientSavedPlanDraft.days} training days per week
                 </p>
+                {/* NLF_BUNDLE_12X_CLIENT_REVIEW_STATUS_TEXT */}
+                <p
+                  data-testid="client-plan-draft-review-status"
+                  className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-white/55"
+                >
+                  Coach Review: {getClientPlanReviewLabel(clientPlanDraftReviewStatus)}
+                </p>
               </div>
 
               <button
@@ -1451,6 +1585,43 @@ function ClientPortalMyPlanPanel({
               >
                 Edit Saved Draft
               </button>
+            </div>
+          </section>
+        )}
+
+        {/* NLF_BUNDLE_12X_CLIENT_APPROVED_ASSIGNED_PLAN_CARD */}
+        {approvedClientPlan && (
+          <section
+            data-testid="client-approved-assigned-plan"
+            aria-label="Client approved assigned workout plan"
+            className="mb-5 rounded-3xl border border-[#00BF63]/30 bg-black/70 p-5 shadow-xl shadow-black/30"
+          >
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+              Coach Approved Plan
+            </p>
+            <h3 className="mt-2 text-xl font-black text-white">
+              {approvedClientPlan.planName}
+            </h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
+              {approvedClientPlan.goal}
+            </p>
+            <p className="mt-2 text-sm font-bold text-[#00BF63]">
+              {approvedClientPlan.days} training days per week
+            </p>
+
+            <div
+              data-testid="client-approved-assigned-plan-days"
+              className="mt-4 grid gap-3 md:grid-cols-2"
+            >
+              {(approvedClientPlan.trainingDays || []).map((day) => (
+                <div
+                  key={day.name}
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+                >
+                  <p className="font-black text-white">{day.name}</p>
+                  <p className="mt-1 text-sm text-white/65">{day.focus}</p>
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -4922,6 +5093,116 @@ function ClientProfileDetails({ client, savedPlans, workoutLogs, conversations, 
   );
 }
 
+function ClientPlanReviewQueue() {
+  const [pendingDraft, setPendingDraft] = useState(() => getStoredClientPlanDraft());
+  const [reviewStatus, setReviewStatus] = useState(() => getClientPlanDraftReviewStatus());
+  const [approvedPlan, setApprovedPlan] = useState(() => getStoredApprovedClientPlan());
+
+  const hasPendingDraft =
+    pendingDraft &&
+    String(reviewStatus?.status || "pending").toLowerCase() !== "approved";
+
+  const approveDraft = () => {
+    const latestDraft = getStoredClientPlanDraft() || pendingDraft;
+    const nextApprovedPlan = saveApprovedClientPlanFromDraft(latestDraft);
+    const nextStatus = saveClientPlanDraftReviewStatus({
+      status: "approved",
+      message: "Coach approved the client draft and assigned it as the active plan.",
+    });
+
+    setApprovedPlan(nextApprovedPlan);
+    setReviewStatus(nextStatus);
+    setPendingDraft(null);
+  };
+
+  const returnDraft = () => {
+    const nextStatus = saveClientPlanDraftReviewStatus({
+      status: "returned",
+      message: "Coach returned the draft for client edits.",
+    });
+
+    setReviewStatus(nextStatus);
+  };
+
+  return (
+    <section
+      data-testid="coach-client-plan-review-queue"
+      aria-label="Coach client plan review queue"
+      className="mb-6 rounded-3xl border border-[#00BF63]/25 bg-black/70 p-5 shadow-2xl shadow-black/30"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-[#00BF63]">
+            Coach Review
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Client Plan Draft Review
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Review client-created workout drafts, approve safe starting plans, or return the draft for edits.
+          </p>
+        </div>
+
+        <p
+          data-testid="coach-client-plan-review-status"
+          className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white/60"
+        >
+          {getClientPlanReviewLabel(reviewStatus)}
+        </p>
+      </div>
+
+      {hasPendingDraft ? (
+        <article
+          data-testid="coach-pending-client-plan-draft"
+          className="mt-5 rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4"
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+                Pending Draft
+              </p>
+              <h4 className="mt-2 text-xl font-black text-white">
+                {pendingDraft.title}
+              </h4>
+              <p className="mt-2 text-sm leading-6 text-white/70">
+                {pendingDraft.goal}
+              </p>
+              <p className="mt-2 text-sm font-bold text-[#00BF63]">
+                {pendingDraft.days} training days per week
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={approveDraft}
+                className="rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-black transition hover:bg-white"
+              >
+                Approve Draft
+              </button>
+              <button
+                type="button"
+                onClick={returnDraft}
+                className="rounded-full border border-yellow-400/40 bg-yellow-400/10 px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-yellow-200 transition hover:bg-yellow-400 hover:text-black"
+              >
+                Return for Edits
+              </button>
+            </div>
+          </div>
+        </article>
+      ) : (
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-sm font-bold text-white/60">
+            {approvedPlan
+              ? `${approvedPlan.planName} is approved and assigned.`
+              : "No pending client workout draft is waiting for coach review."}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selectedDayId, setSelectedDayId, updatePlanField, addTrainingDay, updateTrainingDayName, removeTrainingDay, planExerciseSearch, setPlanExerciseSearch, planCategory, setPlanCategory, filteredBuilderExercises, addExerciseToSelectedDay, updatePlanExercise, removePlanExercise, savePlan, resetPlanBuilder, builderMessage, savedPlans, selectedPlanDetailId, setSelectedPlanDetailId, editingPlanId, startEditPlan, duplicateSavedPlan, deleteSavedPlan }) {
   const builderModeLabel = editingPlanId ? "Editing Existing Plan" : "Creating New Plan";
   const builderModeDescription = editingPlanId
@@ -4938,6 +5219,9 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
         title="Workout Builder"
         description="Coach-only workout creator and editor. Choose the client, build the days, add exercises, then save. Existing saved plans can be viewed, edited, copied, or deleted from the saved plan cards."
       />
+
+      {/* NLF_BUNDLE_12X_RENDER_COACH_REVIEW_QUEUE */}
+      <ClientPlanReviewQueue />
 
       <div aria-label="Workout builder quick steps" className="mb-6 grid gap-3 md:grid-cols-4">
         {[

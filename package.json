@@ -44,7 +44,10 @@
     "backup:local": "node scripts/backup-local.cjs",
     "map:repo": "node scripts/repo-map.cjs",
     "test:legacy": "playwright test tests/public-client-url.spec.js tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js tests/nav-polish.spec.js tests/coach-client-assignment.spec.js tests/client-portal-polish.spec.js",
-    "test:legacy:headed": "playwright test tests/public-client-url.spec.js tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js tests/nav-polish.spec.js tests/coach-client-assignment.spec.js tests/client-portal-polish.spec.js --headed"
+    "test:legacy:headed": "playwright test tests/public-client-url.spec.js tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js tests/nav-polish.spec.js tests/coach-client-assignment.spec.js tests/client-portal-polish.spec.js --headed",
+    "test:bundle12v": "playwright test tests/bundle-12v-product-flow.spec.js",
+    "test:bundle12w": "playwright test tests/bundle-12w-client-plan-draft-persistence.spec.js",
+    "test:bundle12x": "playwright test tests/bundle-12x-coach-plan-review.spec.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
