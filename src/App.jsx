@@ -1548,6 +1548,11 @@ function ClientPortalMyPlanPanel({
           </p>
         </section>
 
+        {/* NLF_BUNDLE_12X_CLIENT_PANEL_REVIEW_QUEUE_RENDER */}
+        {(getStoredClientPlanDraft() || getStoredApprovedClientPlan()) && (
+          <ClientPlanReviewQueue />
+        )}
+
         {/* NLF_BUNDLE_12W_SAVED_CLIENT_PLAN_DRAFT_CARD */}
         {clientSavedPlanDraft && (
           <section
@@ -3716,7 +3721,7 @@ function handlePortalLogout() {
 
         <main className="mx-auto max-w-7xl px-4 py-8 pb-28 md:pb-8">
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_START */}
-        {["Home", "Client", "Nutrition", "Exercises"].includes(activeTab) && normalizedPortalMode === "client" && (
+        {["Home", "Client", "Nutrition", "Exercises", "Plans"].includes(activeTab) && normalizedPortalMode === "client" && (
           <ClientPortalMyPlanPanel
             clients={clients}
             savedPlans={savedPlans}

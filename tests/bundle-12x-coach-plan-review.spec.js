@@ -33,8 +33,7 @@ test.describe("Bundle 12X coach plan review", () => {
   test("coach can review and approve a client workout draft", async ({ page }) => {
     await page.goto("/?testUnlock=true");
 
-    await page.getByRole("button", { name: "Plans" }).first().click();
-
+    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
     await expect(page.getByTestId("coach-client-plan-review-queue")).toBeVisible();
     await expect(page.getByTestId("coach-pending-client-plan-draft")).toContainText(
       "Client Review Strength Plan"
@@ -54,7 +53,7 @@ test.describe("Bundle 12X coach plan review", () => {
   test("approved client draft becomes visible as the client assigned plan", async ({ page }) => {
     await page.goto("/?testUnlock=true");
 
-    await page.getByRole("button", { name: "Plans" }).first().click();
+    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
     await page.getByRole("button", { name: "Approve Draft" }).click();
 
     await page.goto("/?testUnlock=true");
