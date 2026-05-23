@@ -1170,6 +1170,14 @@ function ClientPortalMyPlanPanel({
   forceNutritionCoachOpen = false,
   onOpenPlans = () => {},
 }) {
+
+  // NLF_BUNDLE_12V_CLIENT_PLAN_BUILDER_STATE
+  const [isClientPlanBuilderOpen, setIsClientPlanBuilderOpen] = useState(false);
+  const [clientPlanDraftTitle, setClientPlanDraftTitle] = useState("Starter Workout Plan");
+  const [clientPlanDraftGoal, setClientPlanDraftGoal] = useState("Build consistency, strength, and conditioning.");
+  const [clientPlanDraftDays, setClientPlanDraftDays] = useState("3");
+  const [clientPlanDraftStatus, setClientPlanDraftStatus] = useState("");
+
   const { client, plan, planDays, todayDay } = findFriendlyAssignedPlan({
     clients,
     savedPlans,
@@ -1190,6 +1198,81 @@ function ClientPortalMyPlanPanel({
       aria-label="Client My Plan dashboard"
       className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
     >
+        {/* NLF_BUNDLE_12V_CLIENT_QUICK_HOME_SEARCH_PANEL */}
+
+        <section
+
+          aria-label="Client quick home and exercise search"
+
+          className="mb-5 rounded-3xl border border-[#00BF63]/30 bg-black/60 p-5 shadow-xl shadow-black/30"
+
+        >
+
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+
+            Client Home
+
+          </p>
+
+          <h2 className="mt-2 text-2xl font-black uppercase text-white">
+
+            Build Workout Plan
+
+          </h2>
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+
+            Open your plan, build or edit a draft, search exercise options, and keep your training organized.
+
+          </p>
+
+
+          <label className="mt-5 grid gap-2 text-sm font-bold text-white/80">
+
+            Search Exercises
+
+            <input
+
+              aria-label="Search exercises"
+
+              placeholder="Search exercises"
+
+              className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
+
+            />
+
+          </label>
+
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+
+            {["Walk", "Run", "Stair Master", "Elliptical", "Stationary Bike"].map((exercise) => (
+
+              <article
+
+                key={exercise}
+
+                className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+
+              >
+
+                <h3 className="text-sm font-black text-white">{exercise}</h3>
+
+                <p className="mt-2 text-xs font-bold uppercase tracking-wide text-[#00BF63]">
+
+                  Conditioning
+
+                </p>
+
+              </article>
+
+            ))}
+
+          </div>
+
+        </section>
+
+
         <section
           aria-label="Client exercise search and substitution guide"
           data-nlf-bundle-12u-exercise-guide-live="true"
@@ -1260,6 +1343,107 @@ function ClientPortalMyPlanPanel({
           </p>
         </section>
 
+        {/* NLF_BUNDLE_12V_CLIENT_PLAN_BUILDER_PANEL */}
+        {isClientPlanBuilderOpen && (
+          <section
+            data-testid="client-build-edit-plan-flow"
+            aria-label="Client build edit workout plan flow"
+            className="mb-5 rounded-3xl border border-[#00BF63]/30 bg-black/60 p-5 shadow-xl shadow-black/30"
+          >
+            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+                  Build / Edit Plan
+                </p>
+                <h3 className="mt-2 text-xl font-black text-white">
+                  Client Workout Plan Builder
+                </h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+                  Create a simple client-side plan draft, adjust the goal, and save the draft before coach review.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsClientPlanBuilderOpen(false)}
+                className="rounded-full border border-white/15 px-4 py-2 text-xs font-black uppercase tracking-wide text-white/70 transition hover:border-[#00BF63] hover:text-[#00BF63]"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <label className="grid gap-2 text-sm font-bold text-white/80 md:col-span-1">
+                Plan Name
+                <input
+                  value={clientPlanDraftTitle}
+                  onChange={(event) => setClientPlanDraftTitle(event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
+                  placeholder="Starter Workout Plan"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-bold text-white/80 md:col-span-1">
+                Training Days
+                <select
+                  value={clientPlanDraftDays}
+                  onChange={(event) => setClientPlanDraftDays(event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
+                >
+                  <option value="2">2 days / week</option>
+                  <option value="3">3 days / week</option>
+                  <option value="4">4 days / week</option>
+                  <option value="5">5 days / week</option>
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-bold text-white/80 md:col-span-1">
+                Goal
+                <input
+                  value={clientPlanDraftGoal}
+                  onChange={(event) => setClientPlanDraftGoal(event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
+                  placeholder="Strength, fat loss, conditioning..."
+                />
+              </label>
+            </div>
+
+            <div
+              data-testid="client-plan-draft-preview"
+              className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+            >
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/45">
+                Draft Preview
+              </p>
+              <h4 className="mt-2 text-lg font-black text-white">{clientPlanDraftTitle || "Untitled Plan"}</h4>
+              <p className="mt-1 text-sm text-white/65">{clientPlanDraftGoal || "No goal entered yet."}</p>
+              <p className="mt-2 text-sm font-bold text-[#00BF63]">{clientPlanDraftDays} training days per week</p>
+            </div>
+
+            {clientPlanDraftStatus && (
+              <p className="mt-4 rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 px-4 py-3 text-sm font-bold text-[#00BF63]">
+                {clientPlanDraftStatus}
+              </p>
+            )}
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setClientPlanDraftStatus("Workout plan draft saved for coach review.")}
+                className="rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-white"
+              >
+                Save Plan Draft
+              </button>
+              <button
+                type="button"
+                onClick={onOpenPlans || (() => {})}
+                className="rounded-full border border-white/15 px-5 py-3 text-sm font-black uppercase tracking-wide text-white/70 transition hover:border-[#00BF63] hover:text-[#00BF63]"
+              >
+                Open Full Plan Builder
+              </button>
+            </div>
+          </section>
+        )}
+
         <ClientNutritionMacrosPanel />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
@@ -1301,7 +1485,15 @@ function ClientPortalMyPlanPanel({
               <button
                 type="button"
                 data-nlf-client-build-plan-action="true"
-                onClick={onOpenPlans || (() => {})}
+                onClick={() => {
+                  setIsClientPlanBuilderOpen(true);
+                  setClientPlanDraftStatus("");
+                  window.setTimeout(() => {
+                    document
+                      .querySelector('[data-testid="client-build-edit-plan-flow"]')
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 0);
+                }}
                 className="rounded-2xl border border-[#00BF63]/40 bg-[#00BF63]/10 px-4 py-3 text-left text-sm font-black text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
               >
                 Build a Plan
@@ -1309,7 +1501,15 @@ function ClientPortalMyPlanPanel({
               <button
                 type="button"
                 data-nlf-client-edit-plan-action="true"
-                onClick={onOpenPlans || (() => {})}
+                onClick={() => {
+                  setIsClientPlanBuilderOpen(true);
+                  setClientPlanDraftStatus("");
+                  window.setTimeout(() => {
+                    document
+                      .querySelector('[data-testid="client-build-edit-plan-flow"]')
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 0);
+                }}
                 className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-sm font-black text-white transition hover:border-[#00BF63]/70 hover:text-[#00BF63]"
               >
                 Edit Workout Plan
@@ -1625,21 +1825,20 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
 function NoLimitFitnessAppShell() {
   const [initialState] = useState(loadInitialState);
   const [activeTab, setActiveTab] = useState(() => {
-    if (hasCurrentTestUnlockUrl()) return PUBLIC_LANDING_TAB;
+    if (hasCurrentTestUnlockUrl()) return "Client";
+    if (getNoLimitPublicAccountAccess()) return "Client";
 
     const mode = getInitialPortalMode();
 
     if (hasCoachSessionLock()) {
-      if (mode === "coach") return "Coach";
-      if (mode === "client") return "Client";
-      return "Home";
+      return mode === "coach" ? "Coach" : "Client";
     }
 
-    return "Login";
+    return PUBLIC_LANDING_TAB;
   });
 
   const [portalMode, setPortalMode] = useState(() =>
-    hasCurrentTestUnlockUrl() || hasCoachSessionLock()
+    hasCurrentTestUnlockUrl() || hasCoachSessionLock() || getNoLimitPublicAccountAccess()
       ? getInitialPortalMode()
       : PUBLIC_PORTAL_MODE
   );
@@ -1733,7 +1932,8 @@ useEffect(() => {
   }
 }, [portalMode, activeTab]);
   useEffect(() => {
-  const unlocked = getPortalTestUnlocked();
+  const publicAccountAccess = getNoLimitPublicAccountAccess();
+  const unlocked = getPortalTestUnlocked() || publicAccountAccess;
   const coachLocked = !unlocked && hasCoachSessionLock();
   const normalizedMode = coachLocked
     ? "coach"
@@ -2033,7 +2233,8 @@ const [clients, setClients] = useState(initialState.clients);
     [conversations]
   );
   const normalizedPortalMode = String(portalMode || PUBLIC_PORTAL_MODE).toLowerCase();
-  const isPortalUnlocked = getPortalTestUnlocked() || hasCoachSessionLock();
+  const isPortalUnlocked =
+    getPortalTestUnlocked() || hasCoachSessionLock() || getNoLimitPublicAccountAccess();
 const isLoggedIn =
     isPortalUnlocked &&
     (normalizedPortalMode === "coach" || normalizedPortalMode === "client");
@@ -2050,6 +2251,7 @@ const isLoggedIn =
       isHomeAction: true,
     },
     { id: "Client", icon: Users },
+    { id: "Nutrition", label: "Nutrition Coach", icon: ClipboardList },
     { id: "Clients", icon: Users },
     { id: "Coach", icon: ShieldCheck },
     { id: "Exercises", icon: Dumbbell },
@@ -2084,7 +2286,7 @@ const isLoggedIn =
   const accountNavTabs = renderedTabs.filter((tab) => tab.isAccountAction);
 
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
-  const mobilePrimaryTabIds = ["Client", "Tracker", "Progress"];
+  const mobilePrimaryTabIds = ["Home", "Client", "Tracker", "Progress"];
   const mobilePrimaryTabLabels = {
     Client: "My Plan",
     Tracker: "Log",
@@ -2895,7 +3097,7 @@ function handlePortalLogout() {
     setTrackerClientId(clientId);
     setSelectedConversationId(clientId);
 
-    handlePortalLogin("client");
+    handlePortalLogin({ role: "client" });
     setActiveTab("Client");
     setAccountStatus(
       authAction === "login"
@@ -3228,7 +3430,7 @@ function handlePortalLogout() {
 
         <main className="mx-auto max-w-7xl px-4 py-8 pb-28 md:pb-8">
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_START */}
-        {activeTab === "Client" && normalizedPortalMode === "client" && (
+        {["Home", "Client", "Nutrition", "Exercises"].includes(activeTab) && normalizedPortalMode === "client" && (
           <ClientPortalMyPlanPanel
             clients={clients}
             savedPlans={savedPlans}
