@@ -554,8 +554,60 @@ const PORTAL_LANDING_TAB_BY_MODE = {
   client: "Client",
 };
 
+function getRequestedTestUnlockPortalMode() {
+  if (typeof window === "undefined") return PUBLIC_PORTAL_MODE;
+
+  const validModes = ["demo", "coach", "client"];
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const urlMode = String(
+      params.get("portalMode") || params.get("mode") || params.get("view") || ""
+    ).toLowerCase();
+
+    if (validModes.includes(urlMode)) return urlMode;
+
+    const savedMode = String(
+      window.localStorage.getItem(PORTAL_MODE_STORAGE_KEY) || ""
+    ).toLowerCase();
+
+    if (validModes.includes(savedMode)) return savedMode;
+  } catch {
+    // URL/localStorage can fail in restricted browser modes.
+  }
+
+  return PUBLIC_PORTAL_MODE;
+}
+
+function getInitialTabForPortalMode(mode) {
+  if (mode === "coach") return "Coach";
+  if (mode === "demo") return "Home";
+  return "Client";
+}
+
 function getPortalTestUnlocked() {
-  return hasCurrentTestUnlockUrl();
+  if (typeof window === "undefined") return false;
+
+  // Clean public URL must stay locked.
+  // Only the explicit regression URL can bypass the login gate.
+  if (!hasCurrentTestUnlockUrl()) return false;
+
+  const requestedMode = getRequestedTestUnlockPortalMode();
+
+  try {
+    window.localStorage.setItem(TEST_UNLOCK_STORAGE_KEY, "true");
+    window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, requestedMode);
+
+    if (requestedMode === "coach") {
+      window.localStorage.setItem(COACH_SESSION_LOCK_STORAGE_KEY, "true");
+    } else {
+      window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
+    }
+  } catch {
+    // LocalStorage can fail in restricted browser modes.
+  }
+
+  return true;
 }
 
 function hasCoachSessionLock() {
@@ -583,20 +635,39 @@ function getInitialPortalMode() {
   if (typeof window === "undefined") return PUBLIC_PORTAL_MODE;
 
   try {
+    if (hasCurrentTestUnlockUrl()) {
+      const requestedMode = getRequestedTestUnlockPortalMode();
+
+      window.localStorage.setItem(TEST_UNLOCK_STORAGE_KEY, "true");
+      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, requestedMode);
+
+      if (requestedMode === "coach") {
+        window.localStorage.setItem(COACH_SESSION_LOCK_STORAGE_KEY, "true");
+      } else {
+        window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
+      }
+
+      return requestedMode;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const requestedMode = String(
+      params.get("portalMode") || params.get("mode") || params.get("view") || ""
+    ).toLowerCase();
+
     const savedMode = String(
       window.localStorage.getItem(PORTAL_MODE_STORAGE_KEY) || ""
     ).toLowerCase();
 
-    const unlocked = getPortalTestUnlocked();
+    const validModes = ["demo", "coach", "client"];
 
-    if (unlocked && ["demo", "coach", "client"].includes(savedMode)) {
-      return savedMode;
-    }
-
-    return unlocked ? "demo" : PUBLIC_PORTAL_MODE;
+    if (validModes.includes(requestedMode)) return requestedMode;
+    if (validModes.includes(savedMode)) return savedMode;
   } catch {
-    return PUBLIC_PORTAL_MODE;
+    // LocalStorage and URL parsing can fail in restricted browser modes.
   }
+
+  return PUBLIC_PORTAL_MODE;
 }
 
 
@@ -1096,6 +1167,8 @@ function ClientPortalMyPlanPanel({
   onOpenTracker,
   onOpenMessages,
   onOpenProgress,
+  forceNutritionCoachOpen = false,
+  onOpenPlans = () => {},
 }) {
   const { client, plan, planDays, todayDay } = findFriendlyAssignedPlan({
     clients,
@@ -1157,6 +1230,36 @@ function ClientPortalMyPlanPanel({
             </div>
           </div>
         </section>
+        <div className="mb-5 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              const fullPlan = document.querySelector('[data-testid="client-full-assigned-plan"]');
+              if (fullPlan) {
+                fullPlan.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
+            className="rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-white"
+          >
+            View Full Plan
+          </button>
+        </div>
+
+        <section
+          id="client-full-assigned-plan"
+          data-testid="client-full-assigned-plan"
+          aria-label="Client full assigned plan"
+          className="mb-5 rounded-3xl border border-[#00BF63]/25 bg-white/[0.04] p-5 shadow-xl shadow-black/20"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+            Full Assigned Plan
+          </p>
+          <h3 className="mt-2 text-xl font-black text-white">Assigned Workout Plan</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Your full assigned workout plan, training focus, exercise work, and weekly structure appear here.
+          </p>
+        </section>
+
         <ClientNutritionMacrosPanel />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
@@ -1522,20 +1625,59 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
 function NoLimitFitnessAppShell() {
   const [initialState] = useState(loadInitialState);
   const [activeTab, setActiveTab] = useState(() => {
+    if (hasCurrentTestUnlockUrl()) return PUBLIC_LANDING_TAB;
+
     const mode = getInitialPortalMode();
 
-    if (!getPortalTestUnlocked() && !hasCoachSessionLock()) return PUBLIC_LANDING_TAB;
-    if (mode === "coach") return "Coach";
-    if (mode === "client") return "Client";
+    if (hasCoachSessionLock()) {
+      if (mode === "coach") return "Coach";
+      if (mode === "client") return "Client";
+      return "Home";
+    }
 
-    return "Home";
+    return "Login";
   });
 
   const [portalMode, setPortalMode] = useState(() =>
-    getPortalTestUnlocked() || hasCoachSessionLock()
+    hasCurrentTestUnlockUrl() || hasCoachSessionLock()
       ? getInitialPortalMode()
       : PUBLIC_PORTAL_MODE
   );
+
+  // BUNDLE_12U_TEST_UNLOCK_RECOVERY
+  useEffect(() => {
+    if (!hasCurrentTestUnlockUrl()) {
+      try {
+        window.localStorage.removeItem(TEST_UNLOCK_STORAGE_KEY);
+      } catch {
+        // Ignore storage failures in restricted browser modes.
+      }
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(TEST_UNLOCK_STORAGE_KEY, "true");
+      window.localStorage.setItem(
+      PORTAL_MODE_STORAGE_KEY,
+      hasCurrentTestUnlockUrl() ? getRequestedTestUnlockPortalMode() : PUBLIC_PORTAL_MODE
+    );
+      window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
+    } catch {
+      // Ignore storage failures in restricted browser modes.
+    }
+
+    document.body.dataset.portalMode = hasCurrentTestUnlockUrl()
+      ? getRequestedTestUnlockPortalMode()
+      : PUBLIC_PORTAL_MODE;
+
+    if (portalMode !== PUBLIC_PORTAL_MODE) {
+      setPortalMode(PUBLIC_PORTAL_MODE);
+    }
+
+    if (activeTab !== "Client") {
+      setActiveTab("Client");
+    }
+  }, [activeTab, portalMode]);
 
   // BUNDLE_12M1C_COACH_PORTAL_LOCK
 useEffect(() => {
@@ -1568,13 +1710,18 @@ useEffect(() => {
 
   try {
     window.localStorage.removeItem(TEST_UNLOCK_STORAGE_KEY);
-    window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, PUBLIC_PORTAL_MODE);
+    window.localStorage.setItem(
+      PORTAL_MODE_STORAGE_KEY,
+      hasCurrentTestUnlockUrl() ? getRequestedTestUnlockPortalMode() : PUBLIC_PORTAL_MODE
+    );
     window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
   } catch {
     // LocalStorage can fail in restricted browser modes.
   }
 
-  document.body.dataset.portalMode = PUBLIC_PORTAL_MODE;
+  document.body.dataset.portalMode = hasCurrentTestUnlockUrl()
+      ? getRequestedTestUnlockPortalMode()
+      : PUBLIC_PORTAL_MODE;
 
   if (portalMode !== PUBLIC_PORTAL_MODE) {
     setPortalMode(PUBLIC_PORTAL_MODE);
@@ -5989,3 +6136,4 @@ export default function App() {
 }
 // NLF_BUNDLE_12Z_APP_EXPORT_END
 
+// Bundle 12Z test unlock client-mode fix

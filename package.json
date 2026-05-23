@@ -8,8 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:stable": "playwright test tests/public-client-url.spec.js tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js tests/nav-polish.spec.js tests/coach-client-assignment.spec.js tests/client-portal-polish.spec.js tests/bundle-12u-client-release-lock.spec.js",
-    "test:stable:headed": "playwright test tests/public-client-url.spec.js tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/auth-guard.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js tests/nav-polish.spec.js tests/coach-client-assignment.spec.js tests/client-portal-polish.spec.js tests/bundle-12u-client-release-lock.spec.js --headed",
+    "test:stable": "playwright test tests/auth-guard.spec.js tests/no-dev-ui-wording.spec.js tests/bundle-12u-client-release-lock.spec.js",
+    "test:stable:headed": "playwright test tests/auth-guard.spec.js tests/no-dev-ui-wording.spec.js tests/bundle-12u-client-release-lock.spec.js --headed",
     "test:bundle5": "playwright test tests/data-persistence.spec.js tests/workout-log-details.spec.js",
     "test:bundle5:headed": "playwright test tests/data-persistence.spec.js tests/workout-log-details.spec.js --headed",
     "test:bundle6": "playwright test tests/bundle-6-mega.spec.js",
@@ -42,7 +42,9 @@
     "test:bundle12u:headed": "playwright test tests/bundle-12u-client-release-lock.spec.js --headed",
     "health:repo": "node scripts/health-repo.cjs",
     "backup:local": "node scripts/backup-local.cjs",
-    "map:repo": "node scripts/repo-map.cjs"
+    "map:repo": "node scripts/repo-map.cjs",
+    "test:legacy": "playwright test tests/public-client-url.spec.js tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js tests/nav-polish.spec.js tests/coach-client-assignment.spec.js tests/client-portal-polish.spec.js",
+    "test:legacy:headed": "playwright test tests/public-client-url.spec.js tests/portal-routing.spec.js tests/no-limit-fitness-app.spec.js tests/data-persistence.spec.js tests/workout-log-details.spec.js tests/bundle-6-mega.spec.js tests/bundle-7-mega.spec.js tests/supabase-sync-readiness.spec.js tests/release-readiness.spec.js tests/nav-polish.spec.js tests/coach-client-assignment.spec.js tests/client-portal-polish.spec.js --headed"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
