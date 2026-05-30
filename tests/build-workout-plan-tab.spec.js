@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Build Workout Plan tab", () => {
-  test("top tab opens one merged builder and working exercise search workspace", async ({ page }) => {
+  test("top tab uses one merged builder and one working larger exercise search", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=client");
 
     await page
@@ -11,15 +11,18 @@ test.describe("Build Workout Plan tab", () => {
       .click();
 
     const guide = page.getByLabel("Client exercise search and substitution guide").first();
+
     await expect(guide).toBeVisible();
-
     await expect(page.getByLabel("Client quick home and exercise search")).toHaveCount(0);
+    await expect(page.getByLabel("Search exercises")).toHaveCount(1);
 
-    const search = guide.getByPlaceholder(/search/i).first();
+    const search = guide.getByLabel("Search exercises").first();
+
     await expect(search).toBeVisible();
 
     const searchBox = await search.boundingBox();
     expect(searchBox?.height || 0).toBeGreaterThanOrEqual(56);
+    expect(searchBox?.width || 0).toBeGreaterThanOrEqual(250);
 
     await search.fill("Walk");
     await expect(guide.getByText("Walk").first()).toBeVisible();
