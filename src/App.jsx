@@ -1204,6 +1204,108 @@ function saveStoredClientPlanDraft(draft) {
   return cleanDraft;
 }
 
+function NutritionCoachScreen() {
+  const [nutritionMode, setNutritionMode] = useState("");
+
+  return (
+    <section
+      data-testid="nutrition-coach-window"
+      aria-label="Nutrition Coach workspace"
+      className="rounded-3xl border border-[#00BF63]/25 bg-black/70 p-5 shadow-2xl shadow-black/40"
+    >
+      <div className="rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.3em] text-[#00BF63]">
+          No Limit Nutrition Coach
+        </p>
+        <h2 className="mt-3 text-3xl font-black uppercase text-white">
+          Build your target. Check your meals. Stay consistent.
+        </h2>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
+          A simple nutrition tool for daily calories, macros, and meal feedback.
+        </p>
+      </div>
+
+      {!nutritionMode && (
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <button
+            type="button"
+            aria-label="Build My Target"
+            onClick={() => setNutritionMode("target")}
+            className="rounded-3xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-5 text-left transition hover:border-[#00BF63] hover:bg-[#00BF63]/15"
+          >
+            <span className="block text-lg font-black uppercase text-white">
+              Build My Target
+            </span>
+            <span className="mt-2 block text-sm leading-6 text-white/65">
+              Calculate your daily calories, protein, carbs, and fats.
+            </span>
+          </button>
+
+          <button
+            type="button"
+            aria-label="Check What I Ate"
+            onClick={() => setNutritionMode("meal")}
+            className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 text-left transition hover:border-[#00BF63]/60 hover:bg-white/[0.06]"
+          >
+            <span className="block text-lg font-black uppercase text-white">
+              Check What I Ate
+            </span>
+            <span className="mt-2 block text-sm leading-6 text-white/65">
+              Estimate calories and macros from a meal or snack.
+            </span>
+          </button>
+        </div>
+      )}
+
+      {nutritionMode === "target" && (
+        <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+          <button
+            type="button"
+            onClick={() => setNutritionMode("")}
+            className="mb-4 rounded-full border border-white/10 px-4 py-2 text-xs font-black uppercase text-white/70"
+          >
+            Start Over
+          </button>
+          <h3 className="text-xl font-black uppercase text-white">Macro Target Starter</h3>
+          <p className="mt-2 text-sm leading-6 text-white/65">
+            Start with body weight, goal, training days, and consistency. Use this as a coach-reviewed starting point, then adjust from weekly progress.
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 p-4">
+              <p className="text-xs font-black uppercase text-[#00BF63]">Protein</p>
+              <p className="mt-1 text-sm text-white/70">0.7 - 1.0g per lb of goal body weight</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 p-4">
+              <p className="text-xs font-black uppercase text-[#00BF63]">Carbs</p>
+              <p className="mt-1 text-sm text-white/70">Higher around training, lower on rest days if needed</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 p-4">
+              <p className="text-xs font-black uppercase text-[#00BF63]">Fats</p>
+              <p className="mt-1 text-sm text-white/70">Keep steady for hormones, recovery, and adherence</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {nutritionMode === "meal" && (
+        <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+          <button
+            type="button"
+            onClick={() => setNutritionMode("")}
+            className="mb-4 rounded-full border border-white/10 px-4 py-2 text-xs font-black uppercase text-white/70"
+          >
+            Start Over
+          </button>
+          <h3 className="text-xl font-black uppercase text-white">Meal Check</h3>
+          <p className="mt-2 text-sm leading-6 text-white/65">
+            Enter the meal items, portion sizes, sauces, drinks, and cooking method. Keep it simple and close enough to support consistency.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ClientPortalMyPlanPanel({
   clients,
   savedPlans,
@@ -1263,15 +1365,15 @@ function ClientPortalMyPlanPanel({
 
   const recentLogs = Array.isArray(workoutLogs) ? workoutLogs.slice(-3).reverse() : [];
   const todayExercises = getFriendlyDayExercises(todayDay).slice(0, 5);
-  const [isNutritionCoachOpen, setIsNutritionCoachOpen] = useState(Boolean(forceNutritionCoachOpen));
 
-  useEffect(() => {
-    if (forceNutritionCoachOpen) {
-      setIsNutritionCoachOpen(true);
-    }
-  }, [forceNutritionCoachOpen]);
+  // NLF_NUTRITION_TOP_TAB_EARLY_RETURN
+  if (forceNutritionCoachOpen) {
+    return (
+      <NutritionCoachScreen />
+    );
+  }
 
-  return (
+return (
     <section
       aria-label="Client My Plan dashboard"
       className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
@@ -1420,8 +1522,8 @@ function ClientPortalMyPlanPanel({
             Your full assigned workout plan, training focus, exercise work, and weekly structure appear here.
           </p>
         </section>
-
-        {/* NLF_BUNDLE_12W_SAVED_CLIENT_PLAN_DRAFT_CARD */}
+        {/* Nutrition Coach is rendered only by the top Nutrition Coach tab. */}
+{/* NLF_BUNDLE_12W_SAVED_CLIENT_PLAN_DRAFT_CARD */}
         {clientSavedPlanDraft && (
           <section
             data-testid="client-saved-plan-draft"
@@ -1559,7 +1661,7 @@ function ClientPortalMyPlanPanel({
           </section>
         )}
 
-        <ClientNutritionMacrosPanel />
+        {/* Nutrition Coach moved to the top Nutrition Coach tab. */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.3em] text-[#00BF63]">
@@ -1716,41 +1818,8 @@ function ClientPortalMyPlanPanel({
           </div>
         </article>
       </div>
-
-      <section
-        aria-label="Mobile nutrition coach card"
-        className="mt-4 rounded-3xl border border-[#00BF63]/25 bg-black/60 p-4 shadow-xl shadow-black/30 md:hidden"
-      >
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
-          Nutrition
-        </p>
-        <h3 className="mt-2 text-2xl font-black uppercase text-white">
-          No Limit Nutrition Coach
-        </h3>
-        <p className="mt-2 text-sm font-semibold leading-6 text-white/65">
-          Build target calories/macros or check a meal when you need it. This keeps the mobile dashboard clean while still keeping the full tool one tap away.
-        </p>
-
-        <button
-          type="button"
-          onClick={() => setIsNutritionCoachOpen((current) => !current)}
-          className="mt-4 w-full rounded-2xl border border-[#00BF63]/40 bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-wide text-black shadow-lg shadow-[#00BF63]/20 transition hover:bg-white"
-        >
-          {isNutritionCoachOpen ? "Hide Nutrition Coach" : "Open Nutrition Coach"}
-        </button>
-      </section>
-
-      {isNutritionCoachOpen && (
-        <div className="md:hidden">
-          <ClientNutritionMacroHelper />
-        </div>
-      )}
-
-      <div className="hidden md:block">
-        <ClientNutritionMacroHelper />
-      </div>
-
-      <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+      {/* Nutrition Coach moved out of My Plan. Use the top Nutrition Coach tab for the full tool. */}
+<div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-white/40">
@@ -1952,6 +2021,13 @@ function NoLimitFitnessAppShell() {
     return PUBLIC_LANDING_TAB;
   });
 
+  // NLF_ACTIVE_TAB_BODY_DATASET
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.dataset.activeTab = String(activeTab || "");
+  }, [activeTab]);
+
+
   const [portalMode, setPortalMode] = useState(() =>
     hasCurrentTestUnlockUrl() || hasCoachSessionLock() || getNoLimitPublicAccountAccess()
       ? getInitialPortalMode()
@@ -1966,29 +2042,17 @@ function NoLimitFitnessAppShell() {
       } catch {
         // Ignore storage failures in restricted browser modes.
       }
+
       return;
     }
-
-    try {
-      window.localStorage.setItem(TEST_UNLOCK_STORAGE_KEY, "true");
-      window.localStorage.setItem(
-      PORTAL_MODE_STORAGE_KEY,
-      hasCurrentTestUnlockUrl() ? getRequestedTestUnlockPortalMode() : PUBLIC_PORTAL_MODE
-    );
-      window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
-    } catch {
-      // Ignore storage failures in restricted browser modes.
-    }
-
-    document.body.dataset.portalMode = hasCurrentTestUnlockUrl()
-      ? getRequestedTestUnlockPortalMode()
-      : PUBLIC_PORTAL_MODE;
 
     if (portalMode !== PUBLIC_PORTAL_MODE) {
       setPortalMode(PUBLIC_PORTAL_MODE);
     }
 
-    if (activeTab !== "Client") {
+    const allowedClientTabs = PORTAL_VISIBLE_TABS_BY_MODE.client || ["Client"];
+
+    if (!allowedClientTabs.includes(activeTab)) {
       setActiveTab("Client");
     }
   }, [activeTab, portalMode]);
@@ -3559,6 +3623,11 @@ function handlePortalLogout() {
         )}
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_END */}
         {/* Bundle 12N: ClientsScreen is now the single coach client-management surface. */}
+          {/* NLF_NUTRITION_COACH_TOP_TAB_WINDOW */}
+          {activeTab === "Nutrition" && (
+            <NutritionCoachScreen />
+          )}
+
           {activeTab === "Home" && (
             <HomeScreen
               setActiveTab={setActiveTab}
