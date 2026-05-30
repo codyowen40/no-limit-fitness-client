@@ -17,8 +17,8 @@ test.describe("Client core smoke coverage", () => {
       .getByRole("button", { name: "Build Workout Plan", exact: true })
       .click();
 
-    await expect(page.getByLabel("Client exercise search and substitution guide").first()).toBeVisible();
-    await expect(page.getByLabel("Client exercise search and substitution guide").first()).toBeVisible();
+    await expect(page.getByText("Client-Safe Exercise Library").first()).toBeVisible();
+    await expect(page.getByText("Client-Safe Exercise Library").first()).toBeVisible();
     await expect(page.getByText("Walk").first()).toBeVisible();
     await expect(page.getByText("Run").first()).toBeVisible();
     await expect(page.getByText("Stationary Bike").first()).toBeVisible();
