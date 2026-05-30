@@ -1314,6 +1314,7 @@ function ClientPortalMyPlanPanel({
   onOpenMessages,
   onOpenProgress,
   forceNutritionCoachOpen = false,
+  forceBuildWorkoutPlanOpen = false,
   onOpenPlans = () => {},
 }) {
 
@@ -1373,6 +1374,221 @@ function ClientPortalMyPlanPanel({
     );
   }
 
+  // NLF_BUILD_WORKOUT_PLAN_TOP_TAB_WORKSPACE
+  if (forceBuildWorkoutPlanOpen) {
+    return (
+      <section
+        aria-label="Build Workout Plan workspace"
+        className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
+      >
+        <section className="mb-5 rounded-3xl border border-[#00BF63]/30 bg-black/60 p-5 shadow-xl shadow-black/30">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+            Build Workout Plan
+          </p>
+          <h2 className="mt-2 text-2xl font-black uppercase text-white">
+            Build or edit your workout plan
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Open the builder, create a draft, search exercise options, and keep your training organized.
+          </p>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              data-nlf-client-build-plan-action="true"
+              onClick={handleEditClientPlanDraft}
+              className="rounded-2xl border border-[#00BF63]/40 bg-[#00BF63] px-5 py-4 text-left text-sm font-black uppercase tracking-wide text-black shadow-lg shadow-[#00BF63]/20 transition hover:bg-white"
+            >
+              Build a Plan
+            </button>
+
+            <button
+              type="button"
+              data-nlf-client-edit-plan-action="true"
+              onClick={handleEditClientPlanDraft}
+              className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-left text-sm font-black uppercase tracking-wide text-white transition hover:border-[#00BF63]/70 hover:text-[#00BF63]"
+            >
+              Edit Workout Plan
+            </button>
+          </div>
+        </section>
+
+        {clientSavedPlanDraft && (
+          <section className="mb-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+                  Saved Draft
+                </p>
+                <h3 className="mt-2 text-xl font-black text-white">
+                  {clientSavedPlanDraft.title}
+                </h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
+                  {clientSavedPlanDraft.goal}
+                </p>
+                <p className="mt-2 text-sm font-bold text-[#00BF63]">
+                  {clientSavedPlanDraft.days} training days per week
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleEditClientPlanDraft}
+                className="rounded-full border border-[#00BF63]/50 px-5 py-3 text-sm font-black uppercase tracking-wide text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+              >
+                Edit Saved Draft
+              </button>
+            </div>
+          </section>
+        )}
+
+        {isClientPlanBuilderOpen && (
+          <section
+            data-testid="client-build-edit-plan-flow"
+            aria-label="Client build edit workout plan flow"
+            className="mb-5 rounded-3xl border border-[#00BF63]/30 bg-black/60 p-5 shadow-xl shadow-black/30"
+          >
+            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+                  Build / Edit Plan
+                </p>
+                <h3 className="mt-2 text-xl font-black text-white">
+                  Client Workout Plan Builder
+                </h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+                  Create a simple client-side plan draft, adjust the goal, and save the draft before coach review.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsClientPlanBuilderOpen(false)}
+                className="rounded-full border border-white/15 px-4 py-2 text-xs font-black uppercase tracking-wide text-white/60 transition hover:border-[#00BF63]/60 hover:text-[#00BF63]"
+              >
+                Close Builder
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_0.5fr]">
+              <label className="grid gap-2 text-sm font-bold text-white/80">
+                Plan Title
+                <input
+                  value={clientPlanDraftTitle}
+                  onChange={(event) => setClientPlanDraftTitle(event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-bold text-white/80">
+                Goal
+                <input
+                  value={clientPlanDraftGoal}
+                  onChange={(event) => setClientPlanDraftGoal(event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-bold text-white/80">
+                Days
+                <select
+                  value={clientPlanDraftDays}
+                  onChange={(event) => setClientPlanDraftDays(event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
+                >
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleSaveClientPlanDraft}
+                className="rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-white"
+              >
+                Save Draft
+              </button>
+
+              {clientPlanDraftStatus && (
+                <p className="rounded-full border border-[#00BF63]/30 bg-[#00BF63]/10 px-4 py-3 text-sm font-bold text-[#00BF63]">
+                  {clientPlanDraftStatus}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+
+        <section
+          aria-label="Client exercise search and substitution guide"
+          data-nlf-bundle-12u-exercise-guide-live="true"
+          className="mb-5 rounded-3xl border border-white/10 bg-black/40 p-5 shadow-xl shadow-black/20"
+        >
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+                Exercise Library
+              </p>
+              <h3 className="mt-2 text-xl font-black text-white">
+                Exercise Search and Substitution Guide
+              </h3>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
+                Search movements by exercise name, muscle group, equipment, instructions, and safe substitutions so the client can adjust without needing coach-only controls.
+              </p>
+            </div>
+          </div>
+
+          <label className="mt-5 grid gap-2 text-sm font-bold text-white/80">
+            Search Exercises
+            <input
+              aria-label="Search exercises"
+              placeholder="Search exercises"
+              className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
+            />
+          </label>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {["Walk", "Run", "Stair Master", "Elliptical", "Stationary Bike"].map((exercise) => (
+              <article
+                key={exercise}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+              >
+                <h3 className="text-sm font-black text-white">{exercise}</h3>
+                <p className="mt-2 text-xs font-bold uppercase tracking-wide text-[#00BF63]">
+                  Conditioning
+                </p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <h4 className="text-sm font-black text-white">Search cues</h4>
+              <p className="mt-2 text-sm leading-6 text-white/60">
+                Exercise name, muscle group, equipment, and movement pattern.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <h4 className="text-sm font-black text-white">Substitution rules</h4>
+              <p className="mt-2 text-sm leading-6 text-white/60">
+                Match the same muscle group and similar movement before changing intensity.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <h4 className="text-sm font-black text-white">Client-safe notes</h4>
+              <p className="mt-2 text-sm leading-6 text-white/60">
+                Keep changes simple, controlled, and aligned with the assigned plan.
+              </p>
+            </div>
+          </div>
+        </section>
+      </section>
+    );
+  }
+
 return (
     <section
       aria-label="Client My Plan dashboard"
@@ -1395,9 +1611,7 @@ return (
           </p>
 
           <h2 className="mt-2 text-2xl font-black uppercase text-white">
-
-            Build Workout Plan
-
+            Client Training Home
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
@@ -2433,7 +2647,7 @@ const isLoggedIn =
     { id: "Nutrition", label: "Nutrition Coach", icon: ClipboardList },
     { id: "Clients", icon: Users },
     { id: "Coach", icon: ShieldCheck },
-    { id: "Exercises", icon: Dumbbell },
+    { id: "Exercises", label: "Build Workout Plan", icon: Dumbbell },
     {
       id: "Messages",
       icon: MessageSquare,
@@ -3619,6 +3833,7 @@ function handlePortalLogout() {
             onOpenProgress={() => setActiveTab("Progress")}
                 onOpenPlans={() => setActiveTab("Plans")}
                 forceNutritionCoachOpen={activeTab === "Nutrition"}
+            forceBuildWorkoutPlanOpen={activeTab === "Exercises"}
               />
         )}
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_END */}

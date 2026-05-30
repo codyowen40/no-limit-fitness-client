@@ -10,7 +10,13 @@ test.describe("Client core smoke coverage", () => {
     await expect(page.getByText("CLIENT HOME").first()).toBeVisible();
     await expect(page.getByText("BUILD WORKOUT PLAN").first()).toBeVisible();
 
-    await page.getByRole("button", { name: "Exercises" }).first().click();
+    await page
+      .getByRole("navigation", { name: /Main navigation/i })
+      .first()
+      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .click();
+
+    await expect(page.getByLabel("Build Workout Plan workspace").first()).toBeVisible();
     await expect(page.getByLabel("Client exercise search and substitution guide").first()).toBeVisible();
     await expect(page.getByText("Walk").first()).toBeVisible();
     await expect(page.getByText("Run").first()).toBeVisible();
@@ -19,9 +25,25 @@ test.describe("Client core smoke coverage", () => {
     await page.getByRole("button", { name: "Client" }).first().click();
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
+    await page
+      .getByRole("navigation", { name: /Main navigation/i })
+      .first()
+      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .click();
+
     await page.getByRole("button", { name: "Build a Plan" }).first().click();
-    await expect(page.getByText(/Build|Edit|Workout Plan/i).first()).toBeVisible();
-    await expect(page.getByText(/Walk|Run|Squat|Press|Row/i).first()).toBeVisible();
+
+    await expect(page.getByTestId("client-build-edit-plan-flow").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Save Draft/i }).first()).toBeVisible();
+    await expect(page.getByText(/Walk|Run|Stationary Bike/i).first()).toBeVisible();
+
+    await page
+      .getByRole("navigation", { name: /Main navigation/i })
+      .first()
+      .getByRole("button", { name: "Client", exact: true })
+      .click();
+
+    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
     await page.getByRole("button", { name: "View Full Plan" }).first().click();
     await expect(page.getByTestId("client-full-assigned-plan").first()).toBeVisible();
