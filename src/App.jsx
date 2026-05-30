@@ -1331,7 +1331,9 @@ function ClientPortalMyPlanPanel({
   const [clientPlanDraftDays, setClientPlanDraftDays] = useState(storedClientPlanDraft?.days || "3");
   const [clientPlanDraftStatus, setClientPlanDraftStatus] = useState("");
 
-  const handleSaveClientPlanDraft = () => {
+  
+  const [buildWorkoutExerciseSearch, setBuildWorkoutExerciseSearch] = useState("");
+const handleSaveClientPlanDraft = () => {
     const savedDraft = saveStoredClientPlanDraft({
       title: clientPlanDraftTitle,
       goal: clientPlanDraftGoal,
@@ -1373,6 +1375,66 @@ function ClientPortalMyPlanPanel({
       <NutritionCoachScreen />
     );
   }
+
+  const buildWorkoutExerciseOptions = [
+    {
+      name: "Walk",
+      category: "Conditioning",
+      equipment: "Treadmill / Outdoors",
+      notes: "Low-impact conditioning, recovery work, and steady-state cardio.",
+    },
+    {
+      name: "Run",
+      category: "Conditioning",
+      equipment: "Treadmill / Outdoors",
+      notes: "Higher-impact conditioning. Use controlled pacing and progress gradually.",
+    },
+    {
+      name: "Stair Master",
+      category: "Conditioning",
+      equipment: "Machine",
+      notes: "Leg and glute-focused conditioning with controlled posture and pace.",
+    },
+    {
+      name: "Elliptical",
+      category: "Conditioning",
+      equipment: "Machine",
+      notes: "Lower-impact conditioning option for steady-state or interval work.",
+    },
+    {
+      name: "Stationary Bike",
+      category: "Conditioning",
+      equipment: "Machine",
+      notes: "Low-impact conditioning option for intervals, recovery, or endurance.",
+    },
+    {
+      name: "Goblet Squat",
+      category: "Lower Body",
+      equipment: "Dumbbell / Kettlebell",
+      notes: "Squat pattern option. Keep the torso controlled and brace each rep.",
+    },
+    {
+      name: "Dumbbell Press",
+      category: "Upper Body",
+      equipment: "Dumbbells",
+      notes: "Pressing pattern option. Keep shoulder control and avoid rushing reps.",
+    },
+    {
+      name: "Row",
+      category: "Upper Body",
+      equipment: "Cable / Dumbbell / Machine",
+      notes: "Pulling pattern option. Match the plan�s movement pattern before swapping.",
+    },
+  ];
+
+  const normalizedBuildWorkoutExerciseSearch = buildWorkoutExerciseSearch.trim().toLowerCase();
+
+  const filteredBuildWorkoutExercises = buildWorkoutExerciseOptions.filter((exercise) =>
+    [exercise.name, exercise.category, exercise.equipment, exercise.notes]
+      .join(" ")
+      .toLowerCase()
+      .includes(normalizedBuildWorkoutExerciseSearch)
+  );
 
   // NLF_BUILD_WORKOUT_PLAN_TOP_TAB_WORKSPACE
   if (forceBuildWorkoutPlanOpen) {
@@ -1546,22 +1608,38 @@ function ClientPortalMyPlanPanel({
             <input
               aria-label="Search exercises"
               placeholder="Search exercises"
-              className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63] min-h-[64px] w-full rounded-3xl px-5 py-5 text-base font-bold md:text-lg"
+              value={buildWorkoutExerciseSearch}
+              onChange={(event) => setBuildWorkoutExerciseSearch(event.target.value)}
+              className="min-h-[64px] w-full rounded-3xl border border-white/10 bg-black px-5 py-5 text-base font-bold text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63] md:text-lg"
             />
           </label>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {["Walk", "Run", "Stair Master", "Elliptical", "Stationary Bike"].map((exercise) => (
-              <article
-                key={exercise}
-                className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
-              >
-                <h3 className="text-sm font-black text-white">{exercise}</h3>
-                <p className="mt-2 text-xs font-bold uppercase tracking-wide text-[#00BF63]">
-                  Conditioning
-                </p>
-              </article>
-            ))}
+            {filteredBuildWorkoutExercises.length > 0 ? (
+              filteredBuildWorkoutExercises.map((exercise) => (
+                <article
+                  key={exercise.name}
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-black text-white">{exercise.name}</h3>
+                      <p className="mt-2 text-xs font-bold uppercase tracking-wide text-[#00BF63]">
+                        {exercise.category}
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white/50">
+                      {exercise.equipment}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-white/60">{exercise.notes}</p>
+                </article>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-sm font-bold text-white/60 sm:col-span-2 lg:col-span-5">
+                No matching exercises found.
+              </div>
+            )}
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-3">

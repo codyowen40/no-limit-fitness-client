@@ -10,21 +10,28 @@ test.describe("Build Workout Plan tab", () => {
       .getByRole("button", { name: "Build Workout Plan", exact: true })
       .click();
 
-    await expect(page.getByLabel("Client exercise search and substitution guide").first()).toBeVisible();
+    const guide = page.getByLabel("Client exercise search and substitution guide").first();
+    await expect(guide).toBeVisible();
 
     await expect(page.getByLabel("Client quick home and exercise search")).toHaveCount(0);
 
-    const search = page.getByPlaceholder(/search/i).first();
+    const search = guide.getByPlaceholder(/search/i).first();
     await expect(search).toBeVisible();
 
     const searchBox = await search.boundingBox();
     expect(searchBox?.height || 0).toBeGreaterThanOrEqual(56);
 
     await search.fill("Walk");
-    await expect(page.getByText("Walk").first()).toBeVisible();
+    await expect(guide.getByText("Walk").first()).toBeVisible();
 
     await search.fill("Stationary Bike");
-    await expect(page.getByText("Stationary Bike").first()).toBeVisible();
+    await expect(guide.getByText("Stationary Bike").first()).toBeVisible();
+    await expect(guide.getByText("Walk")).toHaveCount(0);
+
+    await search.fill("zzzzzz");
+    await expect(guide.getByText("No matching exercises found.").first()).toBeVisible();
+
+    await search.fill("");
 
     await page.getByRole("button", { name: "Build a Plan" }).first().click();
 
