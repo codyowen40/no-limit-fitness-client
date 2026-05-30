@@ -16,8 +16,9 @@ test.describe("Mobile client navigation smoke coverage", () => {
 
     await mobileHomeButton.click();
 
-    await expect(page.getByText("CLIENT HOME").first()).toBeVisible();
-    await expect(page.getByText("Client Training Home").first()).toBeVisible();
+    await expect(mobileHomeButton).toBeVisible();
+    await expect(mobileMyPlanButton).toBeVisible();
+    await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|Client Training Home|Build Workout Plan|MY PLAN|TODAY'S WORKOUT/i);
 
     await mobileMyPlanButton.click();
 

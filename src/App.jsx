@@ -1546,7 +1546,7 @@ function ClientPortalMyPlanPanel({
             <input
               aria-label="Search exercises"
               placeholder="Search exercises"
-              className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
+              className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63] min-h-[64px] w-full rounded-3xl px-5 py-5 text-base font-bold md:text-lg"
             />
           </label>
 
@@ -1594,80 +1594,9 @@ return (
       aria-label="Client My Plan dashboard"
       className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
     >
-        {/* NLF_BUNDLE_12V_CLIENT_QUICK_HOME_SEARCH_PANEL */}
 
-        <section
-
-          aria-label="Client quick home and exercise search"
-
-          className="mb-5 rounded-3xl border border-[#00BF63]/30 bg-black/60 p-5 shadow-xl shadow-black/30"
-
-        >
-
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
-
-            Client Home
-
-          </p>
-
-          <h2 className="mt-2 text-2xl font-black uppercase text-white">
-            Client Training Home
-          </h2>
-
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
-
-            Open your plan, build or edit a draft, search exercise options, and keep your training organized.
-
-          </p>
-
-
-          <label className="mt-5 grid gap-2 text-sm font-bold text-white/80">
-
-            Search Exercises
-
-            <input
-
-              aria-label="Search exercises"
-
-              placeholder="Search exercises"
-
-              className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
-
-            />
-
-          </label>
-
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-
-            {["Walk", "Run", "Stair Master", "Elliptical", "Stationary Bike"].map((exercise) => (
-
-              <article
-
-                key={exercise}
-
-                className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
-
-              >
-
-                <h3 className="text-sm font-black text-white">{exercise}</h3>
-
-                <p className="mt-2 text-xs font-bold uppercase tracking-wide text-[#00BF63]">
-
-                  Conditioning
-
-                </p>
-
-              </article>
-
-            ))}
-
-          </div>
-
-        </section>
-
-
-        <section
+        {/* NLF_BUILD_WORKOUT_PLAN_MERGED_WORKSPACE */}
+<section
           aria-label="Client exercise search and substitution guide"
           data-nlf-bundle-12u-exercise-guide-live="true"
           className="mb-5 rounded-3xl border border-white/10 bg-black/40 p-5 shadow-xl shadow-black/20"

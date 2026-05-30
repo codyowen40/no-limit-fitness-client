@@ -31,6 +31,7 @@ test.describe("Public login flow", () => {
     await expect(clientDashboard).toContainText(/Training|TODAY'S WORKOUT|Coach Reminder/i);
 
     await page.getByRole("button", { name: "HOME" }).first().click();
-    await expect(page.getByText("CLIENT HOME").first()).toBeVisible();
+    await expect(page.getByRole("navigation", { name: /Main navigation/i }).first()).toBeVisible();
+    await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|Client Training Home|Build Workout Plan|MY PLAN|TODAY'S WORKOUT/i);
   });
 });

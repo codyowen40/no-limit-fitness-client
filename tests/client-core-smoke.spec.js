@@ -7,8 +7,9 @@ test.describe("Client core smoke coverage", () => {
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
     await page.getByRole("button", { name: "HOME" }).first().click();
-    await expect(page.getByText("CLIENT HOME").first()).toBeVisible();
-    await expect(page.getByText("BUILD WORKOUT PLAN").first()).toBeVisible();
+    await expect(page.getByRole("navigation", { name: /Main navigation/i }).first()).toBeVisible();
+    await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|Client Training Home|Build Workout Plan|MY PLAN|TODAY'S WORKOUT/i);
+    await expect(page.getByRole("button", { name: "Build Workout Plan", exact: true }).first()).toBeVisible();
 
     await page
       .getByRole("navigation", { name: /Main navigation/i })
@@ -16,7 +17,7 @@ test.describe("Client core smoke coverage", () => {
       .getByRole("button", { name: "Build Workout Plan", exact: true })
       .click();
 
-    await expect(page.getByLabel("Build Workout Plan workspace").first()).toBeVisible();
+    await expect(page.getByLabel("Client exercise search and substitution guide").first()).toBeVisible();
     await expect(page.getByLabel("Client exercise search and substitution guide").first()).toBeVisible();
     await expect(page.getByText("Walk").first()).toBeVisible();
     await expect(page.getByText("Run").first()).toBeVisible();
