@@ -126,9 +126,7 @@ function nlfApproveClientWorkoutDraft(draftId) {
     approvedAt: Date.now(),
   };
 
-  const nextQueue = queue.map((item) =>
-    item.id === draftId ? approvedDraft : item
-  );
+  const nextQueue = queue.filter((item) => item.id !== draftId);
 
   const approvedPlans = nlfGetApprovedClientPlans().filter(
     (item) => item.title !== approvedDraft.title
@@ -1530,9 +1528,9 @@ function useNlfCoachReviewSnapshot() {
 }
 
 function CoachReviewQueuePanel() {
-  const { queue } = useNlfCoachReviewSnapshot();
+  const { queue, approvedPlans } = useNlfCoachReviewSnapshot();
   const pendingDrafts = queue.filter((item) => item.status !== "approved");
-  const approvedDrafts = queue.filter((item) => item.status === "approved");
+  const approvedDrafts = approvedPlans;
 
   return (
     <section
@@ -1549,7 +1547,7 @@ function CoachReviewQueuePanel() {
             Client Workout Drafts
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
-            Review client-created workout drafts, approve them, and assign the approved plan back to the client plan view.
+            Review client-created workout drafts, approve the plan, and send the approved version into the client assigned-plan view.
           </p>
         </div>
 
@@ -1594,7 +1592,7 @@ function CoachReviewQueuePanel() {
           ))
         ) : (
           <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/45">
-            No pending client workout drafts.
+            No pending client workout drafts. Approved plans stay available in the client assigned-plan view.
           </p>
         )}
 
@@ -1604,7 +1602,7 @@ function CoachReviewQueuePanel() {
             <div className="mt-3 grid gap-2">
               {approvedDrafts.slice(0, 3).map((draft) => (
                 <p key={draft.id || draft.title} className="text-sm font-bold text-white/70">
-                  {draft.title || "Approved Workout Draft"} assigned to {draft.clientName || "client"}.
+                  {draft.title || "Approved Workout Draft"} is now active for {draft.clientName || "client"}.
                 </p>
               ))}
             </div>
@@ -1627,13 +1625,16 @@ function ClientApprovedWorkoutPlanPanel() {
       className="mb-5 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4"
     >
       <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
-        Coach Approved Plan
+        Coach-Approved Active Plan
       </p>
       <h3 className="mt-2 text-xl font-black text-white">
         {activePlan.title || "Approved Workout Plan"}
       </h3>
       <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-white/65">
-        {activePlan.notes || "Your coach approved this draft as your assigned plan."}
+        {activePlan.notes || "Your coach approved this draft and assigned it as your active workout plan."}
+      </p>
+      <p className="mt-3 rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-black uppercase tracking-wide text-white/55">
+        Assigned through Coach Review Queue
       </p>
     </div>
   );
