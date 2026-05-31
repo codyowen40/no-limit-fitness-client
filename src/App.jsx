@@ -1,3 +1,89 @@
+
+// NLF_LOGOUT_BLANK_SCREEN_GUARD
+function nlfClearAuthOnlyStorage() {
+  if (typeof window === "undefined") return;
+
+  const shouldRemoveKey = (key) => {
+    const normalizedKey = String(key || "").toLowerCase();
+
+    if (normalizedKey.includes("app-local-state")) return false;
+
+    return (
+      normalizedKey.includes("auth") ||
+      normalizedKey.includes("session") ||
+      normalizedKey.includes("login") ||
+      normalizedKey.includes("signed") ||
+      normalizedKey.includes("current-user") ||
+      normalizedKey.includes("portal-mode") ||
+      normalizedKey.includes("test-unlocked")
+    );
+  };
+
+  [window.localStorage, window.sessionStorage].forEach((storage) => {
+    try {
+      const keys = [];
+
+      for (let index = 0; index < storage.length; index += 1) {
+        keys.push(storage.key(index));
+      }
+
+      keys.filter(Boolean).forEach((key) => {
+        if (shouldRemoveKey(key)) {
+          storage.removeItem(key);
+        }
+      });
+    } catch {
+      // Keep logout safe even when storage is unavailable.
+    }
+  });
+}
+
+function nlfReturnToPublicLogin() {
+  if (typeof window === "undefined") return;
+
+  nlfClearAuthOnlyStorage();
+
+  try {
+    document.body.dataset.portalMode = "";
+  } catch {
+    // No-op.
+  }
+
+  window.setTimeout(() => {
+    window.location.assign("/");
+  }, 0);
+}
+
+if (typeof window !== "undefined" && !window.__nlfLogoutGuardInstalled) {
+  window.__nlfLogoutGuardInstalled = true;
+
+  window.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target;
+      const button = target && target.closest ? target.closest("button") : null;
+
+      if (!button) return;
+
+      const label = [
+        button.getAttribute("aria-label") || "",
+        button.textContent || "",
+      ]
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+
+      if (label === "logout" || label.includes("logout")) {
+        event.preventDefault();
+        event.stopPropagation();
+        nlfReturnToPublicLogin();
+      }
+    },
+    true
+  );
+}
+
 ﻿import { useEffect, useMemo, useState } from "react";
 import ClientNutritionMacroHelper from "./ClientNutritionMacroHelper.jsx";
 import {
