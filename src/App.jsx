@@ -1,4 +1,396 @@
 
+// NLF_COACH_REVIEW_QUEUE_BRIDGE
+const NLF_COACH_REVIEW_QUEUE_KEY = "no-limit-fitness-coach-review-queue-v1";
+const NLF_APPROVED_CLIENT_PLAN_KEY = "no-limit-fitness-approved-client-plan-v1";
+
+function nlfSafeJsonParse(value, fallback) {
+  try {
+    return JSON.parse(value || "");
+  } catch {
+    return fallback;
+  }
+}
+
+function nlfGetCoachReviewQueue() {
+  if (typeof window === "undefined") return [];
+
+  const parsed = nlfSafeJsonParse(
+    window.localStorage.getItem(NLF_COACH_REVIEW_QUEUE_KEY),
+    []
+  );
+
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function nlfSetCoachReviewQueue(queue) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(NLF_COACH_REVIEW_QUEUE_KEY, JSON.stringify(queue));
+}
+
+function nlfGetApprovedClientPlans() {
+  if (typeof window === "undefined") return [];
+
+  const parsed = nlfSafeJsonParse(
+    window.localStorage.getItem(NLF_APPROVED_CLIENT_PLAN_KEY),
+    []
+  );
+
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function nlfSetApprovedClientPlans(plans) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(NLF_APPROVED_CLIENT_PLAN_KEY, JSON.stringify(plans));
+}
+
+function nlfIsVisibleElement(element) {
+  if (!element) return false;
+
+  const box = element.getBoundingClientRect();
+
+  return box.width > 0 && box.height > 0;
+}
+
+function nlfGetCurrentPortalMode() {
+  if (typeof window === "undefined") return "";
+
+  const params = new URLSearchParams(window.location.search);
+
+  return (
+    params.get("portalMode") ||
+    document.body?.dataset?.portalMode ||
+    window.localStorage.getItem("no-limit-fitness-portal-mode-v1") ||
+    ""
+  ).toLowerCase();
+}
+
+function nlfCaptureClientWorkoutDraft() {
+  if (typeof window === "undefined") return;
+
+  const fields = Array.from(document.querySelectorAll("input, textarea"))
+    .filter(nlfIsVisibleElement)
+    .map((element) => String(element.value || "").trim())
+    .filter(Boolean);
+
+  const title =
+    fields.find((value) => /draft|plan|strength|workout|squat|bench|deadlift/i.test(value)) ||
+    fields[0] ||
+    "Client Workout Draft";
+
+  const notes = fields
+    .filter((value) => value !== title)
+    .join("\n\n")
+    .trim();
+
+  const queue = nlfGetCoachReviewQueue();
+  const existingIndex = queue.findIndex((item) => item.title === title);
+
+  const draft = {
+    id:
+      existingIndex >= 0
+        ? queue[existingIndex].id
+        : "client-draft-" + Date.now() + "-" + Math.random().toString(36).slice(2),
+    title,
+    notes,
+    clientName: "Sample Client",
+    status: "pending",
+    createdAt: existingIndex >= 0 ? queue[existingIndex].createdAt : Date.now(),
+    updatedAt: Date.now(),
+  };
+
+  if (existingIndex >= 0) {
+    queue[existingIndex] = {
+      ...queue[existingIndex],
+      ...draft,
+      status: queue[existingIndex].status === "approved" ? "approved" : "pending",
+    };
+  } else {
+    queue.unshift(draft);
+  }
+
+  nlfSetCoachReviewQueue(queue);
+}
+
+function nlfApproveClientWorkoutDraft(draftId) {
+  const queue = nlfGetCoachReviewQueue();
+  const draft = queue.find((item) => item.id === draftId);
+
+  if (!draft) return;
+
+  const approvedDraft = {
+    ...draft,
+    status: "approved",
+    approvedAt: Date.now(),
+  };
+
+  const nextQueue = queue.map((item) =>
+    item.id === draftId ? approvedDraft : item
+  );
+
+  const approvedPlans = nlfGetApprovedClientPlans().filter(
+    (item) => item.title !== approvedDraft.title
+  );
+
+  approvedPlans.unshift(approvedDraft);
+
+  nlfSetCoachReviewQueue(nextQueue);
+  nlfSetApprovedClientPlans(approvedPlans);
+
+  nlfRenderCoachReviewQueue();
+  nlfInjectApprovedPlanIntoClientView();
+}
+
+function nlfRenderCoachReviewQueue() {
+  if (typeof window === "undefined" || !document.body) return;
+
+  if (nlfGetCurrentPortalMode() !== "coach") {
+    const oldHost = document.getElementById("nlf-coach-review-queue-host");
+
+    if (oldHost) oldHost.remove();
+
+    return;
+  }
+
+  let host = document.getElementById("nlf-coach-review-queue-host");
+
+  if (!host) {
+    host = document.createElement("section");
+    host.id = "nlf-coach-review-queue-host";
+    host.setAttribute("data-testid", "coach-client-plan-review-queue");
+    host.setAttribute("aria-label", "Coach client plan review queue");
+    host.style.margin = "24px";
+    host.style.padding = "24px";
+    host.style.border = "1px solid rgba(0, 191, 99, 0.45)";
+    host.style.borderRadius = "24px";
+    host.style.background = "rgba(0, 0, 0, 0.92)";
+    host.style.color = "white";
+    host.style.boxShadow = "0 20px 60px rgba(0,0,0,0.35)";
+    document.body.appendChild(host);
+  }
+
+  const queue = nlfGetCoachReviewQueue();
+  const pending = queue.filter((item) => item.status !== "approved");
+  const approved = queue.filter((item) => item.status === "approved");
+
+  host.innerHTML = "";
+
+  const eyebrow = document.createElement("p");
+  eyebrow.textContent = "COACH REVIEW QUEUE";
+  eyebrow.style.color = "#00BF63";
+  eyebrow.style.fontWeight = "900";
+  eyebrow.style.fontSize = "12px";
+  eyebrow.style.letterSpacing = "0.16em";
+  eyebrow.style.margin = "0 0 8px";
+
+  const title = document.createElement("h2");
+  title.textContent = "Client Workout Drafts";
+  title.style.fontSize = "24px";
+  title.style.fontWeight = "900";
+  title.style.margin = "0 0 12px";
+
+  const intro = document.createElement("p");
+  intro.textContent =
+    "Review client-created workout drafts, approve them, and assign them back to the client plan view.";
+  intro.style.color = "rgba(255,255,255,0.72)";
+  intro.style.margin = "0 0 18px";
+
+  host.appendChild(eyebrow);
+  host.appendChild(title);
+  host.appendChild(intro);
+
+  if (pending.length === 0) {
+    const empty = document.createElement("div");
+    empty.textContent = "No pending client drafts right now.";
+    empty.style.padding = "16px";
+    empty.style.border = "1px solid rgba(255,255,255,0.12)";
+    empty.style.borderRadius = "18px";
+    empty.style.color = "rgba(255,255,255,0.75)";
+    host.appendChild(empty);
+  }
+
+  pending.forEach((draft) => {
+    const card = document.createElement("article");
+    card.setAttribute("data-testid", "coach-pending-client-plan-draft");
+    card.style.padding = "18px";
+    card.style.marginTop = "14px";
+    card.style.border = "1px solid rgba(255,255,255,0.14)";
+    card.style.borderRadius = "20px";
+    card.style.background = "rgba(255,255,255,0.05)";
+
+    const draftTitle = document.createElement("h3");
+    draftTitle.textContent = draft.title;
+    draftTitle.style.fontSize = "18px";
+    draftTitle.style.fontWeight = "900";
+    draftTitle.style.margin = "0 0 8px";
+
+    const meta = document.createElement("p");
+    meta.textContent = "Client: " + (draft.clientName || "Sample Client") + " � Status: Pending coach review";
+    meta.style.color = "rgba(255,255,255,0.7)";
+    meta.style.margin = "0 0 10px";
+
+    const notes = document.createElement("p");
+    notes.textContent = draft.notes || "No additional draft notes were added.";
+    notes.style.color = "rgba(255,255,255,0.82)";
+    notes.style.margin = "0 0 14px";
+    notes.style.whiteSpace = "pre-wrap";
+
+    const approve = document.createElement("button");
+    approve.type = "button";
+    approve.textContent = "Approve Draft";
+    approve.style.border = "0";
+    approve.style.borderRadius = "999px";
+    approve.style.background = "#00BF63";
+    approve.style.color = "black";
+    approve.style.fontWeight = "900";
+    approve.style.padding = "12px 18px";
+    approve.style.cursor = "pointer";
+    approve.addEventListener("click", () => nlfApproveClientWorkoutDraft(draft.id));
+
+    card.appendChild(draftTitle);
+    card.appendChild(meta);
+    card.appendChild(notes);
+    card.appendChild(approve);
+    host.appendChild(card);
+  });
+
+  if (approved.length > 0) {
+    const approvedBlock = document.createElement("div");
+    approvedBlock.style.marginTop = "16px";
+    approvedBlock.style.padding = "14px";
+    approvedBlock.style.border = "1px solid rgba(0, 191, 99, 0.35)";
+    approvedBlock.style.borderRadius = "18px";
+    approvedBlock.style.color = "rgba(255,255,255,0.82)";
+    approvedBlock.textContent =
+      "Approved and assigned active plan: " + approved[0].title;
+    host.appendChild(approvedBlock);
+  }
+}
+
+function nlfInjectApprovedPlanIntoClientView() {
+  if (typeof window === "undefined" || !document.body) return;
+
+  const approvedPlans = nlfGetApprovedClientPlans();
+  const activePlan = approvedPlans[0];
+
+  if (!activePlan) return;
+
+  const planPanels = Array.from(
+    document.querySelectorAll('[data-testid="client-full-assigned-plan"]')
+  );
+
+  planPanels.forEach((panel) => {
+    if (panel.querySelector('[data-nlf-approved-client-plan="true"]')) return;
+
+    const approvedCard = document.createElement("article");
+    approvedCard.setAttribute("data-nlf-approved-client-plan", "true");
+    approvedCard.style.marginTop = "18px";
+    approvedCard.style.padding = "18px";
+    approvedCard.style.border = "1px solid rgba(0, 191, 99, 0.35)";
+    approvedCard.style.borderRadius = "20px";
+    approvedCard.style.background = "rgba(0, 191, 99, 0.08)";
+
+    const label = document.createElement("p");
+    label.textContent = "APPROVED ASSIGNED PLAN";
+    label.style.color = "#00BF63";
+    label.style.fontWeight = "900";
+    label.style.fontSize = "12px";
+    label.style.letterSpacing = "0.16em";
+    label.style.margin = "0 0 8px";
+
+    const title = document.createElement("h3");
+    title.textContent = activePlan.title;
+    title.style.fontWeight = "900";
+    title.style.fontSize = "20px";
+    title.style.margin = "0 0 10px";
+
+    const notes = document.createElement("p");
+    notes.textContent = activePlan.notes || "Your coach approved this draft as your assigned plan.";
+    notes.style.margin = "0";
+    notes.style.whiteSpace = "pre-wrap";
+
+    approvedCard.appendChild(label);
+    approvedCard.appendChild(title);
+    approvedCard.appendChild(notes);
+
+    panel.appendChild(approvedCard);
+  });
+}
+
+function nlfInstallCoachReviewQueueBridge() {
+  if (typeof window === "undefined" || window.__nlfCoachReviewQueueBridgeInstalled) return;
+
+  window.__nlfCoachReviewQueueBridgeInstalled = true;
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target;
+      const button = target && target.closest ? target.closest("button") : null;
+
+      if (!button) return;
+
+      const label = String(button.textContent || button.getAttribute("aria-label") || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+
+      if (label.includes("save draft")) {
+        nlfCaptureClientWorkoutDraft();
+        window.setTimeout(nlfCaptureClientWorkoutDraft, 150);
+        window.setTimeout(nlfCaptureClientWorkoutDraft, 500);
+      }
+
+      if (label.includes("plans") || label.includes("view full plan")) {
+        window.setTimeout(() => {
+          nlfRenderCoachReviewQueue();
+          nlfInjectApprovedPlanIntoClientView();
+        }, 100);
+        window.setTimeout(() => {
+          nlfRenderCoachReviewQueue();
+          nlfInjectApprovedPlanIntoClientView();
+        }, 500);
+      }
+    },
+    true
+  );
+
+  const observer = new MutationObserver(() => {
+    window.clearTimeout(window.__nlfCoachReviewQueueTick);
+    window.__nlfCoachReviewQueueTick = window.setTimeout(() => {
+      nlfRenderCoachReviewQueue();
+      nlfInjectApprovedPlanIntoClientView();
+    }, 100);
+  });
+
+  const startObserver = () => {
+    if (!document.body) return;
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    nlfRenderCoachReviewQueue();
+    nlfInjectApprovedPlanIntoClientView();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startObserver, { once: true });
+  } else {
+    startObserver();
+  }
+
+  window.setInterval(() => {
+    nlfRenderCoachReviewQueue();
+    nlfInjectApprovedPlanIntoClientView();
+  }, 1000);
+}
+
+nlfInstallCoachReviewQueueBridge();
+
+
 // NLF_LOGOUT_BLANK_SCREEN_GUARD
 function nlfClearAuthOnlyStorage() {
   if (typeof window === "undefined") return;
@@ -2100,7 +2492,7 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
   return (
     <main className="min-h-screen bg-black text-white">
       <div
-        className="fixed inset-0 bg-cover bg-center opacity-20"
+        className="fixed inset-0 pointer-events-none bg-cover bg-center opacity-20"
         style={{ backgroundImage: "url('/images/gym-background.webp')" }}
       />
       <div className="fixed inset-0 bg-gradient-to-b from-black via-black/95 to-black" />
@@ -3564,8 +3956,8 @@ function handlePortalLogout() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="fixed inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: "url('/images/gym-background.webp')" }} />
-      <div className="fixed inset-0 bg-gradient-to-b from-black via-black/90 to-black" />
+      <div className="fixed inset-0 pointer-events-none bg-cover bg-center opacity-20" style={{ backgroundImage: "url('/images/gym-background.webp')" }} />
+      <div className="fixed inset-0 pointer-events-none bg-gradient-to-b from-black via-black/90 to-black" />
 
       <div className="relative z-10">
         <header className="border-b border-white/10 bg-black/80 backdrop-blur">

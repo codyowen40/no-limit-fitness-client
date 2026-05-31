@@ -110,3 +110,11 @@ body[data-active-tab="Nutrition"] [data-testid="nutrition-coach-window"] {
   border-radius: 1.5rem !important;
   box-sizing: border-box !important;
 }
+
+
+/* Coach Review Queue safety:
+   decorative full-screen background layers must not intercept button clicks. */
+[class~="fixed"][class~="inset-0"][class~="bg-cover"][class~="bg-center"][class~="opacity-20"],
+[class~="fixed"][class~="inset-0"][class~="bg-gradient-to-b"][class~="from-black"][class~="via-black/90"][class~="to-black"] {
+  pointer-events: none !important;
+}
