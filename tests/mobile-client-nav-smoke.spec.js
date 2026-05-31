@@ -81,4 +81,46 @@ test.describe("Mobile client navigation smoke coverage", () => {
     await expect(page.locator("main")).toContainText("Coach message sent locally.");
   });
 
+  test("mobile compact bottom tabs fit at narrow phone widths", async ({ page }) => {
+    for (const width of [360, 375, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+
+      await page.goto("/?testUnlock=true&portalMode=client");
+
+      await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+
+      const mobileNav = page.getByRole("navigation", { name: /Mobile navigation/i });
+
+      await expect(mobileNav).toBeVisible();
+      await expect(mobileNav.getByRole("button", { name: /^More$/i })).toHaveCount(0);
+      await expect(page.getByLabel("Mobile More menu")).toHaveCount(0);
+
+      const expectedLabels = ["Home", "My Plan", "Food", "Plans", "Log", "Prog", "Msg", "Build", "Logout"];
+
+      const navBox = await mobileNav.boundingBox();
+
+      expect(navBox).not.toBeNull();
+
+      for (const label of expectedLabels) {
+        const button = mobileNav.getByRole("button", {
+          name: new RegExp("^" + label + "$", "i"),
+        });
+
+        await expect(button).toBeVisible();
+
+        const buttonBox = await button.boundingBox();
+
+        expect(buttonBox).not.toBeNull();
+        expect(buttonBox.x).toBeGreaterThanOrEqual(navBox.x - 1);
+        expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(navBox.x + navBox.width + 1);
+      }
+
+      await mobileNav.getByRole("button", { name: /^Msg$/i }).click();
+      await expect(page.locator("body")).toContainText(/Messages|Conversation|Send Message/i);
+
+      await mobileNav.getByRole("button", { name: /^Build$/i }).click();
+      await expect(page.locator("body")).toContainText(/Build Workout Plan|Exercise Library|Search exercises/i);
+    }
+  });
+
 });
