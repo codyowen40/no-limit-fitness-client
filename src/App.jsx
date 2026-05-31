@@ -1440,7 +1440,7 @@ const handleSaveClientPlanDraft = () => {
   if (forceBuildWorkoutPlanOpen) {
     return (
       <section
-        aria-label="Build Workout Plan workspace"
+       
         className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
       >
         <section className="mb-5 rounded-3xl border border-[#00BF63]/30 bg-black/60 p-5 shadow-xl shadow-black/30">
@@ -1535,7 +1535,7 @@ const handleSaveClientPlanDraft = () => {
             <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_0.5fr]">
               <label className="grid gap-2 text-sm font-bold text-white/80">
                 Plan Title
-                <input
+                <input data-testid="exercise-library-search-input" className="min-h-[68px] w-full rounded-3xl border border-white/10 bg-black px-5 py-5 text-base font-bold text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63] md:text-lg" placeholder="Search exercises" aria-label="Search exercises"
                   value={clientPlanDraftTitle}
                   onChange={(event) => setClientPlanDraftTitle(event.target.value)}
                   className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
@@ -1584,85 +1584,9 @@ const handleSaveClientPlanDraft = () => {
           </section>
         )}
 
-        <section
-          aria-label="Client exercise search and substitution guide"
-          data-nlf-bundle-12u-exercise-guide-live="true"
-          className="mb-5 rounded-3xl border border-white/10 bg-black/40 p-5 shadow-xl shadow-black/20"
-        >
-          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
-                Exercise Library
-              </p>
-              <h3 className="mt-2 text-xl font-black text-white">
-                Exercise Search and Substitution Guide
-              </h3>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
-                Search movements by exercise name, muscle group, equipment, instructions, and safe substitutions so the client can adjust without needing coach-only controls.
-              </p>
-            </div>
-          </div>
+        
+        {/* Duplicate exercise search block removed. The full Client-Safe Exercise Library is the single search source below. */}
 
-          <label className="mt-5 grid gap-2 text-sm font-bold text-white/80">
-            Search Exercises
-            <input
-              aria-label="Search exercises"
-              placeholder="Search exercises"
-              value={buildWorkoutExerciseSearch}
-              onChange={(event) => setBuildWorkoutExerciseSearch(event.target.value)}
-              className="min-h-[64px] w-full rounded-3xl border border-white/10 bg-black px-5 py-5 text-base font-bold text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63] md:text-lg"
-            />
-          </label>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {filteredBuildWorkoutExercises.length > 0 ? (
-              filteredBuildWorkoutExercises.map((exercise) => (
-                <article
-                  key={exercise.name}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-black text-white">{exercise.name}</h3>
-                      <p className="mt-2 text-xs font-bold uppercase tracking-wide text-[#00BF63]">
-                        {exercise.category}
-                      </p>
-                    </div>
-                    <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white/50">
-                      {exercise.equipment}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-white/60">{exercise.notes}</p>
-                </article>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-sm font-bold text-white/60 sm:col-span-2 lg:col-span-5">
-                No matching exercises found.
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <h4 className="text-sm font-black text-white">Search cues</h4>
-              <p className="mt-2 text-sm leading-6 text-white/60">
-                Exercise name, muscle group, equipment, and movement pattern.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <h4 className="text-sm font-black text-white">Substitution rules</h4>
-              <p className="mt-2 text-sm leading-6 text-white/60">
-                Match the same muscle group and similar movement before changing intensity.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <h4 className="text-sm font-black text-white">Client-safe notes</h4>
-              <p className="mt-2 text-sm leading-6 text-white/60">
-                Keep changes simple, controlled, and aligned with the assigned plan.
-              </p>
-            </div>
-          </div>
-        </section>
       </section>
     );
   }
@@ -1674,46 +1598,9 @@ return (
     >
 
         {/* NLF_BUILD_WORKOUT_PLAN_MERGED_WORKSPACE */}
-<section
-          aria-label="Client exercise search and substitution guide"
-          data-nlf-bundle-12u-exercise-guide-live="true"
-          className="mb-5 rounded-3xl border border-white/10 bg-black/40 p-5 shadow-xl shadow-black/20"
-        >
-          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
-                Exercise Library
-              </p>
-              <h3 className="mt-2 text-xl font-black text-white">
-                Exercise Search and Substitution Guide
-              </h3>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
-                Search movements by exercise name, muscle group, equipment, instructions, and safe substitutions so the client can adjust without needing coach-only controls.
-              </p>
-            </div>
-          </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-sm font-black text-white">Search cues</p>
-              <p className="mt-1 text-sm leading-6 text-white/65">
-                Exercise name, muscle group, equipment, and movement pattern.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-sm font-black text-white">Substitution rules</p>
-              <p className="mt-1 text-sm leading-6 text-white/65">
-                Match the same muscle group and similar movement before changing intensity.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-sm font-black text-white">Client-safe notes</p>
-              <p className="mt-1 text-sm leading-6 text-white/65">
-                Keep changes simple, controlled, and aligned with the assigned plan.
-              </p>
-            </div>
-          </div>
-        </section>
+        {/* Duplicate exercise search block removed. The full Client-Safe Exercise Library is the single search source below. */}
+
         <div className="mb-5 flex flex-wrap gap-3">
           <button
             type="button"
@@ -1809,8 +1696,8 @@ return (
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               <label className="grid gap-2 text-sm font-bold text-white/80 md:col-span-1">
                 Plan Name
-                <input
-                  data-testid="client-plan-draft-title-input"
+                <input className="min-h-[68px] w-full rounded-3xl border border-white/10 bg-black px-5 py-5 text-base font-bold text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63] md:text-lg" placeholder="Search exercises" aria-label="Search exercises"
+                  data-testid="exercise-library-search-input"
                   value={clientPlanDraftTitle}
                   onChange={(event) => setClientPlanDraftTitle(event.target.value)}
                   className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"

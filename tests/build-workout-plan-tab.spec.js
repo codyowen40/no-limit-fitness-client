@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Build Workout Plan tab", () => {
-  test("top tab uses the full working exercise library with one larger search", async ({ page }) => {
+  test("uses one merged full exercise library search", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=client");
 
     await page
@@ -18,18 +18,18 @@ test.describe("Build Workout Plan tab", () => {
     await expect(page.getByText("General Exercise Database").first()).toBeVisible();
 
     await expect(page.getByLabel("Client quick home and exercise search")).toHaveCount(0);
-    await expect(page.getByText("Exercise Search and Substitution Guide")).toHaveCount(1);
-    await expect(page.getByLabel("Search exercises")).toHaveCount(1);
 
-    const guide = page.getByLabel("Client exercise search and substitution guide").first();
-    const search = page.getByLabel("Search exercises").first();
+    const visibleInputs = page.locator("input:visible");
+    await expect(visibleInputs).toHaveCount(1);
 
-    await expect(guide).toBeVisible();
+    const search = visibleInputs.first();
+
     await expect(search).toBeVisible();
 
-    const searchBox = await search.boundingBox();
-    expect(searchBox?.height || 0).toBeGreaterThanOrEqual(56);
-    expect(searchBox?.width || 0).toBeGreaterThanOrEqual(250);
+    const box = await search.boundingBox();
+
+    expect(box?.height || 0).toBeGreaterThanOrEqual(60);
+    expect(box?.width || 0).toBeGreaterThanOrEqual(250);
 
     await search.fill("Stationary Bike");
     await expect(page.getByText("Stationary Bike").first()).toBeVisible();

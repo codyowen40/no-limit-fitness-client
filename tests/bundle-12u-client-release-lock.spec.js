@@ -11,7 +11,7 @@ test.describe("Bundle 12U client release lock", () => {
 
     await expect(page.getByLabel("Client My Plan dashboard").first()).toHaveCount(0);
     await expect(page.getByLabel("Client nutrition and macros guide").first()).toHaveCount(0);
-    await expect(page.getByLabel("Client exercise search and substitution guide").first()).toHaveCount(0);
+    await expect(page.getByText("Client-Safe Exercise Library").first()).toHaveCount(0);
 
     const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
 
@@ -52,7 +52,14 @@ test.describe("Bundle 12U client release lock", () => {
     await page.getByRole("button", { name: "Client" }).first().click();
 
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
-    await expect(page.getByLabel("Client exercise search and substitution guide").first()).toBeVisible();
+
+    await page
+      .getByRole("navigation", { name: /Main navigation/i })
+      .first()
+      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .click();
+
+    await expect(page.getByText("Client-Safe Exercise Library").first()).toBeVisible();
 
     const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
 

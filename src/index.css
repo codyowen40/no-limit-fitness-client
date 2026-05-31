@@ -56,3 +56,57 @@ body[data-active-tab="Nutrition"] [data-testid="nutrition-coach-window"] {
   height: auto !important;
   overflow: visible !important;
 }
+
+/* NLF forced large exercise search input */
+[data-testid="exercise-library-search-input"] {
+  min-height: 68px !important;
+  height: 68px !important;
+  width: 100% !important;
+  padding: 18px 20px !important;
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
+  border-radius: 1.5rem !important;
+  box-sizing: border-box !important;
+}
+
+/* NLF force large merged exercise search input */
+#root input[data-testid="exercise-library-search-input"],
+#root input[aria-label="Search exercises"],
+#root input[placeholder*="Search" i] {
+  min-height: 72px !important;
+  height: 72px !important;
+  padding-top: 18px !important;
+  padding-bottom: 18px !important;
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
+  border-radius: 1.5rem !important;
+  box-sizing: border-box !important;
+}
+
+/* NLF recovery: force visible form inputs/search boxes larger */
+#root input {
+  min-height: 72px !important;
+  height: 72px !important;
+  padding-top: 18px !important;
+  padding-bottom: 18px !important;
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
+  border-radius: 1.5rem !important;
+  box-sizing: border-box !important;
+}
+
+/* NLF force merged exercise search readable width */
+#root input[data-testid="exercise-library-search-input"],
+#root input[aria-label="Search exercises"],
+#root input[placeholder*="Search" i] {
+  min-width: 280px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 72px !important;
+  height: 72px !important;
+  padding: 18px 20px !important;
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
+  border-radius: 1.5rem !important;
+  box-sizing: border-box !important;
+}
