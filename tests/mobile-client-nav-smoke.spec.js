@@ -1,30 +1,44 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Mobile client navigation smoke coverage", () => {
-  test("mobile bottom Home and My Plan buttons stay usable", async ({ page }) => {
+  test("mobile bottom tabs stay visible and usable without More overflow", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
 
-    await page.goto("/?testUnlock=true");
+    await page.goto("/?testUnlock=true&portalMode=client");
 
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
-    const mobileHomeButton = page.locator('button[aria-label="Home"]').first();
-    const mobileMyPlanButton = page.locator('button[aria-label="My Plan"]').first();
+    const mobileNav = page.getByRole("navigation", { name: /Mobile navigation/i });
 
-    await expect(mobileHomeButton).toBeVisible();
-    await expect(mobileMyPlanButton).toBeVisible();
+    await expect(mobileNav).toBeVisible();
 
-    await mobileHomeButton.click();
+    for (const label of ["Home", "My Plan", "Food", "Plans", "Log", "Prog", "Msg", "Build", "Logout"]) {
+      await expect(
+        mobileNav.getByRole("button", { name: new RegExp("^" + label + "$", "i") })
+      ).toBeVisible();
+    }
 
-    await expect(mobileHomeButton).toBeVisible();
-    await expect(mobileMyPlanButton).toBeVisible();
-    await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|Client Training Home|Build Workout Plan|MY PLAN|TODAY'S WORKOUT/i);
+    await expect(mobileNav.getByRole("button", { name: /^More$/i })).toHaveCount(0);
+    await expect(page.getByLabel("Mobile More menu")).toHaveCount(0);
 
-    await mobileMyPlanButton.click();
+    await mobileNav.getByRole("button", { name: /^Home$/i }).click();
+    await expect(page.locator("body")).toContainText(
+      /NO LIMIT FITNESS|Client Training Home|Build Workout Plan|MY PLAN|TODAY'S WORKOUT/i
+    );
 
+    await mobileNav.getByRole("button", { name: /^My Plan$/i }).click();
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
-    await expect(page.getByText("TODAY'S WORKOUT").first()).toBeVisible();
+
+    await mobileNav.getByRole("button", { name: /^Build$/i }).click();
+    await expect(page.locator("body")).toContainText(/Build Workout Plan|Exercise Library|Search exercises/i);
+
+    await mobileNav.getByRole("button", { name: /^Food$/i }).click();
+    await expect(page.locator("body")).toContainText(/Nutrition Coach|calories|protein/i);
+
+    await mobileNav.getByRole("button", { name: /^Msg$/i }).click();
+    await expect(page.locator("body")).toContainText(/Messages|Conversation|Send Message/i);
   });
+
   test("client messages use signed-in client role without Send As", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=client");
 

@@ -3225,35 +3225,58 @@ const isLoggedIn =
   );
   const accountNavTabs = renderedTabs.filter((tab) => tab.isAccountAction);
 
-  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
-  const mobilePrimaryTabIds = ["Home", "Client", "Tracker", "Progress"];
   const mobilePrimaryTabLabels = {
+    Home: "Home",
     Client: "My Plan",
+    Nutrition: "Food",
+    Plans: "Plans",
     Tracker: "Log",
-    Progress: "Progress",
+    Progress: "Prog",
+    Messages: "Msg",
+    Exercises: "Build",
+    Login: isLoggedIn ? "Logout" : "Login",
+    Coach: "Coach",
+    Clients: "Clients",
   };
-  const mobilePrimaryTabs = mobilePrimaryTabIds
-    .map((tabId) => renderedTabs.find((tab) => tab.id === tabId))
-    .filter(Boolean);
-  const mobileMoreOrder = ["Home", "Nutrition", "Plans", "Messages", "Exercises", "Login", "Coach", "Clients"];
-  const mobileMoreTabs = renderedTabs
-    .filter((tab) => !mobilePrimaryTabIds.includes(tab.id))
+
+  const mobileTabOrder = [
+    "Home",
+    "Client",
+    "Nutrition",
+    "Plans",
+    "Tracker",
+    "Progress",
+    "Messages",
+    "Exercises",
+    "Login",
+    "Coach",
+    "Clients",
+  ];
+
+  const mobilePrimaryTabs = renderedTabs
+    .slice()
     .sort((a, b) => {
-      const aIndex = mobileMoreOrder.indexOf(a.id);
-      const bIndex = mobileMoreOrder.indexOf(b.id);
-      return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+      const aIndex = mobileTabOrder.indexOf(a.id);
+      const bIndex = mobileTabOrder.indexOf(b.id);
+
+      return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
     });
-  const isMobileMoreActive = mobileMoreTabs.some((tab) => tab.id === activeTab);
+
+  function getMobileTabLabel(tab) {
+    if (tab.id === "Login") {
+      return isLoggedIn ? "Logout" : "Login";
+    }
+
+    return mobilePrimaryTabLabels[tab.id] || tab.label || tab.id;
+  }
 
   function handleMobileTabNavigation(tab) {
     if (tab.id === "Login" && isLoggedIn) {
       handlePortalLogout();
-      setIsMobileMoreOpen(false);
       return;
     }
 
     setActiveTab(tab.id);
-    setIsMobileMoreOpen(false);
   }
 
   const filteredLibraryExercises = useMemo(() => {
@@ -4270,100 +4293,44 @@ function handlePortalLogout() {
         {normalizedPortalMode === "client" && (
           <nav
             aria-label="Mobile navigation"
-            className="fixed inset-x-3 bottom-4 z-50 mx-auto max-w-md rounded-[2rem] border border-[#00BF63]/35 bg-black/95 px-3 pb-3 pt-2 shadow-2xl shadow-[#00BF63]/15 ring-1 ring-white/10 backdrop-blur md:hidden"
+            className="fixed inset-x-2 bottom-3 z-50 mx-auto max-w-[36rem] rounded-[1.5rem] border border-[#00BF63]/35 bg-black/95 px-2 py-2 shadow-2xl shadow-[#00BF63]/15 ring-1 ring-white/10 backdrop-blur md:hidden"
           >
-            {isMobileMoreOpen && (
-              <div
-                aria-label="Mobile More menu"
-                className="absolute inset-x-0 bottom-24 max-h-[65vh] overflow-y-auto rounded-3xl border border-[#00BF63]/30 bg-black/95 p-3 shadow-2xl shadow-black/70 ring-1 ring-white/10"
-              >
-                <p className="px-2 pb-2 text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
-                  More Tools
-                </p>
-
-                <div className="grid gap-2">
-                  {mobileMoreTabs.map((tab) => {
-                    const Icon = tab.icon;
-                    const tabLabel = tab.label || tab.id;
-                    const isActive = activeTab === tab.id;
-
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        aria-label={tabLabel}
-                        onClick={() => handleMobileTabNavigation(tab)}
-                        className={[
-                          "flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-black transition",
-                          isActive
-                            ? "border-[#00BF63] bg-[#00BF63] text-black"
-                            : "border-white/10 bg-white/[0.04] text-white hover:border-[#00BF63] hover:text-[#00BF63]",
-                        ].join(" ")}
-                      >
-                        <span className="flex items-center gap-3">
-                          <Icon size={18} />
-                          {tabLabel}
-                        </span>
-
-                        {tab.badge > 0 && (
-                          <span
-                            className={[
-                              "rounded-full px-2 py-0.5 text-xs font-black",
-                              isActive ? "bg-black text-[#00BF63]" : "bg-[#00BF63] text-black",
-                            ].join(" ")}
-                           aria-hidden="true">
-                            {tab.badge}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(2.25rem,1fr))] gap-1">
               {mobilePrimaryTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
-                const tabLabel = mobilePrimaryTabLabels[tab.id] || tab.label || tab.id;
+                const tabLabel = getMobileTabLabel(tab);
 
                 return (
                   <button
                     key={tab.id}
                     type="button"
                     aria-label={tabLabel}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setIsMobileMoreOpen(false);
-                    }}
+                    onClick={() => handleMobileTabNavigation(tab)}
                     className={[
-                      "flex flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2 text-[11px] font-black uppercase tracking-wide transition",
+                      "relative flex min-h-[3.05rem] flex-col items-center justify-center gap-0.5 rounded-xl border px-1 py-1 text-[9px] font-black uppercase leading-tight tracking-tight transition ring-1",
                       isActive
-                        ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20"
-                        : "border-white/10 bg-white/[0.04] text-white/70 hover:border-[#00BF63] hover:text-[#00BF63]",
+                        ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20 ring-[#00BF63]/30"
+                        : "border-white/10 bg-white/[0.04] text-white/70 ring-white/5 hover:border-[#00BF63] hover:text-[#00BF63]",
                     ].join(" ")}
                   >
-                    <Icon size={18} />
-                    {tabLabel}
+                    <Icon size={15} aria-hidden="true" />
+                    <span className="max-w-full truncate">{tabLabel}</span>
+
+                    {tab.badge > 0 && (
+                      <span
+                        className={[
+                          "absolute right-0.5 top-0.5 rounded-full px-1 py-0.5 text-[8px] font-black leading-none",
+                          isActive ? "bg-black text-[#00BF63]" : "bg-[#00BF63] text-black",
+                        ].join(" ")}
+                        aria-hidden="true"
+                      >
+                        {tab.badge}
+                      </span>
+                    )}
                   </button>
                 );
               })}
-
-              <button
-                type="button"
-                aria-label="More"
-                onClick={() => setIsMobileMoreOpen((current) => !current)}
-                className={[
-                  "relative flex flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2 text-[11px] font-black uppercase tracking-wide transition ring-1",
-                  isMobileMoreOpen || isMobileMoreActive
-                    ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20 ring-[#00BF63]/30"
-                    : "border-[#00BF63]/70 bg-[#00BF63]/15 text-[#00BF63] shadow-lg shadow-[#00BF63]/10 ring-[#00BF63]/20 hover:bg-[#00BF63] hover:text-black",
-                ].join(" ")}
-              >
-                <span className="text-xl leading-none">â˜°</span>
-                More
-              </button>
             </div>
           </nav>
         )}
