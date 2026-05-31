@@ -3781,7 +3781,7 @@ const isLoggedIn =
 
     const newMessage = {
       id: makeId("message"),
-      sender: messageSender,
+      sender: nlfResolveMessageSenderRole(normalizedPortalMode),
       body: text,
       sentAt: new Date().toLocaleString(),
       timestamp: Date.now(),
@@ -3797,7 +3797,7 @@ const isLoggedIn =
       )
     );
     setMessageDraft("");
-    setMessageNotice(`${messageSender} message sent locally.`);
+    setMessageNotice(`${nlfResolveMessageSenderRole(normalizedPortalMode)} message sent locally.`);
   }
 
   function openTrackerForClient(clientId) {
@@ -4532,7 +4532,7 @@ function handlePortalLogout() {
               conversations={conversations}
               selectedConversationId={selectedConversationId}
               selectConversation={selectConversation}
-              messageSender={messageSender}
+              messageSender={nlfResolveMessageSenderRole(normalizedPortalMode)}
               setMessageSender={setMessageSender}
               messageDraft={messageDraft}
               setMessageDraft={setMessageDraft}
@@ -6077,6 +6077,21 @@ function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTr
   );
 }
 
+
+function nlfResolveMessageSenderRole(portalModeValue) {
+  const queryMode =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("portalMode")
+      : "";
+
+  const mode = String(queryMode || portalModeValue || "").toLowerCase();
+
+  if (mode.includes("coach") || mode.includes("admin")) return "Coach";
+  if (mode.includes("client")) return "Client";
+
+  return "Coach";
+}
+
 function MessagesScreen({
   clients,
   conversations,
@@ -6290,15 +6305,15 @@ function MessagesScreen({
 
               <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
                 <div className="mb-3 grid gap-3 md:grid-cols-[220px_1fr]">
-                  <Select
-                    label="Send As"
-                    value={messageSender}
-                    onChange={setMessageSender}
-                    options={[
-                      { label: "Coach", value: "Coach" },
-                      { label: "Client", value: "Client" },
-                    ]}
-                  />
+                  <div className="rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00BF63]">
+                      Signed-in role
+                    </p>
+                    <p className="mt-2 text-lg font-black text-white">{nlfResolveMessageSenderRole(messageSender)}</p>
+                    <p className="mt-1 text-xs font-bold text-white/55">
+                      Messages send from the active client or coach account.
+                    </p>
+                  </div>
                   <TextArea
                     label="Message"
                     value={messageDraft}
