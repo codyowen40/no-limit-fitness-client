@@ -1750,23 +1750,32 @@ function ClientApprovedWorkoutPlanPanel() {
 
   if (!activePlan) return null;
 
+  const activePlanTitle =
+    activePlan.planName ||
+    activePlan.title ||
+    activePlan.planTitle ||
+    "Coach-approved workout plan";
+
   return (
     <div
       data-testid="client-approved-workout-plan-bridge"
-      className="mb-5 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4"
+      aria-label="Coach-approved assigned plan status"
+      className="mb-4 rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 px-4 py-3"
     >
-      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
-        Coach-Approved Active Plan
-      </p>
-      <h3 className="mt-2 text-xl font-black text-white">
-        {activePlan.title || "Approved Workout Plan"}
-      </h3>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-white/65">
-        {activePlan.notes || "Your coach approved this draft and assigned it as your active workout plan."}
-      </p>
-      <p className="mt-3 rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-black uppercase tracking-wide text-white/55">
-        Synced into assigned plans, tracker, progress, and client profile
-      </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+            Coach-approved active plan
+          </p>
+          <p className="mt-1 text-sm font-bold text-white/75">
+            Active assigned plan: {activePlanTitle}
+          </p>
+        </div>
+
+        <p className="w-fit rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-black uppercase tracking-wide text-white/55">
+          Synced to Tracker, Progress, and client profile
+        </p>
+      </div>
     </div>
   );
 }
