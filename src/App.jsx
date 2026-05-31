@@ -1419,6 +1419,137 @@ function getFriendlyExerciseDose(exercise) {
   return pieces.join(" â€¢ ") || exercise.notes || "See coach notes";
 }
 
+
+function nlfNormalizeApprovedPlanDays(approvedPlan) {
+  const rawDays =
+    approvedPlan?.planDays ||
+    approvedPlan?.trainingDays ||
+    approvedPlan?.workoutDays ||
+    approvedPlan?.days ||
+    [];
+
+  if (Array.isArray(rawDays)) {
+    return rawDays.length
+      ? rawDays.map((day, index) => ({
+          id: day.id || `approved-day-${index + 1}`,
+          name: day.name || day.title || `Day ${index + 1}`,
+          exercises: Array.isArray(day.exercises) ? day.exercises : [],
+        }))
+      : [
+          {
+            id: "approved-day-1",
+            name: "Day 1",
+            exercises: [],
+          },
+        ];
+  }
+
+  const dayCount = Number(rawDays);
+  const safeDayCount = Number.isFinite(dayCount) && dayCount > 0 ? Math.min(dayCount, 7) : 1;
+
+  return Array.from({ length: safeDayCount }, (_, index) => ({
+    id: `approved-day-${index + 1}`,
+    name: `Day ${index + 1}`,
+    exercises: [],
+  }));
+}
+
+function nlfFindClientForApprovedPlan(approvedPlan, clients) {
+  const safeClients = Array.isArray(clients) ? clients : [];
+  const preferredClientText = String(
+    approvedPlan?.clientId ||
+      approvedPlan?.clientName ||
+      approvedPlan?.client ||
+      approvedPlan?.assignedClientName ||
+      approvedPlan?.email ||
+      ""
+  ).toLowerCase();
+
+  return (
+    safeClients.find((client) => String(client.id || "").toLowerCase() === preferredClientText) ||
+    safeClients.find((client) => String(client.name || "").toLowerCase() === preferredClientText) ||
+    safeClients.find((client) => String(client.email || "").toLowerCase() === preferredClientText) ||
+    safeClients.find((client) => getClientCoachingStatus(client) === "active") ||
+    safeClients[0] ||
+    null
+  );
+}
+
+function nlfApprovedPlanToSavedPlan(approvedPlan, clients) {
+  const client = nlfFindClientForApprovedPlan(approvedPlan, clients);
+  const planName =
+    approvedPlan?.planName ||
+    approvedPlan?.title ||
+    approvedPlan?.planTitle ||
+    approvedPlan?.workoutTitle ||
+    "Coach-Approved Workout Plan";
+
+  const clientId = approvedPlan?.clientId || client?.id || "approved-client";
+  const clientName =
+    approvedPlan?.clientName ||
+    approvedPlan?.client ||
+    approvedPlan?.assignedClientName ||
+    client?.name ||
+    "Client";
+
+  const sourceDraftId = approvedPlan?.sourceDraftId || approvedPlan?.id || planName;
+  const safeId = String(sourceDraftId).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  return {
+    ...approvedPlan,
+    id: approvedPlan?.savedPlanId || `coach-approved-plan-${safeId || "active"}`,
+    sourceDraftId,
+    source: "Coach Review Queue",
+    status: "approved",
+    approvalStatus: "coach-approved",
+    planName,
+    title: approvedPlan?.title || planName,
+    clientId,
+    clientName,
+    goal:
+      approvedPlan?.goal ||
+      approvedPlan?.description ||
+      "Coach-approved active workout plan assigned from the review queue.",
+    days: nlfNormalizeApprovedPlanDays(approvedPlan),
+    createdTimestamp: approvedPlan?.createdTimestamp || approvedPlan?.submittedAt || approvedPlan?.approvedAt || new Date().toISOString(),
+    updatedTimestamp: approvedPlan?.updatedTimestamp || approvedPlan?.approvedAt || new Date().toISOString(),
+    approvedAt: approvedPlan?.approvedAt || new Date().toISOString(),
+    assignedAt: approvedPlan?.assignedAt || approvedPlan?.approvedAt || new Date().toISOString(),
+  };
+}
+
+function nlfMergeApprovedPlansIntoSavedPlans(currentSavedPlans, approvedPlans, clients) {
+  const current = Array.isArray(currentSavedPlans) ? currentSavedPlans : [];
+  const approved = Array.isArray(approvedPlans) ? approvedPlans : [];
+
+  if (approved.length === 0) return current;
+
+  const approvedSavedPlans = approved.map((plan) => nlfApprovedPlanToSavedPlan(plan, clients));
+  const approvedIds = new Set(approvedSavedPlans.map((plan) => plan.id));
+  const approvedClientPlanKeys = new Set(
+    approvedSavedPlans.map((plan) => `${plan.clientId}::${plan.planName}`)
+  );
+
+  const withoutDuplicates = current.filter((plan) => {
+    const planKey = `${plan.clientId}::${plan.planName}`;
+
+    return (
+      !approvedIds.has(plan.id) &&
+      !approvedClientPlanKeys.has(planKey) &&
+      plan.sourceDraftId !== undefined
+        ? !approvedSavedPlans.some((approvedPlan) => approvedPlan.sourceDraftId === plan.sourceDraftId)
+        : true
+    );
+  });
+
+  const next = [...approvedSavedPlans, ...withoutDuplicates];
+
+  const currentSignature = current.map((plan) => `${plan.id}::${plan.updatedTimestamp || ""}::${plan.approvalStatus || ""}`).join("|");
+  const nextSignature = next.map((plan) => `${plan.id}::${plan.updatedTimestamp || ""}::${plan.approvalStatus || ""}`).join("|");
+
+  return currentSignature === nextSignature ? current : next;
+}
+
 function findFriendlyAssignedPlan({ clients, savedPlans }) {
   const safeClients = Array.isArray(clients) ? clients : [];
   const safePlans = Array.isArray(savedPlans) ? savedPlans : [];
@@ -1634,7 +1765,7 @@ function ClientApprovedWorkoutPlanPanel() {
         {activePlan.notes || "Your coach approved this draft and assigned it as your active workout plan."}
       </p>
       <p className="mt-3 rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-black uppercase tracking-wide text-white/55">
-        Assigned through Coach Review Queue
+        Synced into assigned plans, tracker, progress, and client profile
       </p>
     </div>
   );
@@ -2926,6 +3057,29 @@ const [clients, setClients] = useState(initialState.clients);
     setClientActionNotice("Viewing saved history for " + clientName + ".");
   };
   // NLF_COACH_ASSIGNMENT_STATE_END
+
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const syncApprovedPlansIntoSavedPlans = () => {
+      const approvedPlans = nlfGetApprovedClientPlans();
+
+      if (!approvedPlans.length) return;
+
+      setSavedPlans((current) => nlfMergeApprovedPlansIntoSavedPlans(current, approvedPlans, clients));
+    };
+
+    syncApprovedPlansIntoSavedPlans();
+
+    window.addEventListener("storage", syncApprovedPlansIntoSavedPlans);
+    window.addEventListener("nlf-coach-review-queue-changed", syncApprovedPlansIntoSavedPlans);
+
+    return () => {
+      window.removeEventListener("storage", syncApprovedPlansIntoSavedPlans);
+      window.removeEventListener("nlf-coach-review-queue-changed", syncApprovedPlansIntoSavedPlans);
+    };
+  }, [clients]);
 
   useEffect(() => {
     saveStateToLocalStorage({ clients, savedPlans, workoutLogs, conversations, readActivityIds, notificationPreferences, serverSettings });
