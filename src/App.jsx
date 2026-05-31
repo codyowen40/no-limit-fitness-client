@@ -1518,6 +1518,27 @@ function nlfApprovedPlanToSavedPlan(approvedPlan, clients) {
   };
 }
 
+function nlfSavedPlanDedupeKeys(plan) {
+  if (!plan || typeof plan !== "object") return [];
+
+  const planName = plan.planName || plan.title || plan.planTitle || "";
+  const clientKey = plan.clientId || plan.clientName || plan.client || "";
+  const keys = [];
+
+  if (plan.id) keys.push("id:" + plan.id);
+  if (plan.sourceDraftId) keys.push("sourceDraftId:" + plan.sourceDraftId);
+
+  if (clientKey && planName) {
+    keys.push("clientPlan:" + clientKey + "::" + planName);
+  }
+
+  if (plan.source === "Coach Review Queue" && plan.approvalStatus === "coach-approved" && planName) {
+    keys.push("coachApproved:" + planName);
+  }
+
+  return keys;
+}
+
 function nlfMergeApprovedPlansIntoSavedPlans(currentSavedPlans, approvedPlans, clients) {
   const current = Array.isArray(currentSavedPlans) ? currentSavedPlans : [];
   const approved = Array.isArray(approvedPlans) ? approvedPlans : [];
@@ -1525,27 +1546,58 @@ function nlfMergeApprovedPlansIntoSavedPlans(currentSavedPlans, approvedPlans, c
   if (approved.length === 0) return current;
 
   const approvedSavedPlans = approved.map((plan) => nlfApprovedPlanToSavedPlan(plan, clients));
-  const approvedIds = new Set(approvedSavedPlans.map((plan) => plan.id));
-  const approvedClientPlanKeys = new Set(
-    approvedSavedPlans.map((plan) => `${plan.clientId}::${plan.planName}`)
-  );
+  const next = [];
+  const seenKeys = new Set();
 
-  const withoutDuplicates = current.filter((plan) => {
-    const planKey = `${plan.clientId}::${plan.planName}`;
+  function hasSeenKey(plan) {
+    return nlfSavedPlanDedupeKeys(plan).some((key) => seenKeys.has(key));
+  }
 
-    return (
-      !approvedIds.has(plan.id) &&
-      !approvedClientPlanKeys.has(planKey) &&
-      plan.sourceDraftId !== undefined
-        ? !approvedSavedPlans.some((approvedPlan) => approvedPlan.sourceDraftId === plan.sourceDraftId)
-        : true
-    );
-  });
+  function rememberPlan(plan) {
+    nlfSavedPlanDedupeKeys(plan).forEach((key) => seenKeys.add(key));
+  }
 
-  const next = [...approvedSavedPlans, ...withoutDuplicates];
+  function addUniquePlan(plan) {
+    if (!plan || typeof plan !== "object") return;
 
-  const currentSignature = current.map((plan) => `${plan.id}::${plan.updatedTimestamp || ""}::${plan.approvalStatus || ""}`).join("|");
-  const nextSignature = next.map((plan) => `${plan.id}::${plan.updatedTimestamp || ""}::${plan.approvalStatus || ""}`).join("|");
+    if (hasSeenKey(plan)) return;
+
+    next.push(plan);
+    rememberPlan(plan);
+  }
+
+  approvedSavedPlans.forEach(addUniquePlan);
+  current.forEach(addUniquePlan);
+
+  const currentSignature = current
+    .map((plan) =>
+      [
+        plan.id || "",
+        plan.sourceDraftId || "",
+        plan.clientId || "",
+        plan.clientName || "",
+        plan.planName || plan.title || "",
+        plan.updatedTimestamp || "",
+        plan.approvalStatus || "",
+        plan.source || "",
+      ].join("::")
+    )
+    .join("|");
+
+  const nextSignature = next
+    .map((plan) =>
+      [
+        plan.id || "",
+        plan.sourceDraftId || "",
+        plan.clientId || "",
+        plan.clientName || "",
+        plan.planName || plan.title || "",
+        plan.updatedTimestamp || "",
+        plan.approvalStatus || "",
+        plan.source || "",
+      ].join("::")
+    )
+    .join("|");
 
   return currentSignature === nextSignature ? current : next;
 }
