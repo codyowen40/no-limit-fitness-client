@@ -111,6 +111,7 @@ function nlfCaptureClientWorkoutDraft() {
   }
 
   nlfSetCoachReviewQueue(queue);
+  nlfNotifyCoachReviewQueueChanged();
 }
 
 function nlfApproveClientWorkoutDraft(draftId) {
@@ -137,259 +138,81 @@ function nlfApproveClientWorkoutDraft(draftId) {
 
   nlfSetCoachReviewQueue(nextQueue);
   nlfSetApprovedClientPlans(approvedPlans);
-
-  nlfRenderCoachReviewQueue();
-  nlfInjectApprovedPlanIntoClientView();
+  nlfNotifyCoachReviewQueueChanged();
 }
 
-function nlfRenderCoachReviewQueue() {
-  if (typeof window === "undefined" || !document.body) return;
 
-  if (nlfGetCurrentPortalMode() !== "coach") {
-    const oldHost = document.getElementById("nlf-coach-review-queue-host");
+function nlfNotifyCoachReviewQueueChanged() {
+  if (typeof window === "undefined") return;
 
-    if (oldHost) oldHost.remove();
-
-    return;
-  }
-
-  let host = document.getElementById("nlf-coach-review-queue-host");
-
-  if (!host) {
-    host = document.createElement("section");
-    host.id = "nlf-coach-review-queue-host";
-    host.setAttribute("data-testid", "coach-client-plan-review-queue");
-    host.setAttribute("aria-label", "Coach client plan review queue");
-    host.style.margin = "24px";
-    host.style.padding = "24px";
-    host.style.border = "1px solid rgba(0, 191, 99, 0.45)";
-    host.style.borderRadius = "24px";
-    host.style.background = "rgba(0, 0, 0, 0.92)";
-    host.style.color = "white";
-    host.style.boxShadow = "0 20px 60px rgba(0,0,0,0.35)";
-    document.body.appendChild(host);
-  }
-
-  const queue = nlfGetCoachReviewQueue();
-  const pending = queue.filter((item) => item.status !== "approved");
-  const approved = queue.filter((item) => item.status === "approved");
-
-  host.innerHTML = "";
-
-  const eyebrow = document.createElement("p");
-  eyebrow.textContent = "COACH REVIEW QUEUE";
-  eyebrow.style.color = "#00BF63";
-  eyebrow.style.fontWeight = "900";
-  eyebrow.style.fontSize = "12px";
-  eyebrow.style.letterSpacing = "0.16em";
-  eyebrow.style.margin = "0 0 8px";
-
-  const title = document.createElement("h2");
-  title.textContent = "Client Workout Drafts";
-  title.style.fontSize = "24px";
-  title.style.fontWeight = "900";
-  title.style.margin = "0 0 12px";
-
-  const intro = document.createElement("p");
-  intro.textContent =
-    "Review client-created workout drafts, approve them, and assign them back to the client plan view.";
-  intro.style.color = "rgba(255,255,255,0.72)";
-  intro.style.margin = "0 0 18px";
-
-  host.appendChild(eyebrow);
-  host.appendChild(title);
-  host.appendChild(intro);
-
-  if (pending.length === 0) {
-    const empty = document.createElement("div");
-    empty.textContent = "No pending client drafts right now.";
-    empty.style.padding = "16px";
-    empty.style.border = "1px solid rgba(255,255,255,0.12)";
-    empty.style.borderRadius = "18px";
-    empty.style.color = "rgba(255,255,255,0.75)";
-    host.appendChild(empty);
-  }
-
-  pending.forEach((draft) => {
-    const card = document.createElement("article");
-    card.setAttribute("data-testid", "coach-pending-client-plan-draft");
-    card.style.padding = "18px";
-    card.style.marginTop = "14px";
-    card.style.border = "1px solid rgba(255,255,255,0.14)";
-    card.style.borderRadius = "20px";
-    card.style.background = "rgba(255,255,255,0.05)";
-
-    const draftTitle = document.createElement("h3");
-    draftTitle.textContent = draft.title;
-    draftTitle.style.fontSize = "18px";
-    draftTitle.style.fontWeight = "900";
-    draftTitle.style.margin = "0 0 8px";
-
-    const meta = document.createElement("p");
-    meta.textContent = "Client: " + (draft.clientName || "Sample Client") + " � Status: Pending coach review";
-    meta.style.color = "rgba(255,255,255,0.7)";
-    meta.style.margin = "0 0 10px";
-
-    const notes = document.createElement("p");
-    notes.textContent = draft.notes || "No additional draft notes were added.";
-    notes.style.color = "rgba(255,255,255,0.82)";
-    notes.style.margin = "0 0 14px";
-    notes.style.whiteSpace = "pre-wrap";
-
-    const approve = document.createElement("button");
-    approve.type = "button";
-    approve.textContent = "Approve Draft";
-    approve.style.border = "0";
-    approve.style.borderRadius = "999px";
-    approve.style.background = "#00BF63";
-    approve.style.color = "black";
-    approve.style.fontWeight = "900";
-    approve.style.padding = "12px 18px";
-    approve.style.cursor = "pointer";
-    approve.addEventListener("click", () => nlfApproveClientWorkoutDraft(draft.id));
-
-    card.appendChild(draftTitle);
-    card.appendChild(meta);
-    card.appendChild(notes);
-    card.appendChild(approve);
-    host.appendChild(card);
-  });
-
-  if (approved.length > 0) {
-    const approvedBlock = document.createElement("div");
-    approvedBlock.style.marginTop = "16px";
-    approvedBlock.style.padding = "14px";
-    approvedBlock.style.border = "1px solid rgba(0, 191, 99, 0.35)";
-    approvedBlock.style.borderRadius = "18px";
-    approvedBlock.style.color = "rgba(255,255,255,0.82)";
-    approvedBlock.textContent =
-      "Approved and assigned active plan: " + approved[0].title;
-    host.appendChild(approvedBlock);
-  }
-}
-
-function nlfInjectApprovedPlanIntoClientView() {
-  if (typeof window === "undefined" || !document.body) return;
-
-  const approvedPlans = nlfGetApprovedClientPlans();
-  const activePlan = approvedPlans[0];
-
-  if (!activePlan) return;
-
-  const planPanels = Array.from(
-    document.querySelectorAll('[data-testid="client-full-assigned-plan"]')
+  window.dispatchEvent(
+    new CustomEvent("nlf-coach-review-queue-changed", {
+      detail: {
+        queue: nlfGetCoachReviewQueue(),
+        approvedPlans: nlfGetApprovedClientPlans(),
+      },
+    })
   );
-
-  planPanels.forEach((panel) => {
-    if (panel.querySelector('[data-nlf-approved-client-plan="true"]')) return;
-
-    const approvedCard = document.createElement("article");
-    approvedCard.setAttribute("data-nlf-approved-client-plan", "true");
-    approvedCard.style.marginTop = "18px";
-    approvedCard.style.padding = "18px";
-    approvedCard.style.border = "1px solid rgba(0, 191, 99, 0.35)";
-    approvedCard.style.borderRadius = "20px";
-    approvedCard.style.background = "rgba(0, 191, 99, 0.08)";
-
-    const label = document.createElement("p");
-    label.textContent = "APPROVED ASSIGNED PLAN";
-    label.style.color = "#00BF63";
-    label.style.fontWeight = "900";
-    label.style.fontSize = "12px";
-    label.style.letterSpacing = "0.16em";
-    label.style.margin = "0 0 8px";
-
-    const title = document.createElement("h3");
-    title.textContent = activePlan.title;
-    title.style.fontWeight = "900";
-    title.style.fontSize = "20px";
-    title.style.margin = "0 0 10px";
-
-    const notes = document.createElement("p");
-    notes.textContent = activePlan.notes || "Your coach approved this draft as your assigned plan.";
-    notes.style.margin = "0";
-    notes.style.whiteSpace = "pre-wrap";
-
-    approvedCard.appendChild(label);
-    approvedCard.appendChild(title);
-    approvedCard.appendChild(notes);
-
-    panel.appendChild(approvedCard);
-  });
 }
 
-function nlfInstallCoachReviewQueueBridge() {
-  if (typeof window === "undefined" || window.__nlfCoachReviewQueueBridgeInstalled) return;
+function nlfQueueClientWorkoutDraftFromSavedPlan(savedPlan) {
+  if (typeof window === "undefined" || !savedPlan || typeof savedPlan !== "object") return;
 
-  window.__nlfCoachReviewQueueBridgeInstalled = true;
+  const title =
+    savedPlan.title ||
+    savedPlan.planTitle ||
+    savedPlan.planName ||
+    savedPlan.workoutTitle ||
+    "Client Workout Draft";
 
-  document.addEventListener(
-    "click",
-    (event) => {
-      const target = event.target;
-      const button = target && target.closest ? target.closest("button") : null;
+  const clientName =
+    savedPlan.clientName ||
+    savedPlan.client ||
+    savedPlan.assignedClientName ||
+    savedPlan.name ||
+    "Sample Client";
 
-      if (!button) return;
-
-      const label = String(button.textContent || button.getAttribute("aria-label") || "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLowerCase();
-
-      if (label.includes("save draft")) {
-        nlfCaptureClientWorkoutDraft();
-        window.setTimeout(nlfCaptureClientWorkoutDraft, 150);
-        window.setTimeout(nlfCaptureClientWorkoutDraft, 500);
+  const notes =
+    savedPlan.notes ||
+    savedPlan.summary ||
+    savedPlan.description ||
+    (() => {
+      try {
+        return JSON.stringify(savedPlan, null, 2);
+      } catch {
+        return "Client-created workout draft saved for coach review.";
       }
+    })();
 
-      if (label.includes("plans") || label.includes("view full plan")) {
-        window.setTimeout(() => {
-          nlfRenderCoachReviewQueue();
-          nlfInjectApprovedPlanIntoClientView();
-        }, 100);
-        window.setTimeout(() => {
-          nlfRenderCoachReviewQueue();
-          nlfInjectApprovedPlanIntoClientView();
-        }, 500);
-      }
-    },
-    true
-  );
-
-  const observer = new MutationObserver(() => {
-    window.clearTimeout(window.__nlfCoachReviewQueueTick);
-    window.__nlfCoachReviewQueueTick = window.setTimeout(() => {
-      nlfRenderCoachReviewQueue();
-      nlfInjectApprovedPlanIntoClientView();
-    }, 100);
-  });
-
-  const startObserver = () => {
-    if (!document.body) return;
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-
-    nlfRenderCoachReviewQueue();
-    nlfInjectApprovedPlanIntoClientView();
+  const draft = {
+    ...savedPlan,
+    id:
+      savedPlan.id ||
+      "client-workout-draft-" +
+        String(title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+    title,
+    clientName,
+    notes,
+    status: "pending",
+    submittedAt: savedPlan.submittedAt || savedPlan.createdAt || new Date().toISOString(),
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startObserver, { once: true });
+  const queue = nlfGetCoachReviewQueue();
+  const existingIndex = queue.findIndex((item) => item.id === draft.id || item.title === draft.title);
+
+  if (existingIndex >= 0) {
+    queue[existingIndex] = {
+      ...queue[existingIndex],
+      ...draft,
+      status: "pending",
+    };
   } else {
-    startObserver();
+    queue.unshift(draft);
   }
 
-  window.setInterval(() => {
-    nlfRenderCoachReviewQueue();
-    nlfInjectApprovedPlanIntoClientView();
-  }, 1000);
+  nlfSetCoachReviewQueue(queue);
+  nlfNotifyCoachReviewQueueChanged();
 }
-
-nlfInstallCoachReviewQueueBridge();
-
 
 // NLF_LOGOUT_BLANK_SCREEN_GUARD
 function nlfClearAuthOnlyStorage() {
@@ -1682,6 +1505,140 @@ function saveStoredClientPlanDraft(draft) {
   return cleanDraft;
 }
 
+
+function useNlfCoachReviewSnapshot() {
+  const readSnapshot = () => ({
+    queue: nlfGetCoachReviewQueue(),
+    approvedPlans: nlfGetApprovedClientPlans(),
+  });
+
+  const [snapshot, setSnapshot] = useState(readSnapshot);
+
+  useEffect(() => {
+    const refresh = () => setSnapshot(readSnapshot());
+
+    window.addEventListener("storage", refresh);
+    window.addEventListener("nlf-coach-review-queue-changed", refresh);
+
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("nlf-coach-review-queue-changed", refresh);
+    };
+  }, []);
+
+  return snapshot;
+}
+
+function CoachReviewQueuePanel() {
+  const { queue } = useNlfCoachReviewSnapshot();
+  const pendingDrafts = queue.filter((item) => item.status !== "approved");
+  const approvedDrafts = queue.filter((item) => item.status === "approved");
+
+  return (
+    <section
+      data-testid="coach-client-plan-review-queue"
+      aria-label="Coach client plan review queue"
+      className="mb-6 rounded-3xl border border-[#00BF63]/30 bg-black/70 p-5 shadow-2xl shadow-black/40"
+    >
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-[#00BF63]">
+            Coach Review Queue
+          </p>
+          <h2 className="mt-2 text-2xl font-black uppercase text-white">
+            Client Workout Drafts
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Review client-created workout drafts, approve them, and assign the approved plan back to the client plan view.
+          </p>
+        </div>
+
+        <p
+          data-testid="coach-review-approval-status"
+          aria-live="polite"
+          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-wide text-white/60"
+        >
+          {approvedDrafts.length ? approvedDrafts.length + " approved" : pendingDrafts.length + " pending"}
+        </p>
+      </div>
+
+      <div className="mt-5 grid gap-4">
+        {pendingDrafts.length ? (
+          pendingDrafts.map((draft) => (
+            <article
+              key={draft.id || draft.title}
+              data-testid="coach-pending-client-plan-draft"
+              className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+            >
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-white">{draft.title || "Client Workout Draft"}</h3>
+                  <p className="mt-1 text-sm font-bold text-white/55">
+                    Client: {draft.clientName || "Sample Client"} • Status: Pending coach review
+                  </p>
+                  {draft.notes ? (
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-white/65">{draft.notes}</p>
+                  ) : null}
+                </div>
+
+                <button
+                  type="button"
+                  data-testid="coach-approve-client-plan-draft"
+                  onClick={() => nlfApproveClientWorkoutDraft(draft.id)}
+                  className="rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-white"
+                >
+                  Approve Draft
+                </button>
+              </div>
+            </article>
+          ))
+        ) : (
+          <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/45">
+            No pending client workout drafts.
+          </p>
+        )}
+
+        {approvedDrafts.length ? (
+          <div className="rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-4">
+            <p className="text-sm font-black text-[#00BF63]">Recently Approved</p>
+            <div className="mt-3 grid gap-2">
+              {approvedDrafts.slice(0, 3).map((draft) => (
+                <p key={draft.id || draft.title} className="text-sm font-bold text-white/70">
+                  {draft.title || "Approved Workout Draft"} assigned to {draft.clientName || "client"}.
+                </p>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ClientApprovedWorkoutPlanPanel() {
+  const { approvedPlans } = useNlfCoachReviewSnapshot();
+  const activePlan = approvedPlans[0];
+
+  if (!activePlan) return null;
+
+  return (
+    <div
+      data-testid="client-approved-workout-plan-bridge"
+      className="mb-5 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4"
+    >
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+        Coach Approved Plan
+      </p>
+      <h3 className="mt-2 text-xl font-black text-white">
+        {activePlan.title || "Approved Workout Plan"}
+      </h3>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-white/65">
+        {activePlan.notes || "Your coach approved this draft as your assigned plan."}
+      </p>
+    </div>
+  );
+}
+
 function NutritionCoachScreen() {
   const [nutritionMode, setNutritionMode] = useState("");
 
@@ -1819,6 +1776,7 @@ const handleSaveClientPlanDraft = () => {
     });
 
     setClientSavedPlanDraft(savedDraft);
+    nlfQueueClientWorkoutDraftFromSavedPlan(savedDraft);
     setClientPlanDraftStatus("Workout plan draft saved for coach review.");
   };
 
@@ -2100,6 +2058,7 @@ return (
           aria-label="Client full assigned plan"
           className="mb-5 rounded-3xl border border-[#00BF63]/25 bg-white/[0.04] p-5 shadow-xl shadow-black/20"
         >
+          <ClientApprovedWorkoutPlanPanel />
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
             Full Assigned Plan
           </p>
@@ -4292,7 +4251,9 @@ function handlePortalLogout() {
           )}
 
           {activeTab === "Plans" && (
-            <PlansScreen
+            <>
+              <CoachReviewQueuePanel />
+              <PlansScreen
               clients={clients}
               planDraft={planDraft}
               selectedClient={selectedClient}
@@ -4322,6 +4283,7 @@ function handlePortalLogout() {
               duplicateSavedPlan={duplicateSavedPlan}
               deleteSavedPlan={deleteSavedPlan}
             />
+            </>
           )}
 
           {activeTab === "Tracker" && (
