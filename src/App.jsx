@@ -3225,58 +3225,59 @@ const isLoggedIn =
   );
   const accountNavTabs = renderedTabs.filter((tab) => tab.isAccountAction);
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const mobilePrimaryTabLabels = {
     Home: "Home",
-    Client: "My Plan",
+    Client: "Plan",
+    Exercises: "Build",
+    Messages: "Msg",
+  };
+
+  const mobileMenuTabLabels = {
     Nutrition: "Food",
     Plans: "Plans",
     Tracker: "Log",
     Progress: "Prog",
-    Messages: "Msg",
-    Exercises: "Build",
     Login: isLoggedIn ? "Logout" : "Login",
     Coach: "Coach",
     Clients: "Clients",
   };
 
-  const mobileTabOrder = [
-    "Home",
-    "Client",
-    "Nutrition",
-    "Plans",
-    "Tracker",
-    "Progress",
-    "Messages",
-    "Exercises",
-    "Login",
-    "Coach",
-    "Clients",
-  ];
+  const mobilePrimaryTabIds = ["Home", "Client", "Exercises", "Messages"];
+  const mobileMenuTabIds = ["Nutrition", "Plans", "Tracker", "Progress", "Login", "Coach", "Clients"];
 
-  const mobilePrimaryTabs = renderedTabs
-    .slice()
-    .sort((a, b) => {
-      const aIndex = mobileTabOrder.indexOf(a.id);
-      const bIndex = mobileTabOrder.indexOf(b.id);
+  const mobilePrimaryTabs = mobilePrimaryTabIds
+    .map((tabId) => renderedTabs.find((tab) => tab.id === tabId))
+    .filter(Boolean);
 
-      return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
-    });
+  const mobileMenuTabs = mobileMenuTabIds
+    .map((tabId) => renderedTabs.find((tab) => tab.id === tabId))
+    .filter(Boolean);
 
-  function getMobileTabLabel(tab) {
+  const isMobileMenuActive = mobileMenuTabs.some((tab) => tab.id === activeTab);
+
+  function getMobilePrimaryTabLabel(tab) {
+    return mobilePrimaryTabLabels[tab.id] || tab.label || tab.id;
+  }
+
+  function getMobileMenuTabLabel(tab) {
     if (tab.id === "Login") {
       return isLoggedIn ? "Logout" : "Login";
     }
 
-    return mobilePrimaryTabLabels[tab.id] || tab.label || tab.id;
+    return mobileMenuTabLabels[tab.id] || tab.label || tab.id;
   }
 
   function handleMobileTabNavigation(tab) {
     if (tab.id === "Login" && isLoggedIn) {
       handlePortalLogout();
+      setIsMobileMenuOpen(false);
       return;
     }
 
     setActiveTab(tab.id);
+    setIsMobileMenuOpen(false);
   }
 
   const filteredLibraryExercises = useMemo(() => {
@@ -4293,13 +4294,65 @@ function handlePortalLogout() {
         {normalizedPortalMode === "client" && (
           <nav
             aria-label="Mobile navigation"
-            className="fixed inset-x-2 bottom-3 z-50 mx-auto max-w-[36rem] rounded-[1.5rem] border border-[#00BF63]/35 bg-black/95 px-2 py-2 shadow-2xl shadow-[#00BF63]/15 ring-1 ring-white/10 backdrop-blur md:hidden"
+            className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md rounded-[1.75rem] border border-[#00BF63]/35 bg-black/95 px-3 py-2 shadow-2xl shadow-[#00BF63]/15 ring-1 ring-white/10 backdrop-blur md:hidden"
           >
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(2.25rem,1fr))] gap-1">
+            {isMobileMenuOpen && (
+              <div
+                aria-label="Mobile tab menu"
+                className="absolute inset-x-0 bottom-[4.75rem] rounded-[1.5rem] border border-[#00BF63]/30 bg-black/95 p-3 shadow-2xl shadow-black/70 ring-1 ring-white/10"
+              >
+                <p className="px-2 pb-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#00BF63]">
+                  Menu
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {mobileMenuTabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    const tabLabel = getMobileMenuTabLabel(tab);
+
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        aria-label={tabLabel}
+                        onClick={() => handleMobileTabNavigation(tab)}
+                        className={[
+                          "flex items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-xs font-black uppercase tracking-wide transition",
+                          isActive
+                            ? "border-[#00BF63] bg-[#00BF63] text-black"
+                            : "border-white/10 bg-white/[0.04] text-white/75 hover:border-[#00BF63] hover:text-[#00BF63]",
+                        ].join(" ")}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Icon size={16} aria-hidden="true" />
+                          {tabLabel}
+                        </span>
+
+                        {tab.badge > 0 && (
+                          <span
+                            className={[
+                              "rounded-full px-2 py-0.5 text-[10px] font-black",
+                              isActive ? "bg-black text-[#00BF63]" : "bg-[#00BF63] text-black",
+                            ].join(" ")}
+                            aria-hidden="true"
+                          >
+                            {tab.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-5 items-end gap-1">
               {mobilePrimaryTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
-                const tabLabel = getMobileTabLabel(tab);
+                const tabLabel = getMobilePrimaryTabLabel(tab);
+                const isBuildAction = tab.id === "Exercises";
 
                 return (
                   <button
@@ -4308,13 +4361,16 @@ function handlePortalLogout() {
                     aria-label={tabLabel}
                     onClick={() => handleMobileTabNavigation(tab)}
                     className={[
-                      "relative flex min-h-[3.05rem] flex-col items-center justify-center gap-0.5 rounded-xl border px-1 py-1 text-[9px] font-black uppercase leading-tight tracking-tight transition ring-1",
+                      "relative flex flex-col items-center justify-center gap-0.5 rounded-2xl border px-1 py-2 text-[10px] font-black uppercase leading-tight tracking-tight transition ring-1",
+                      isBuildAction ? "min-h-[3.75rem] -translate-y-2" : "min-h-[3.1rem]",
                       isActive
                         ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20 ring-[#00BF63]/30"
-                        : "border-white/10 bg-white/[0.04] text-white/70 ring-white/5 hover:border-[#00BF63] hover:text-[#00BF63]",
+                        : isBuildAction
+                          ? "border-[#00BF63]/80 bg-[#00BF63]/15 text-[#00BF63] shadow-lg shadow-[#00BF63]/10 ring-[#00BF63]/25 hover:bg-[#00BF63] hover:text-black"
+                          : "border-white/10 bg-white/[0.04] text-white/70 ring-white/5 hover:border-[#00BF63] hover:text-[#00BF63]",
                     ].join(" ")}
                   >
-                    <Icon size={15} aria-hidden="true" />
+                    <Icon size={isBuildAction ? 20 : 16} aria-hidden="true" />
                     <span className="max-w-full truncate">{tabLabel}</span>
 
                     {tab.badge > 0 && (
@@ -4331,6 +4387,21 @@ function handlePortalLogout() {
                   </button>
                 );
               })}
+
+              <button
+                type="button"
+                aria-label="Menu"
+                onClick={() => setIsMobileMenuOpen((current) => !current)}
+                className={[
+                  "relative flex min-h-[3.1rem] flex-col items-center justify-center gap-0.5 rounded-2xl border px-1 py-2 text-[10px] font-black uppercase leading-tight tracking-tight transition ring-1",
+                  isMobileMenuOpen || isMobileMenuActive
+                    ? "border-[#00BF63] bg-[#00BF63] text-black shadow-lg shadow-[#00BF63]/20 ring-[#00BF63]/30"
+                    : "border-white/10 bg-white/[0.04] text-white/70 ring-white/5 hover:border-[#00BF63] hover:text-[#00BF63]",
+                ].join(" ")}
+              >
+                <span className="text-lg leading-none" aria-hidden="true">☰</span>
+                <span className="max-w-full truncate">Menu</span>
+              </button>
             </div>
           </nav>
         )}
