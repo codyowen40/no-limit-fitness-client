@@ -12,13 +12,13 @@ test.describe("Mobile client navigation smoke coverage", () => {
 
     await expect(mobileNav).toBeVisible();
 
-    for (const label of ["Home", "Plan", "Build", "Msg", "Menu"]) {
+    for (const label of ["Plan", "Log", "Build", "Msg", "Menu"]) {
       await expect(
         mobileNav.getByRole("button", { name: new RegExp("^" + label + "$", "i") })
       ).toBeVisible();
     }
 
-    for (const hiddenPrimary of ["Food", "Plans", "Log", "Progress", "Logout", "More"]) {
+    for (const hiddenPrimary of ["Home", "Food", "Plans", "Progress", "Logout", "More"]) {
       await expect(
         mobileNav.getByRole("button", { name: new RegExp("^" + hiddenPrimary + "$", "i") })
       ).toHaveCount(0);
@@ -32,22 +32,20 @@ test.describe("Mobile client navigation smoke coverage", () => {
 
     await expect(mobileMenu).toBeVisible();
 
-    for (const label of ["Food", "Plans", "Log", "Progress", "Logout"]) {
+    for (const label of ["Home", "Food", "Plans", "Progress", "Logout"]) {
       await expect(
         mobileMenu.getByRole("button", { name: new RegExp("^" + label + "$", "i") })
       ).toBeVisible();
     }
-
-    await mobileNav.getByRole("button", { name: /^Home$/i }).click();
-    await expect(page.locator("body")).toContainText(
-      /NO LIMIT FITNESS|Client Training Home|Build Workout Plan|MY PLAN|TODAY'S WORKOUT/i
-    );
 
     await mobileNav.getByRole("button", { name: /^Plan$/i }).click();
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
     await mobileNav.getByRole("button", { name: /^Build$/i }).click();
     await expect(page.locator("body")).toContainText(/Build Workout Plan|Exercise Library|Search exercises/i);
+
+    await mobileNav.getByRole("button", { name: /^Log$/i }).click();
+    await expect(page.locator("body")).toContainText(/Client Workout Tracker|Assigned Plan|Mark Complete/i);
 
     await mobileNav.getByRole("button", { name: /^Menu$/i }).click();
     await mobileMenu.getByRole("button", { name: /^Food$/i }).click();
@@ -113,7 +111,7 @@ test.describe("Mobile client navigation smoke coverage", () => {
       await expect(mobileNav.getByRole("button", { name: /^More$/i })).toHaveCount(0);
       await expect(page.getByLabel("Mobile More menu")).toHaveCount(0);
 
-      const expectedLabels = ["Home", "Plan", "Build", "Msg", "Menu"];
+      const expectedLabels = ["Plan", "Log", "Build", "Msg", "Menu"];
       const navBox = await mobileNav.boundingBox();
 
       expect(navBox).not.toBeNull();

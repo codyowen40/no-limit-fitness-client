@@ -2453,7 +2453,7 @@ return (
                       ?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }, 0);
                 }}
-                className="rounded-2xl border border-[#00BF63]/40 bg-[#00BF63]/10 px-4 py-3 text-left text-sm font-black text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+                className="min-h-12 rounded-2xl border border-[#00BF63]/40 bg-[#00BF63]/10 px-3 py-3 text-center text-[11px] font-black uppercase tracking-[0.14em] text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black md:min-h-0 md:rounded-full md:px-4 md:py-2 md:text-xs md:tracking-[0.18em]"
               >
                 Build a Plan
               </button>
@@ -2469,7 +2469,7 @@ return (
                       ?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }, 0);
                 }}
-                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-sm font-black text-white transition hover:border-[#00BF63]/70 hover:text-[#00BF63]"
+                className="min-h-12 rounded-2xl border border-white/15 bg-white/5 px-3 py-3 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63] md:min-h-0 md:rounded-full md:px-4 md:py-2 md:text-xs md:tracking-[0.18em]"
               >
                 Edit Workout Plan
               </button>
@@ -3232,24 +3232,24 @@ const isLoggedIn =
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const mobilePrimaryTabLabels = {
-    Home: "Home",
     Client: "Plan",
+    Tracker: "Log",
     Exercises: "Build",
     Messages: "Msg",
   };
 
   const mobileMenuTabLabels = {
+    Home: "Home",
     Nutrition: "Food",
     Plans: "Plans",
-    Tracker: "Log",
     Progress: "Progress",
     Login: isLoggedIn ? "Logout" : "Login",
     Coach: "Coach",
     Clients: "Clients",
   };
 
-  const mobilePrimaryTabIds = ["Home", "Client", "Exercises", "Messages"];
-  const mobileMenuTabIds = ["Nutrition", "Plans", "Tracker", "Progress", "Login", "Coach", "Clients"];
+  const mobilePrimaryTabIds = ["Client", "Tracker", "Exercises", "Messages"];
+  const mobileMenuTabIds = ["Home", "Nutrition", "Plans", "Progress", "Login", "Coach", "Clients"];
 
   const mobilePrimaryTabs = mobilePrimaryTabIds
     .map((tabId) => renderedTabs.find((tab) => tab.id === tabId))
