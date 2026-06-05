@@ -2162,12 +2162,15 @@ const handleSaveClientPlanDraft = () => {
             </div>
 
             <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_0.5fr]">
-              <label className="grid gap-2 text-sm font-bold text-white/80">
-                Plan Title
-                <input data-testid="exercise-library-search-input" className="min-h-[68px] w-full rounded-3xl border border-white/10 bg-black px-5 py-5 text-base font-bold text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63] md:text-lg" placeholder="Search exercises" aria-label="Search exercises"
+              <label className="grid gap-2 text-sm font-bold text-white/80 md:col-span-1">
+                Plan Name
+                <input
+                  data-testid="client-plan-draft-title-input"
+                  aria-label="Plan Name"
                   value={clientPlanDraftTitle}
                   onChange={(event) => setClientPlanDraftTitle(event.target.value)}
                   className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
+                  placeholder="Starter Workout Plan"
                 />
               </label>
 
@@ -2326,11 +2329,12 @@ return (
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               <label className="grid gap-2 text-sm font-bold text-white/80 md:col-span-1">
                 Plan Name
-                <input className="min-h-[68px] w-full rounded-3xl border border-white/10 bg-black px-5 py-5 text-base font-bold text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63] md:text-lg" placeholder="Search exercises" aria-label="Search exercises"
-                  data-testid="exercise-library-search-input"
+                <input
+                  data-testid="client-plan-draft-title-input"
+                  aria-label="Plan Name"
                   value={clientPlanDraftTitle}
                   onChange={(event) => setClientPlanDraftTitle(event.target.value)}
-                  className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
+                  className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
                   placeholder="Starter Workout Plan"
                 />
               </label>
