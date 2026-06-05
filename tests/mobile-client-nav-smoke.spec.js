@@ -18,7 +18,7 @@ test.describe("Mobile client navigation smoke coverage", () => {
       ).toBeVisible();
     }
 
-    for (const hiddenPrimary of ["Home", "Food", "Plans", "Progress", "Logout", "More"]) {
+    for (const hiddenPrimary of ["Home", "Nutrition", "Plans", "Progress", "Logout", "More"]) {
       await expect(
         mobileNav.getByRole("button", { name: new RegExp("^" + hiddenPrimary + "$", "i") })
       ).toHaveCount(0);
@@ -32,7 +32,7 @@ test.describe("Mobile client navigation smoke coverage", () => {
 
     await expect(mobileMenu).toBeVisible();
 
-    for (const label of ["Home", "Food", "Plans", "Progress", "Logout"]) {
+    for (const label of ["Home", "Nutrition", "Plans", "Progress", "Logout"]) {
       await expect(
         mobileMenu.getByRole("button", { name: new RegExp("^" + label + "$", "i") })
       ).toBeVisible();
@@ -48,7 +48,7 @@ test.describe("Mobile client navigation smoke coverage", () => {
     await expect(page.locator("body")).toContainText(/Client Workout Tracker|Assigned Plan|Mark Complete/i);
 
     await mobileNav.getByRole("button", { name: /^Menu$/i }).click();
-    await mobileMenu.getByRole("button", { name: /^Food$/i }).click();
+    await mobileMenu.getByRole("button", { name: /^Nutrition$/i }).click();
     await expect(page.locator("body")).toContainText(/Nutrition Coach|calories|protein/i);
 
     await mobileNav.getByRole("button", { name: /^Msg$/i }).click();

@@ -3240,7 +3240,7 @@ const isLoggedIn =
 
   const mobileMenuTabLabels = {
     Home: "Home",
-    Nutrition: "Food",
+    Nutrition: "Nutrition",
     Plans: "Plans",
     Progress: "Progress",
     Login: isLoggedIn ? "Logout" : "Login",
