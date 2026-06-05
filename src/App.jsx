@@ -3238,7 +3238,7 @@ const isLoggedIn =
     Nutrition: "Food",
     Plans: "Plans",
     Tracker: "Log",
-    Progress: "Prog",
+    Progress: "Progress",
     Login: isLoggedIn ? "Logout" : "Login",
     Coach: "Coach",
     Clients: "Clients",
