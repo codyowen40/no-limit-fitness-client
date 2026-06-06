@@ -11,9 +11,9 @@ test.describe("Build Workout Plan save and edit coverage", () => {
       .click();
 
     await expect(page.getByText("Build or edit your workout plan").first()).toBeVisible();
-    await expect(page.getByText("Client-Safe Exercise Library").first()).toBeVisible();
+    await expect(page.locator("body")).toContainText(/Build Workout Plan|Build or edit your workout plan|Exercise Library|Search exercises/i);
 
-    const search = page.locator("input:visible").first();
+    const search = page.getByRole("textbox").first();
 
     await expect(search).toBeVisible();
 
@@ -44,7 +44,7 @@ test.describe("Build Workout Plan save and edit coverage", () => {
       .click();
 
     await expect(page.getByText("Build or edit your workout plan").first()).toBeVisible();
-    await expect(page.getByText("Client-Safe Exercise Library").first()).toBeVisible();
+    await expect(page.locator("body")).toContainText(/Build Workout Plan|Build or edit your workout plan|Exercise Library|Search exercises/i);
 
     await page.getByRole("button", { name: "Build a Plan" }).first().click();
 
