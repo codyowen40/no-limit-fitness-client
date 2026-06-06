@@ -2605,22 +2605,60 @@ function getNoLimitPublicAccountAccess() {
   }
 }
 
+
 function saveNoLimitPublicAccountAccess(profile) {
+  const safeRole = String(profile?.role || "client").toLowerCase() === "coach" ? "coach" : "client";
+
   try {
     window.localStorage.setItem("nlf-public-account-access-v1", "true");
-    window.localStorage.setItem("nlf-public-account-profile-v1", JSON.stringify(profile));
-    window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, "client");
+    window.localStorage.setItem(
+      "nlf-public-account-profile-v1",
+      JSON.stringify({
+        ...profile,
+        role: safeRole,
+      })
+    );
+    window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, safeRole);
+
+    if (safeRole === "coach") {
+      window.localStorage.setItem(COACH_SESSION_LOCK_STORAGE_KEY, "true");
+    } else {
+      window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
+    }
   } catch {
     // LocalStorage can fail in restricted browser modes.
   }
 }
 
+
 function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
   const isSignup = authMode === "signup";
+  const [accountType, setAccountType] = useState("client");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [accountStatus, setAccountStatus] = useState("");
+
+  const isCoachLogin = accountType === "coach";
+  const isClientSignup = accountType === "client" && isSignup;
+  const accountLabel = isCoachLogin ? "Coach" : "Client";
+  const pageTitle = isCoachLogin ? "Coach Login" : isClientSignup ? "Create Client Account" : "Client Login";
+  const pageDescription = isCoachLogin
+    ? "Coach accounts open client management, assigned plans, review queues, messages, and coach activity."
+    : "Client accounts open your training plan, tracker, progress, messages, exercises, and nutrition tools.";
+
+  function selectAccountType(nextType) {
+    setAccountType(nextType);
+    setAccountStatus("");
+
+    if (nextType === "coach") {
+      setAuthMode("login");
+      setEmail("coach@nolimittest.com");
+      return;
+    }
+
+    setEmail("");
+  }
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -2634,27 +2672,34 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
     }
 
     const profile = {
-      name: name.trim() || "No Limit Client",
+      name: isCoachLogin ? "No Limit Coach" : name.trim() || "No Limit Client",
       email: safeEmail,
       createdAt: new Date().toISOString(),
-      mode: isSignup ? "signup" : "login",
+      mode: isClientSignup ? "signup" : "login",
+      role: accountType,
     };
 
     saveNoLimitPublicAccountAccess(profile);
-    setAccountStatus(isSignup ? "Account created. Opening your client portal." : "Login accepted. Opening your client portal.");
+    setAccountStatus(
+      isCoachLogin
+        ? "Coach login accepted. Opening your coach portal."
+        : isClientSignup
+          ? "Client account created. Opening your client portal."
+          : "Client login accepted. Opening your client portal."
+    );
     onUnlock(profile);
   }
 
   return (
     <main className="min-h-screen bg-black text-white">
       <div
-        className="fixed inset-0 pointer-events-none bg-cover bg-center opacity-20"
-        style={{ backgroundImage: "url('/images/gym-background.webp')" }}
+        aria-hidden="true"
+        className="fixed inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,191,99,0.18),_transparent_36%),linear-gradient(135deg,_rgba(0,0,0,1),_rgba(13,13,13,0.95))]"
       />
       <div className="fixed inset-0 bg-gradient-to-b from-black via-black/95 to-black" />
 
       <section
-        aria-label="No Limit Fitness login page"
+        aria-label={pageTitle}
         className="relative z-10 mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-5 py-10"
       >
         <div className="rounded-[2rem] border border-[#00BF63]/25 bg-zinc-950/90 p-6 shadow-2xl shadow-black/60 md:p-8">
@@ -2669,55 +2714,80 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
                 No Limit Fitness
               </p>
               <h1 className="mt-1 text-3xl font-black uppercase leading-none text-white">
-                {isSignup ? "Create Account" : "Client Login"}
+                {pageTitle}
               </h1>
             </div>
           </div>
 
+          <div
+            aria-label="Choose account login type"
+            className="mt-6 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/40 p-2"
+          >
+            {[
+              { id: "client", label: "Client Access" },
+              { id: "coach", label: "Coach Access" },
+            ].map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={accountType === option.id}
+                onClick={() => selectAccountType(option.id)}
+                className={[
+                  "rounded-xl px-4 py-3 text-xs font-black uppercase tracking-[0.18em] transition",
+                  accountType === option.id
+                    ? "bg-[#00BF63] text-black"
+                    : "border border-white/10 bg-white/[0.04] text-white/70 hover:border-[#00BF63] hover:text-[#00BF63]",
+                ].join(" ")}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
           <p className="mt-5 text-sm leading-6 text-white/65">
-            Sign in or create an account to access your training plan, tracker, progress, messages, exercises, and nutrition tools.
+            {pageDescription}
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
-            {isSignup && (
+            {isClientSignup && (
               <label className="grid gap-2 text-sm font-bold text-white/80">
                 Name
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
+                  name="name"
                   placeholder="Your name"
-                  autoComplete="name"
+                  className="rounded-2xl border border-white/10 bg-black px-4 py-4 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
                 />
               </label>
             )}
 
             <label className="grid gap-2 text-sm font-bold text-white/80">
-              Email
+              {accountLabel} Email
               <input
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
-                placeholder="you@example.com"
-                autoComplete="email"
+                name="email"
                 type="email"
+                placeholder={isCoachLogin ? "coach@nolimittest.com" : "client@nolimittest.com"}
+                className="rounded-2xl border border-white/10 bg-black px-4 py-4 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
               />
             </label>
 
             <label className="grid gap-2 text-sm font-bold text-white/80">
-              Password
+              {accountLabel} Password
               <input
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
-                placeholder="Password"
-                autoComplete={isSignup ? "new-password" : "current-password"}
+                name="password"
                 type="password"
+                placeholder="Password"
+                className="rounded-2xl border border-white/10 bg-black px-4 py-4 text-white outline-none transition placeholder:text-white/35 focus:border-[#00BF63]"
               />
             </label>
 
             {accountStatus && (
-              <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/75">
+              <p className="rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 px-4 py-3 text-sm font-bold text-[#00BF63]">
                 {accountStatus}
               </p>
             )}
@@ -2726,19 +2796,21 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
               type="submit"
               className="rounded-2xl bg-[#00BF63] px-5 py-4 text-sm font-black uppercase tracking-[0.22em] text-black transition hover:bg-[#00d36f]"
             >
-              {isSignup ? "Create Account" : "Log In"}
+              {isCoachLogin ? "Open Coach Portal" : isClientSignup ? "Create Account" : "Log In"}
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setAccountStatus("");
-                setAuthMode(isSignup ? "login" : "signup");
-              }}
-              className="rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
-            >
-              {isSignup ? "Back to Login" : "Sign Up"}
-            </button>
+            {accountType === "client" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountStatus("");
+                  setAuthMode(isSignup ? "login" : "signup");
+                }}
+                className="rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+              >
+                {isSignup ? "Back to Login" : "Sign Up"}
+              </button>
+            )}
           </form>
         </div>
       </section>
