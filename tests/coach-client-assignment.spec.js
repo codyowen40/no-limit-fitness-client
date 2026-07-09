@@ -168,7 +168,7 @@ test.describe("Coach/client assignment data coverage", () => {
     await openMessagesTab(page);
 
     await expect(
-      page.getByRole("heading", { name: "Coach/Client Messaging" })
+      page.getByRole("heading", { name: /Coach\/Client Messaging|Assigned Client Messaging|Assigned Coach Messaging/ })
     ).toBeVisible();
 
     const conversationButton = page

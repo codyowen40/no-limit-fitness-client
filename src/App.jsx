@@ -6192,6 +6192,93 @@ function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTr
 }
 
 
+
+function nlfReadPublicAccountProfile() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem("nlf-public-account-profile-v1");
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function nlfMessageMatchText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function nlfFindCurrentClientForMessaging(clients) {
+  const safeClients = Array.isArray(clients) ? clients : [];
+  const profile = nlfReadPublicAccountProfile();
+
+  if (!safeClients.length) return null;
+
+  const profileId = nlfMessageMatchText(profile?.clientId || profile?.id);
+  const profileEmail = nlfMessageMatchText(profile?.email);
+  const profileName = nlfMessageMatchText(profile?.name);
+
+  const matchedClient = safeClients.find((client) => {
+    return (
+      (profileId && nlfMessageMatchText(client.id) === profileId) ||
+      (profileEmail && nlfMessageMatchText(client.email) === profileEmail) ||
+      (profileName && nlfMessageMatchText(client.name) === profileName)
+    );
+  });
+
+  return matchedClient || safeClients[0] || null;
+}
+
+function nlfIsAssignedCoachClient(client) {
+  if (!client) return false;
+
+  const assignmentStatus = nlfMessageMatchText(client.coachingStatus || client.assignmentStatus);
+
+  return Boolean(
+    client.coachId ||
+      client.coachName ||
+      assignmentStatus.includes("assigned") ||
+      assignmentStatus.includes("active")
+  );
+}
+
+function nlfGetMessagingScope({ clients, conversations, messageSender }) {
+  const safeClients = Array.isArray(clients) ? clients : [];
+  const safeConversations = Array.isArray(conversations) ? conversations : [];
+  const signedInRole = nlfResolveMessageSenderRole(messageSender);
+
+  if (signedInRole === "Client") {
+    const currentClient = nlfFindCurrentClientForMessaging(safeClients);
+    const clientConversations = safeConversations.filter(
+      (conversation) => conversation.clientId === currentClient?.id
+    );
+
+    return clientConversations.length > 0 ? clientConversations : safeConversations.slice(0, 1);
+  }
+
+  const assignedClientIds = new Set(
+    safeClients.filter(nlfIsAssignedCoachClient).map((client) => client.id)
+  );
+
+  if (assignedClientIds.size === 0) return safeConversations;
+
+  const coachConversations = safeConversations.filter((conversation) =>
+    assignedClientIds.has(conversation.clientId)
+  );
+
+  return coachConversations.length > 0 ? coachConversations : safeConversations;
+}
+
+function nlfCountScopedUnreadMessages(conversations, unreadKey) {
+  return (Array.isArray(conversations) ? conversations : []).reduce((total, conversation) => {
+    const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
+    return total + messages.filter((message) => message?.[unreadKey]).length;
+  }, 0);
+}
+
 function nlfResolveMessageSenderRole(portalModeValue) {
   const queryMode =
     typeof window !== "undefined"
@@ -6247,12 +6334,21 @@ function MessagesScreen({
     return searchableText.includes(normalizedMessageSearch);
   };
 
-  const filteredConversations = conversations.filter(conversationMatchesSearch);
+  const signedInMessageRole = nlfResolveMessageSenderRole(messageSender);
+  const scopedConversations = nlfGetMessagingScope({
+    clients,
+    conversations,
+    messageSender,
+  });
+  const scopedCoachUnreadCount = nlfCountScopedUnreadMessages(scopedConversations, "unreadForCoach");
+  const scopedClientUnreadCount = nlfCountScopedUnreadMessages(scopedConversations, "unreadForClient");
+
+  const filteredConversations = scopedConversations.filter(conversationMatchesSearch);
 
   const selectedConversation =
-    conversations.find((conversation) => conversation.clientId === selectedConversationId) ||
+    scopedConversations.find((conversation) => conversation.clientId === selectedConversationId) ||
     filteredConversations[0] ||
-    conversations[0];
+    scopedConversations[0];
 
   const selectedClient = clients.find((client) => client.id === selectedConversation?.clientId);
 
@@ -6275,14 +6371,18 @@ function MessagesScreen({
     <div>
       <SectionHeader
         eyebrow="Messages"
-        title="Coach/Client Messaging"
-        description="Search conversations and message text while keeping unread indicators saved locally."
+        title={signedInMessageRole === "Client" ? "Assigned Coach Messaging" : "Assigned Client Messaging"}
+        description={
+          signedInMessageRole === "Client"
+            ? "Message your assigned coach and keep your thread saved locally."
+            : "Message assigned clients and track unread replies saved locally."
+        }
       />
 
       <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <StatCard label="Conversations" value={conversations.length} />
-        <StatCard label="Coach Unread" value={unreadCoachCount} />
-        <StatCard label="Client Unread" value={unreadClientCount} />
+        <StatCard label="Conversations" value={scopedConversations.length} />
+        <StatCard label="Coach Unread" value={scopedCoachUnreadCount} />
+        <StatCard label="Client Unread" value={scopedClientUnreadCount} />
       </div>
 
       <div className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
@@ -6423,9 +6523,11 @@ function MessagesScreen({
                     <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00BF63]">
                       Signed-in role
                     </p>
-                    <p className="mt-2 text-lg font-black text-white">{nlfResolveMessageSenderRole(messageSender)}</p>
+                    <p className="mt-2 text-lg font-black text-white">{signedInMessageRole}</p>
                     <p className="mt-1 text-xs font-bold text-white/55">
-                      Messages send from the active client or coach account.
+                      {signedInMessageRole === "Client"
+                        ? "Messages send from your client account to your assigned coach."
+                        : "Messages send from your coach account to assigned clients."}
                     </p>
                   </div>
                   <TextArea
