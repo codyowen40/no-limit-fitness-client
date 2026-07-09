@@ -471,8 +471,8 @@ const exerciseLibrary = [
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 const starterClients = [
-  { id: "client-1", name: "Sample Client", email: "client@example.com", status: "Active" },
-  { id: "client-2", name: "Athlete Demo", email: "athlete@example.com", status: "Active" },
+  { id: "client-1", name: "Sample Client", email: "client@example.com", status: "Active", coachId: "coach-primary", coachName: "No Limit Coach", coachingStatus: "assigned" },
+  { id: "client-2", name: "Athlete Demo", email: "athlete@example.com", status: "Active", coachId: "coach-primary", coachName: "No Limit Coach", coachingStatus: "assigned" },
 ];
 
 const starterConversations = [
@@ -3872,6 +3872,28 @@ const isLoggedIn =
     setMessageNotice("Client unread messages marked as read.");
   }
 
+  function archiveConversation(clientId) {
+    const archiveKey = nlfGetMessagingArchiveKey(nlfResolveMessageSenderRole(normalizedPortalMode));
+
+    setConversations((current) =>
+      current.map((conversation) => {
+        if (conversation.clientId !== clientId) return conversation;
+
+        const archivedFor = nlfNormalizeArchivedFor(conversation);
+
+        if (archivedFor.includes(archiveKey)) return conversation;
+
+        return {
+          ...conversation,
+          archivedFor: [...archivedFor, archiveKey],
+        };
+      })
+    );
+
+    setSelectedConversationId((current) => (current === clientId ? "" : current));
+    setMessageNotice("Conversation archived from your active inbox.");
+  }
+
   function sendMessage() {
     const text = messageDraft.trim();
     if (!text) return setMessageNotice("Type a message before sending.");
@@ -4653,6 +4675,7 @@ function handlePortalLogout() {
               sendMessage={sendMessage}
               markCoachMessagesRead={markCoachMessagesRead}
               markClientMessagesRead={markClientMessagesRead}
+              archiveConversation={archiveConversation}
               messageNotice={messageNotice}
               unreadCoachCount={unreadCoachCount}
               unreadClientCount={unreadClientCount}
@@ -6252,24 +6275,25 @@ function nlfGetMessagingScope({ clients, conversations, messageSender }) {
 
   if (signedInRole === "Client") {
     const currentClient = nlfFindCurrentClientForMessaging(safeClients);
-    const clientConversations = safeConversations.filter(
-      (conversation) => conversation.clientId === currentClient?.id
-    );
 
-    return clientConversations.length > 0 ? clientConversations : safeConversations.slice(0, 1);
+    if (!currentClient || !nlfIsAssignedCoachClient(currentClient)) {
+      return [];
+    }
+
+    return safeConversations.filter(
+      (conversation) => conversation.clientId === currentClient.id
+    );
   }
 
   const assignedClientIds = new Set(
     safeClients.filter(nlfIsAssignedCoachClient).map((client) => client.id)
   );
 
-  if (assignedClientIds.size === 0) return safeConversations;
+  if (assignedClientIds.size === 0) return [];
 
-  const coachConversations = safeConversations.filter((conversation) =>
+  return safeConversations.filter((conversation) =>
     assignedClientIds.has(conversation.clientId)
   );
-
-  return coachConversations.length > 0 ? coachConversations : safeConversations;
 }
 
 function nlfCountScopedUnreadMessages(conversations, unreadKey) {
@@ -6293,6 +6317,26 @@ function nlfResolveMessageSenderRole(portalModeValue) {
   return "Coach";
 }
 
+function nlfGetMessagingArchiveKey(messageSender) {
+  const role = nlfResolveMessageSenderRole(messageSender);
+  const profile = nlfReadPublicAccountProfile();
+  const profileKey =
+    nlfMessageMatchText(profile?.id || profile?.clientId || profile?.email || profile?.name) ||
+    "local-user";
+
+  return `${role.toLowerCase()}:${profileKey}`;
+}
+
+function nlfNormalizeArchivedFor(conversation) {
+  return Array.isArray(conversation?.archivedFor)
+    ? conversation.archivedFor.filter(Boolean)
+    : [];
+}
+
+function nlfIsConversationArchivedFor(conversation, archiveKey) {
+  return nlfNormalizeArchivedFor(conversation).includes(archiveKey);
+}
+
 function MessagesScreen({
   clients,
   conversations,
@@ -6305,6 +6349,7 @@ function MessagesScreen({
   sendMessage,
   markCoachMessagesRead,
   markClientMessagesRead,
+  archiveConversation,
   messageNotice,
   unreadCoachCount,
   unreadClientCount,
@@ -6340,17 +6385,45 @@ function MessagesScreen({
     conversations,
     messageSender,
   });
-  const scopedCoachUnreadCount = nlfCountScopedUnreadMessages(scopedConversations, "unreadForCoach");
-  const scopedClientUnreadCount = nlfCountScopedUnreadMessages(scopedConversations, "unreadForClient");
+  const currentMessagingClient =
+    signedInMessageRole === "Client" ? nlfFindCurrentClientForMessaging(clients) : null;
+  const assignedClientCount = (Array.isArray(clients) ? clients : []).filter(nlfIsAssignedCoachClient).length;
+  const hasMessagingAssignment =
+    signedInMessageRole === "Client"
+      ? Boolean(currentMessagingClient && nlfIsAssignedCoachClient(currentMessagingClient))
+      : assignedClientCount > 0;
+  const noAssignmentText =
+    signedInMessageRole === "Client" ? "No coach assigned yet." : "No assigned clients yet.";
+  const assignmentEmptyText = hasMessagingAssignment ? "No active conversations." : noAssignmentText;
+  const archiveKey = nlfGetMessagingArchiveKey(signedInMessageRole);
+  const activeScopedConversations = scopedConversations.filter(
+    (conversation) => !nlfIsConversationArchivedFor(conversation, archiveKey)
+  );
+  const scopedCoachUnreadCount = nlfCountScopedUnreadMessages(activeScopedConversations, "unreadForCoach");
+  const scopedClientUnreadCount = nlfCountScopedUnreadMessages(activeScopedConversations, "unreadForClient");
 
-  const filteredConversations = scopedConversations.filter(conversationMatchesSearch);
+  const filteredConversations = activeScopedConversations.filter(conversationMatchesSearch);
 
   const selectedConversation =
-    scopedConversations.find((conversation) => conversation.clientId === selectedConversationId) ||
+    activeScopedConversations.find((conversation) => conversation.clientId === selectedConversationId) ||
     filteredConversations[0] ||
-    scopedConversations[0];
+    activeScopedConversations[0];
 
   const selectedClient = clients.find((client) => client.id === selectedConversation?.clientId);
+
+  const emptyConversationText =
+    scopedConversations.length === 0
+      ? assignmentEmptyText
+      : activeScopedConversations.length === 0
+        ? "No active conversations."
+        : "No conversations match that search.";
+
+  const selectedEmptyText =
+    scopedConversations.length === 0
+      ? assignmentEmptyText
+      : activeScopedConversations.length === 0
+        ? "No active conversations."
+        : "Select a conversation to start messaging.";
 
   const visibleMessages = selectedConversation
     ? selectedConversation.messages.filter((message) => {
@@ -6379,8 +6452,17 @@ function MessagesScreen({
         }
       />
 
+      {messageNotice && (
+        <p
+          data-testid="message-notice"
+          className="mb-4 rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4 text-sm font-semibold text-[#00BF63]"
+        >
+          {messageNotice}
+        </p>
+      )}
+
       <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <StatCard label="Conversations" value={scopedConversations.length} />
+        <StatCard label="Conversations" value={activeScopedConversations.length} />
         <StatCard label="Coach Unread" value={scopedCoachUnreadCount} />
         <StatCard label="Client Unread" value={scopedClientUnreadCount} />
       </div>
@@ -6442,7 +6524,7 @@ function MessagesScreen({
 
             {filteredConversations.length === 0 && (
               <p className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm text-white/55">
-                No conversations match that search.
+                {emptyConversationText}
               </p>
             )}
           </div>
@@ -6478,6 +6560,13 @@ function MessagesScreen({
                     className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
                   >
                     Mark Client Read
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => archiveConversation(selectedConversation.clientId)}
+                    className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                  >
+                    Archive Conversation
                   </button>
                 </div>
               </div>
@@ -6546,7 +6635,7 @@ function MessagesScreen({
               </div>
             </>
           ) : (
-            <EmptyState text="Select a conversation to start messaging." />
+            <EmptyState text={selectedEmptyText} />
           )}
         </div>
       </div>

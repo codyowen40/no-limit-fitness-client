@@ -128,4 +128,28 @@ test.describe("Role and assignment messaging", () => {
     await expect(page.locator("main")).not.toContainText("Unassigned client thread should not show.");
     await expect(page.locator("main")).toContainText("Messages send from your coach account to assigned clients.");
   });
+
+  test("client can archive assigned coach conversation from active inbox", async ({ page }) => {
+    await openMessages(page, "client");
+
+    await expect(page.getByRole("heading", { name: "Assigned Coach Messaging" })).toBeVisible();
+    await page.getByRole("button", { name: "Archive Conversation" }).click();
+
+    await expect(page.locator('[data-testid="message-conversation-list"]')).toContainText("No active conversations.");
+    await expect(page.locator('[data-testid="message-conversation-list"]')).not.toContainText("Assigned Client");
+    await expect(page.getByTestId("message-notice")).toContainText("Conversation archived from your active inbox.");
+    await expect(page.locator("main")).not.toContainText("Send As");
+  });
+
+  test("coach can archive assigned client conversation from active inbox", async ({ page }) => {
+    await openMessages(page, "coach");
+
+    await expect(page.getByRole("heading", { name: "Assigned Client Messaging" })).toBeVisible();
+    await page.getByRole("button", { name: "Archive Conversation" }).click();
+
+    await expect(page.locator('[data-testid="message-conversation-list"]')).toContainText("No active conversations.");
+    await expect(page.locator('[data-testid="message-conversation-list"]')).not.toContainText("Assigned Client");
+    await expect(page.getByTestId("message-notice")).toContainText("Conversation archived from your active inbox.");
+    await expect(page.locator("main")).not.toContainText("Send As");
+  });
 });
