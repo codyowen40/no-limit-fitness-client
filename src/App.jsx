@@ -4603,7 +4603,108 @@ function CoachNutritionReviewPanel() {
 }
 
 
-﻿﻿﻿function ClientActionPlanCompletionTracker() {
+﻿﻿﻿﻿function ClientLatestCoachAdjustmentPanel() {
+  const COACH_WEEKLY_ADJUSTMENTS_STORAGE_KEY = "nlf-coach-weekly-adjustment-recommendations-v1";
+
+  function readSavedAdjustments() {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const raw = window.localStorage.getItem(COACH_WEEKLY_ADJUSTMENTS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  const [savedAdjustments, setSavedAdjustments] = useState(readSavedAdjustments);
+  const [clientAdjustmentStatus, setClientAdjustmentStatus] = useState("");
+
+  function refreshLatestAdjustment() {
+    setSavedAdjustments(readSavedAdjustments());
+    setClientAdjustmentStatus("Latest coach adjustment refreshed.");
+  }
+
+  const latestAdjustment = savedAdjustments[0] || null;
+
+  return (
+    <section
+      data-testid="client-latest-coach-adjustment"
+      aria-label="Client latest coach adjustment"
+      className="mb-5 rounded-3xl border border-[#00BF63]/25 bg-black/50 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Coach Adjustment
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Latest Weekly Adjustment
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Your coach’s latest weekly plan adjustment will show here after review.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={refreshLatestAdjustment}
+          className="w-fit rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+        >
+          Refresh Adjustment
+        </button>
+      </div>
+
+      {latestAdjustment ? (
+        <div
+          data-testid="client-coach-adjustment-card"
+          className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Saved {latestAdjustment.savedAt || "recently"}
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">{latestAdjustment.recommendationType}</h4>
+          <p className="mt-2 text-sm font-black uppercase text-white/55">
+            {latestAdjustment.adjustmentSummary || "No summary saved."}
+          </p>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+              Calories: {latestAdjustment.calorieAdjustment || "—"}
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+              Nutrition: {latestAdjustment.nutritionAdjustment || "—"}
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+              Recovery: {latestAdjustment.trainingRecoveryAdjustment || "—"}
+            </p>
+          </div>
+
+          <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/75">
+            Coach Message: {latestAdjustment.clientMessage || "No message saved."}
+          </p>
+        </div>
+      ) : (
+        <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm font-bold text-white/45">
+          No coach adjustment has been saved yet.
+        </p>
+      )}
+
+      {clientAdjustmentStatus && (
+        <p
+          data-testid="client-coach-adjustment-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {clientAdjustmentStatus}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function ClientActionPlanCompletionTracker() {
   const COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY = "nlf-coach-client-weekly-action-plans-v1";
   const CLIENT_ACTION_PLAN_COMPLETIONS_STORAGE_KEY = "nlf-client-action-plan-completions-v1";
 
@@ -5499,6 +5600,8 @@ return (
       <ClientLatestCoachActionPlanPanel />
 
       <ClientActionPlanCompletionTracker />
+
+      <ClientLatestCoachAdjustmentPanel />
 
         {/* NLF_BUILD_WORKOUT_PLAN_MERGED_WORKSPACE */}
 
@@ -8714,7 +8817,506 @@ function ClientDashboardScreen({
 }
 
 
-﻿﻿﻿function CoachActionPlanCompletionReviewPanel() {
+﻿﻿﻿﻿function CoachWeeklyAdjustmentRecommendationPanel() {
+  const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
+  const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
+  const PROGRESS_PHOTOS_STORAGE_KEY = "nlf-client-progress-photos-v1";
+  const COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY = "nlf-coach-client-weekly-action-plans-v1";
+  const CLIENT_ACTION_PLAN_COMPLETIONS_STORAGE_KEY = "nlf-client-action-plan-completions-v1";
+  const COACH_WEEKLY_ADJUSTMENTS_STORAGE_KEY = "nlf-coach-weekly-adjustment-recommendations-v1";
+
+  function readJsonStorage(key, fallback) {
+    if (typeof window === "undefined") return fallback;
+
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function readSavedAdjustments() {
+    const saved = readJsonStorage(COACH_WEEKLY_ADJUSTMENTS_STORAGE_KEY, []);
+    return Array.isArray(saved) ? saved : [];
+  }
+
+  function buildAdjustmentSnapshot() {
+    const nutritionHistory = readJsonStorage(NUTRITION_HISTORY_STORAGE_KEY, { targets: [], meals: [] });
+    const clientCheckIns = readJsonStorage(CLIENT_WEEKLY_CHECKINS_STORAGE_KEY, []);
+    const progressPhotos = readJsonStorage(PROGRESS_PHOTOS_STORAGE_KEY, []);
+    const actionPlans = readJsonStorage(COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY, []);
+    const completions = readJsonStorage(CLIENT_ACTION_PLAN_COMPLETIONS_STORAGE_KEY, []);
+
+    const savedTargets = Array.isArray(nutritionHistory.targets) ? nutritionHistory.targets : [];
+    const savedMeals = Array.isArray(nutritionHistory.meals) ? nutritionHistory.meals : [];
+    const savedCheckIns = Array.isArray(clientCheckIns) ? clientCheckIns : [];
+    const savedPhotos = Array.isArray(progressPhotos) ? progressPhotos : [];
+    const savedActionPlans = Array.isArray(actionPlans) ? actionPlans : [];
+    const savedCompletions = Array.isArray(completions) ? completions : [];
+
+    const latestTarget = savedTargets[0] || null;
+    const latestMeal = savedMeals[0] || null;
+    const latestCheckIn = savedCheckIns[0] || null;
+    const previousCheckIn = savedCheckIns[1] || null;
+    const latestPhotoCheckIn = savedPhotos[0] || null;
+    const latestActionPlan = savedActionPlans[0] || null;
+    const latestCompletion = savedCompletions[0] || null;
+
+    const latestWeight = Number(latestCheckIn?.checkInWeight);
+    const previousWeight = Number(previousCheckIn?.checkInWeight);
+    const hasWeightChange = Number.isFinite(latestWeight) && Number.isFinite(previousWeight);
+    const weightChange = hasWeightChange ? Number((latestWeight - previousWeight).toFixed(1)) : 0;
+
+    const hasAlcohol = Array.isArray(latestMeal?.matches) &&
+      latestMeal.matches.some((item) =>
+        String(item.category || "").toLowerCase() === "alcohol" ||
+        /beer|vodka|whiskey|tequila|malt liquor|seltzer|wine|cocktail|margarita/i.test(String(item.name || ""))
+      );
+
+    const hasLiquidCalories = Array.isArray(latestMeal?.matches) &&
+      latestMeal.matches.some((item) =>
+        /sweet tea|kool-aid|koolaid|soda|juice|lemonade|energy drink|frappuccino|chocolate milk/i.test(String(item.name || ""))
+      );
+
+    const highCalorieMeal = Number(latestMeal?.calories) >= 800;
+    const lowAdherence = Number(latestCheckIn?.adherenceScore) > 0 && Number(latestCheckIn?.adherenceScore) < 75;
+    const highHunger = Number(latestCheckIn?.hungerScore) >= 4;
+    const lowEnergy = Number(latestCheckIn?.energyScore) <= 2;
+    const poorSleep = Number(latestCheckIn?.sleepScore) <= 2;
+    const highStress = Number(latestCheckIn?.stressScore) >= 4;
+    const lowRecovery = Number(latestCheckIn?.recoveryScore) <= 2;
+    const completionPercent = Number(latestCompletion?.completionPercent || 0);
+    const lowCompletion = latestCompletion ? completionPercent < 75 : false;
+
+    const photoAnglesSaved = latestPhotoCheckIn
+      ? [latestPhotoCheckIn.frontPhoto, latestPhotoCheckIn.sidePhoto, latestPhotoCheckIn.backPhoto].filter(Boolean).length
+      : 0;
+
+    const flags = [];
+
+    if (!latestTarget) flags.push("No macro target saved");
+    if (!latestMeal) flags.push("No meal log saved");
+    if (!latestCheckIn) flags.push("No weekly check-in saved");
+    if (poorSleep) flags.push("Sleep is poor");
+    if (lowEnergy) flags.push("Energy is low");
+    if (lowRecovery) flags.push("Recovery is low");
+    if (highStress) flags.push("Stress is high");
+    if (lowAdherence) flags.push("Adherence is below 75%");
+    if (lowCompletion) flags.push("Action plan completion is below 75%");
+    if (highHunger) flags.push("Hunger is high");
+    if (hasAlcohol) flags.push("Alcohol appears in latest meal log");
+    if (hasLiquidCalories) flags.push("Liquid calories appear in latest meal log");
+    if (highCalorieMeal) flags.push("Latest meal is 800+ calories");
+    if (photoAnglesSaved > 0 && photoAnglesSaved < 3) flags.push("Progress photo check-in is incomplete");
+
+    return {
+      latestTarget,
+      latestMeal,
+      latestCheckIn,
+      previousCheckIn,
+      latestPhotoCheckIn,
+      latestActionPlan,
+      latestCompletion,
+      hasWeightChange,
+      weightChange,
+      photoAnglesSaved,
+      completionPercent,
+      flags,
+      hasAlcohol,
+      hasLiquidCalories,
+      highCalorieMeal,
+      lowAdherence,
+      lowCompletion,
+      highHunger,
+      lowEnergy,
+      poorSleep,
+      highStress,
+      lowRecovery,
+    };
+  }
+
+  function createRecommendation(snapshot) {
+    const currentCalories = Number(snapshot.latestTarget?.dailyCalories || 0);
+    const reducedCalories = currentCalories ? Math.max(currentCalories - 150, 1200) : "";
+    const increasedCalories = currentCalories ? currentCalories + 150 : "";
+
+    if (!snapshot.latestTarget || !snapshot.latestCheckIn) {
+      return {
+        recommendationType: "Collect More Data",
+        adjustmentSummary: "Do not adjust calories yet.",
+        calorieAdjustment: "No calorie change until target, check-in, and meal data are saved.",
+        nutritionAdjustment: "Have the client save a macro target, meal log, weekly check-in, and progress photos before changing the plan.",
+        trainingRecoveryAdjustment: "Keep training normal and collect recovery feedback.",
+        habitAdjustment: "Set a minimum requirement: one weekly check-in and one meal log before the next review.",
+        clientMessage: "Before we change the plan, we need a clean check-in and nutrition log so the next adjustment is based on real data.",
+      };
+    }
+
+    if (snapshot.poorSleep || snapshot.lowEnergy || snapshot.lowRecovery) {
+      return {
+        recommendationType: "Prioritize Recovery",
+        adjustmentSummary: "Keep calories steady and fix recovery first.",
+        calorieAdjustment: "No calorie cut this week. Keep target near " + currentCalories + " calories.",
+        nutritionAdjustment: "Hit protein, reduce alcohol, keep hydration consistent, and avoid making the deficit more aggressive.",
+        trainingRecoveryAdjustment: "Keep training controlled. Do not add extra volume until sleep, energy, and recovery improve.",
+        habitAdjustment: "Set a sleep target, keep a consistent weigh-in routine, and prep one easy high-protein meal option.",
+        clientMessage: "This week we are keeping the plan steady. The focus is better sleep, energy, protein, water, and recovery before making a harder nutrition change.",
+      };
+    }
+
+    if (snapshot.lowCompletion || snapshot.lowAdherence) {
+      return {
+        recommendationType: "Adherence Reset",
+        adjustmentSummary: "Do not change numbers until execution improves.",
+        calorieAdjustment: "Keep calories steady at " + currentCalories + " and simplify the plan.",
+        nutritionAdjustment: "Reduce decision fatigue with repeatable meals, protein at each meal, and a planned backup option for busy days.",
+        trainingRecoveryAdjustment: "Keep workouts realistic and avoid adding extra work until follow-through improves.",
+        habitAdjustment: "Pick two non-negotiables: protein target and weekly check-in completion.",
+        clientMessage: "Before we change calories, we need a more consistent week. The goal is not perfection. The goal is to make the plan easier to follow.",
+      };
+    }
+
+    if (snapshot.hasAlcohol || snapshot.hasLiquidCalories || snapshot.highCalorieMeal) {
+      return {
+        recommendationType: "Tighten Food Quality",
+        adjustmentSummary: "Keep calories steady and clean up drink/snack calories.",
+        calorieAdjustment: "No calorie change this week. Keep target near " + currentCalories + " calories while improving food quality.",
+        nutritionAdjustment: "Audit drinks, sauces, snacks, alcohol, and convenience foods before changing macros.",
+        trainingRecoveryAdjustment: "Keep workouts steady and watch recovery after alcohol or low-sleep days.",
+        habitAdjustment: "Log all drinks and add one high-protein meal before high-risk meals or social events.",
+        clientMessage: "We are not changing your numbers yet. This week is about tightening up drinks, snacks, alcohol, and protein consistency.",
+      };
+    }
+
+    if (snapshot.hasWeightChange && snapshot.weightChange >= 0.5 && !snapshot.highHunger) {
+      return {
+        recommendationType: "Reduce Calories Slightly",
+        adjustmentSummary: "Weight is trending up or stalled with decent adherence. Apply a small calorie decrease.",
+        calorieAdjustment: currentCalories ? "Reduce target from " + currentCalories + " to about " + reducedCalories + " calories." : "Reduce calories slightly if current target is known.",
+        nutritionAdjustment: "Remove 100-150 calories from fats or carbs while keeping protein steady.",
+        trainingRecoveryAdjustment: "Keep training steady and monitor performance.",
+        habitAdjustment: "Track the same weigh-in routine and save next week’s check-in.",
+        clientMessage: "Since consistency looks better and the trend needs a nudge, we are making a small adjustment instead of a big change.",
+      };
+    }
+
+    if (snapshot.hasWeightChange && snapshot.weightChange <= -2 && snapshot.highHunger) {
+      return {
+        recommendationType: "Increase Calories Slightly",
+        adjustmentSummary: "Weight is dropping fast with high hunger. Add a small amount back.",
+        calorieAdjustment: currentCalories ? "Increase target from " + currentCalories + " to about " + increasedCalories + " calories." : "Increase calories slightly if current target is known.",
+        nutritionAdjustment: "Add 100-150 calories from carbs around training or another high-protein snack.",
+        trainingRecoveryAdjustment: "Monitor training performance, energy, and hunger.",
+        habitAdjustment: "Keep check-ins consistent and report hunger honestly.",
+        clientMessage: "The trend may be moving too fast with hunger high, so we are adding a small amount back to protect energy and consistency.",
+      };
+    }
+
+    return {
+      recommendationType: "Keep Plan Steady",
+      adjustmentSummary: "No major adjustment needed this week.",
+      calorieAdjustment: "Keep target near " + currentCalories + " calories.",
+      nutritionAdjustment: "Continue hitting protein, logging meals, and comparing weekly trend data.",
+      trainingRecoveryAdjustment: "Keep workouts consistent and monitor performance.",
+      habitAdjustment: "Save the next weekly check-in and progress photos under similar conditions.",
+      clientMessage: "The plan looks stable enough to keep going. Let’s collect another clean week before changing calories or macros.",
+    };
+  }
+
+  const [snapshot, setSnapshot] = useState(buildAdjustmentSnapshot);
+  const [savedAdjustments, setSavedAdjustments] = useState(readSavedAdjustments);
+  const [recommendationType, setRecommendationType] = useState("");
+  const [adjustmentSummary, setAdjustmentSummary] = useState("");
+  const [calorieAdjustment, setCalorieAdjustment] = useState("");
+  const [nutritionAdjustment, setNutritionAdjustment] = useState("");
+  const [trainingRecoveryAdjustment, setTrainingRecoveryAdjustment] = useState("");
+  const [habitAdjustment, setHabitAdjustment] = useState("");
+  const [clientMessage, setClientMessage] = useState("");
+  const [coachAdjustmentNotes, setCoachAdjustmentNotes] = useState("");
+  const [adjustmentStatus, setAdjustmentStatus] = useState("");
+
+  function refreshAdjustmentSnapshot() {
+    setSnapshot(buildAdjustmentSnapshot());
+    setSavedAdjustments(readSavedAdjustments());
+    setAdjustmentStatus("Adjustment snapshot refreshed.");
+  }
+
+  function generateWeeklyAdjustment() {
+    const nextSnapshot = buildAdjustmentSnapshot();
+    const recommendation = createRecommendation(nextSnapshot);
+
+    setSnapshot(nextSnapshot);
+    setRecommendationType(recommendation.recommendationType);
+    setAdjustmentSummary(recommendation.adjustmentSummary);
+    setCalorieAdjustment(recommendation.calorieAdjustment);
+    setNutritionAdjustment(recommendation.nutritionAdjustment);
+    setTrainingRecoveryAdjustment(recommendation.trainingRecoveryAdjustment);
+    setHabitAdjustment(recommendation.habitAdjustment);
+    setClientMessage(recommendation.clientMessage);
+    setCoachAdjustmentNotes(
+      nextSnapshot.flags.length
+        ? "Generated from: " + nextSnapshot.flags.join(", ")
+        : "Generated from stable trend data with no major risk flags."
+    );
+    setAdjustmentStatus("Weekly adjustment recommendation generated.");
+  }
+
+  function saveWeeklyAdjustment() {
+    const nextAdjustment = {
+      id: "coach-weekly-adjustment-" + Date.now(),
+      recommendationType: recommendationType || "Weekly Adjustment",
+      adjustmentSummary,
+      calorieAdjustment,
+      nutritionAdjustment,
+      trainingRecoveryAdjustment,
+      habitAdjustment,
+      clientMessage,
+      coachAdjustmentNotes,
+      flags: snapshot.flags,
+      weightChange: snapshot.weightChange,
+      completionPercent: snapshot.completionPercent,
+      latestWeight: snapshot.latestCheckIn?.checkInWeight || "",
+      latestCalories: snapshot.latestMeal?.calories || "",
+      latestTargetCalories: snapshot.latestTarget?.dailyCalories || "",
+      savedAt: new Date().toLocaleString(),
+    };
+
+    const nextAdjustments = [nextAdjustment, ...savedAdjustments].slice(0, 12);
+
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(COACH_WEEKLY_ADJUSTMENTS_STORAGE_KEY, JSON.stringify(nextAdjustments));
+      } catch {
+        setAdjustmentStatus("Could not save weekly adjustment locally.");
+        return;
+      }
+    }
+
+    setSavedAdjustments(nextAdjustments);
+    setAdjustmentStatus("Weekly adjustment saved for client.");
+  }
+
+  const latestSavedAdjustment = savedAdjustments[0] || null;
+
+  return (
+    <section
+      data-testid="coach-weekly-adjustment-recommendation"
+      aria-label="Coach weekly adjustment recommendation"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-black/60 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Weekly Adjustment
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Coach Recommendation Engine
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Combine check-ins, weight trend, meal logs, action-plan completion, and progress photos into one weekly adjustment recommendation.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={refreshAdjustmentSnapshot}
+            className="rounded-full border border-white/10 px-5 py-3 text-xs font-black uppercase text-white/55 transition hover:border-[#00BF63] hover:text-[#00BF63]"
+          >
+            Refresh Adjustment Snapshot
+          </button>
+
+          <button
+            type="button"
+            onClick={generateWeeklyAdjustment}
+            className="rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+          >
+            Generate Weekly Adjustment
+          </button>
+        </div>
+      </div>
+
+      <div
+        data-testid="coach-adjustment-data-snapshot"
+        className="mt-5 grid gap-3 md:grid-cols-5"
+      >
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm font-black uppercase text-white/65">
+          Weight Change: {snapshot.hasWeightChange ? snapshot.weightChange + " lb" : "Need 2 check-ins"}
+        </p>
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm font-black uppercase text-white/65">
+          Completion: {snapshot.latestCompletion ? snapshot.completionPercent + "%" : "No completion"}
+        </p>
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm font-black uppercase text-white/65">
+          Latest Meal: {snapshot.latestMeal?.calories || "—"} cal
+        </p>
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm font-black uppercase text-white/65">
+          Target: {snapshot.latestTarget?.dailyCalories || "—"} cal
+        </p>
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm font-black uppercase text-white/65">
+          Photos: {snapshot.photoAnglesSaved}/3
+        </p>
+      </div>
+
+      <div
+        data-testid="coach-adjustment-risk-flags"
+        className="mt-5 rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-4"
+      >
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/70">
+          Adjustment Inputs
+        </p>
+
+        {snapshot.flags.length ? (
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {snapshot.flags.map((flag) => (
+              <p
+                key={flag}
+                className="rounded-2xl border border-white/10 bg-black/30 p-3 text-sm font-bold text-white/75"
+              >
+                {flag}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3 text-sm font-bold text-white/55">
+            No major adjustment flags found.
+          </p>
+        )}
+      </div>
+
+      <div
+        data-testid="coach-generated-adjustment"
+        className="mt-5 grid gap-4 md:grid-cols-2"
+      >
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Recommendation Type</span>
+          <input
+            aria-label="Coach Adjustment Recommendation Type"
+            value={recommendationType}
+            onChange={(event) => setRecommendationType(event.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Generate or type recommendation"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Adjustment Summary</span>
+          <input
+            aria-label="Coach Adjustment Summary"
+            value={adjustmentSummary}
+            onChange={(event) => setAdjustmentSummary(event.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Short summary"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Calorie Adjustment</span>
+          <textarea
+            aria-label="Coach Calorie Adjustment"
+            value={calorieAdjustment}
+            onChange={(event) => setCalorieAdjustment(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Calorie change or no change"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Nutrition Adjustment</span>
+          <textarea
+            aria-label="Coach Nutrition Adjustment"
+            value={nutritionAdjustment}
+            onChange={(event) => setNutritionAdjustment(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Nutrition adjustment"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Training / Recovery Adjustment</span>
+          <textarea
+            aria-label="Coach Training Recovery Adjustment"
+            value={trainingRecoveryAdjustment}
+            onChange={(event) => setTrainingRecoveryAdjustment(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Training or recovery adjustment"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Habit Adjustment</span>
+          <textarea
+            aria-label="Coach Habit Adjustment"
+            value={habitAdjustment}
+            onChange={(event) => setHabitAdjustment(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Habit adjustment"
+          />
+        </label>
+
+        <label className="space-y-2 md:col-span-2">
+          <span className="text-xs font-black uppercase text-white/45">Client Adjustment Message</span>
+          <textarea
+            aria-label="Coach Adjustment Client Message"
+            value={clientMessage}
+            onChange={(event) => setClientMessage(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Client-facing adjustment message"
+          />
+        </label>
+
+        <label className="space-y-2 md:col-span-2">
+          <span className="text-xs font-black uppercase text-white/45">Coach Adjustment Notes</span>
+          <textarea
+            aria-label="Coach Adjustment Internal Notes"
+            value={coachAdjustmentNotes}
+            onChange={(event) => setCoachAdjustmentNotes(event.target.value)}
+            className="min-h-24 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Private coach notes about why this adjustment was chosen"
+          />
+        </label>
+      </div>
+
+      <button
+        type="button"
+        onClick={saveWeeklyAdjustment}
+        className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+      >
+        Save Weekly Adjustment
+      </button>
+
+      {adjustmentStatus && (
+        <p
+          data-testid="coach-weekly-adjustment-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {adjustmentStatus}
+        </p>
+      )}
+
+      {latestSavedAdjustment && (
+        <div
+          data-testid="coach-saved-adjustment-card"
+          className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Latest Saved Adjustment
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">{latestSavedAdjustment.recommendationType}</h4>
+          <p className="mt-2 text-sm font-bold text-white/65">
+            {latestSavedAdjustment.adjustmentSummary || "No summary saved."}
+          </p>
+          <p className="mt-3 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+            {latestSavedAdjustment.clientMessage || "No client message saved."}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CoachActionPlanCompletionReviewPanel() {
   const CLIENT_ACTION_PLAN_COMPLETIONS_STORAGE_KEY = "nlf-client-action-plan-completions-v1";
   const COACH_COMPLETION_REVIEW_NOTES_STORAGE_KEY = "nlf-coach-action-plan-completion-review-notes-v1";
 
@@ -9974,6 +10576,8 @@ function CoachScreen({
       <CoachWeeklyActionPlanGenerator />
 
       <CoachActionPlanCompletionReviewPanel />
+
+      <CoachWeeklyAdjustmentRecommendationPanel />
 
       <CoachNutritionReviewPanel />
 

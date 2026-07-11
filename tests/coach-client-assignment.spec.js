@@ -991,3 +991,173 @@ test("client can complete coach action plan and coach can review completion", as
 
   await expect(page.getByTestId("coach-action-plan-completion-review-status").first()).toContainText("Coach completion review notes saved");
 });
+﻿
+test("coach can generate weekly adjustment and client can view it", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!window.location.search.includes("portalMode=client")) {
+      window.localStorage.removeItem("nlf-coach-weekly-adjustment-recommendations-v1");
+    }
+
+    window.localStorage.setItem(
+      "nlf-nutrition-history-v1",
+      JSON.stringify({
+        targets: [
+          {
+            id: "target-adjustment-test",
+            goal: "fat-loss",
+            goalLabel: "Weight Loss",
+            dailyCalories: 2100,
+            maintenanceCalories: 2600,
+            protein: 200,
+            carbs: 190,
+            fat: 65,
+            savedAt: "Test"
+          }
+        ],
+        meals: [
+          {
+            id: "meal-adjustment-test",
+            title: "Meal Builder Estimate",
+            calories: 850,
+            protein: 40,
+            carbs: 95,
+            fat: 25,
+            confidence: "High",
+            matches: [
+              { id: "item-1", name: "Chicken bowl", category: "Meal", calories: 650 }
+            ]
+          }
+        ]
+      })
+    );
+
+    window.localStorage.setItem(
+      "nlf-client-weekly-checkins-v1",
+      JSON.stringify([
+        {
+          id: "client-adjustment-checkin-current",
+          checkInDate: "2026-07-11",
+          checkInWeight: "198.4",
+          waistMeasurement: "34.5",
+          adherenceScore: "80",
+          workoutsCompleted: "4",
+          proteinConsistency: "4",
+          hungerScore: "3",
+          energyScore: "2",
+          sleepScore: "2",
+          stressScore: "4",
+          digestionScore: "3",
+          recoveryScore: "2",
+          clientCheckInNotes: "Energy was low this week.",
+          savedAt: "Test current"
+        },
+        {
+          id: "client-adjustment-checkin-previous",
+          checkInDate: "2026-07-04",
+          checkInWeight: "200.0",
+          waistMeasurement: "35",
+          adherenceScore: "80",
+          workoutsCompleted: "3",
+          proteinConsistency: "3",
+          hungerScore: "3",
+          energyScore: "3",
+          sleepScore: "3",
+          stressScore: "3",
+          digestionScore: "3",
+          recoveryScore: "3",
+          clientCheckInNotes: "Previous week.",
+          savedAt: "Test previous"
+        }
+      ])
+    );
+
+    window.localStorage.setItem(
+      "nlf-client-progress-photos-v1",
+      JSON.stringify([
+        {
+          id: "photo-adjustment-test",
+          photoDate: "2026-07-11",
+          photoCheckInNotes: "Same lighting.",
+          frontPhoto: { name: "front.png", dataUrl: "data:image/png;base64,test" },
+          sidePhoto: { name: "side.png", dataUrl: "data:image/png;base64,test" },
+          backPhoto: { name: "back.png", dataUrl: "data:image/png;base64,test" },
+          savedAt: "Test"
+        }
+      ])
+    );
+
+    window.localStorage.setItem(
+      "nlf-coach-client-weekly-action-plans-v1",
+      JSON.stringify([
+        {
+          id: "coach-action-plan-adjustment-test",
+          planTitle: "Recovery First Weekly Plan",
+          priorityFocus: "Recovery, sleep, and consistency",
+          nutritionAction: "Hit protein first and keep calories steady.",
+          trainingAction: "Keep training controlled.",
+          habitAction: "Sleep target.",
+          clientMessage: "Focus on sleep and recovery.",
+          savedAt: "Test"
+        }
+      ])
+    );
+
+    window.localStorage.setItem(
+      "nlf-client-action-plan-completions-v1",
+      JSON.stringify([
+        {
+          id: "client-completion-adjustment-test",
+          actionPlanId: "coach-action-plan-adjustment-test",
+          planTitle: "Recovery First Weekly Plan",
+          priorityFocus: "Recovery, sleep, and consistency",
+          nutritionComplete: true,
+          trainingComplete: true,
+          habitComplete: true,
+          messageReviewed: true,
+          completedItems: 4,
+          totalItems: 4,
+          completionPercent: 100,
+          clientCompletionNotes: "Completed all actions.",
+          savedAt: "Test"
+        }
+      ])
+    );
+  });
+
+  await page.goto("/?testUnlock=true&portalMode=coach");
+
+  await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  const adjustmentPanel = page.getByTestId("coach-weekly-adjustment-recommendation").first();
+
+  await expect(adjustmentPanel).toBeVisible();
+  await expect(adjustmentPanel).toContainText("Coach Recommendation Engine");
+  await expect(page.getByTestId("coach-adjustment-data-snapshot").first()).toContainText("Completion: 100%");
+  await expect(page.getByTestId("coach-adjustment-risk-flags").first()).toContainText("Sleep is poor");
+
+  await adjustmentPanel.getByRole("button", { name: "Generate Weekly Adjustment" }).click();
+
+  await expect(page.getByTestId("coach-weekly-adjustment-status").first()).toContainText("Weekly adjustment recommendation generated");
+  await expect(adjustmentPanel.getByLabel("Coach Adjustment Recommendation Type")).toHaveValue("Prioritize Recovery");
+  await expect(adjustmentPanel.getByLabel("Coach Adjustment Summary")).toHaveValue("Keep calories steady and fix recovery first.");
+
+  await adjustmentPanel
+    .getByRole("textbox", { name: "Coach Adjustment Client Message", exact: true })
+    .fill("Keep calories steady this week and focus on sleep, recovery, protein, and water.");
+
+  await adjustmentPanel.getByRole("button", { name: "Save Weekly Adjustment" }).click();
+
+  await expect(page.getByTestId("coach-weekly-adjustment-status").first()).toContainText("Weekly adjustment saved");
+  await expect(page.getByTestId("coach-saved-adjustment-card").first()).toContainText("Prioritize Recovery");
+  await expect(page.getByTestId("coach-saved-adjustment-card").first()).toContainText("Keep calories steady");
+
+  await page.goto("/?testUnlock=true&portalMode=client");
+
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+
+  const clientAdjustmentPanel = page.getByTestId("client-latest-coach-adjustment").first();
+
+  await expect(clientAdjustmentPanel).toBeVisible();
+  await expect(page.getByTestId("client-coach-adjustment-card").first()).toContainText("Prioritize Recovery");
+  await expect(page.getByTestId("client-coach-adjustment-card").first()).toContainText("Keep calories steady this week");
+});
