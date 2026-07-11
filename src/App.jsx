@@ -1748,7 +1748,317 @@ function ClientApprovedWorkoutPlanPanel() {
   );
 }
 
-﻿function ClientWeeklyNutritionCheckInForm() {
+﻿﻿function ClientProgressPhotoUploadPanel() {
+  const PROGRESS_PHOTOS_STORAGE_KEY = "nlf-client-progress-photos-v1";
+
+  function readSavedProgressPhotos() {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const raw = window.localStorage.getItem(PROGRESS_PHOTOS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function getTodayDate() {
+    try {
+      return new Date().toISOString().slice(0, 10);
+    } catch {
+      return "";
+    }
+  }
+
+  const [savedPhotoCheckIns, setSavedPhotoCheckIns] = useState(readSavedProgressPhotos);
+  const [photoDate, setPhotoDate] = useState(getTodayDate);
+  const [frontPhoto, setFrontPhoto] = useState(null);
+  const [sidePhoto, setSidePhoto] = useState(null);
+  const [backPhoto, setBackPhoto] = useState(null);
+  const [frontPhotoNote, setFrontPhotoNote] = useState("");
+  const [sidePhotoNote, setSidePhotoNote] = useState("");
+  const [backPhotoNote, setBackPhotoNote] = useState("");
+  const [photoCheckInNotes, setPhotoCheckInNotes] = useState("");
+  const [photoStatus, setPhotoStatus] = useState("");
+
+  function saveProgressPhotos(nextPhotos) {
+    if (typeof window === "undefined") return true;
+
+    try {
+      window.localStorage.setItem(PROGRESS_PHOTOS_STORAGE_KEY, JSON.stringify(nextPhotos));
+      return true;
+    } catch {
+      setPhotoStatus("Photos were too large to save locally. Use smaller images or fewer photos.");
+      return false;
+    }
+  }
+
+  function readPhotoFile(file, angleLabel, setter) {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setPhotoStatus(angleLabel + " must be an image file.");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      setter({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        dataUrl: String(reader.result || ""),
+        addedAt: new Date().toLocaleString(),
+      });
+
+      setPhotoStatus(angleLabel + " photo ready to save.");
+    };
+
+    reader.onerror = () => {
+      setPhotoStatus("Could not read " + angleLabel.toLowerCase() + " photo.");
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  function saveProgressPhotoCheckIn() {
+    if (!frontPhoto && !sidePhoto && !backPhoto) {
+      setPhotoStatus("Add at least one progress photo before saving.");
+      return;
+    }
+
+    const nextCheckIn = {
+      id: makeId("progress-photo-checkin"),
+      photoDate,
+      frontPhoto,
+      sidePhoto,
+      backPhoto,
+      frontPhotoNote,
+      sidePhotoNote,
+      backPhotoNote,
+      photoCheckInNotes,
+      savedAt: new Date().toLocaleString(),
+    };
+
+    const nextSaved = [nextCheckIn, ...savedPhotoCheckIns].slice(0, 8);
+    const saved = saveProgressPhotos(nextSaved);
+
+    if (!saved) return;
+
+    setSavedPhotoCheckIns(nextSaved);
+    setPhotoStatus("Progress photos saved for coach review.");
+  }
+
+  function clearPendingPhotos() {
+    setFrontPhoto(null);
+    setSidePhoto(null);
+    setBackPhoto(null);
+    setFrontPhotoNote("");
+    setSidePhotoNote("");
+    setBackPhotoNote("");
+    setPhotoCheckInNotes("");
+    setPhotoStatus("Pending progress photos cleared.");
+  }
+
+  const latestPhotoCheckIn = savedPhotoCheckIns[0] || null;
+
+  return (
+    <section
+      data-testid="client-progress-photo-upload-panel"
+      aria-label="Client progress photo upload"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-black/50 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Progress Photos
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Upload Front, Side, And Back Photos
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Save visual progress with notes so the coach can compare changes alongside weight, waist, adherence, and nutrition logs.
+          </p>
+        </div>
+
+        <span className="w-fit rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs font-black uppercase text-white/55">
+          {savedPhotoCheckIns.length} saved
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/50">Photo Date</span>
+          <input
+            aria-label="Progress Photo Date"
+            value={photoDate}
+            onChange={(event) => setPhotoDate(event.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="2026-07-11"
+          />
+        </label>
+
+        <label className="space-y-2 md:col-span-3">
+          <span className="text-xs font-black uppercase text-white/50">Overall Photo Notes</span>
+          <input
+            aria-label="Progress Photo Check-In Notes"
+            value={photoCheckInNotes}
+            onChange={(event) => setPhotoCheckInNotes(event.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Same lighting, same time of day, relaxed pose, noticeable waist change, etc."
+          />
+        </label>
+      </div>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00BF63]">Front</p>
+          <label className="mt-3 block space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Upload Front Photo</span>
+            <input
+              aria-label="Front Progress Photo Upload"
+              type="file"
+              accept="image/*"
+              onChange={(event) => readPhotoFile(event.target.files?.[0], "Front", setFrontPhoto)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white file:mr-3 file:rounded-full file:border-0 file:bg-[#00BF63] file:px-3 file:py-2 file:text-xs file:font-black file:uppercase file:text-black"
+            />
+          </label>
+          {frontPhoto && (
+            <img
+              data-testid="front-progress-photo-preview"
+              src={frontPhoto.dataUrl}
+              alt="Front progress preview"
+              className="mt-3 h-56 w-full rounded-2xl border border-white/10 object-cover"
+            />
+          )}
+          <label className="mt-3 block space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Front Note</span>
+            <input
+              aria-label="Front Progress Photo Upload Note"
+              value={frontPhotoNote}
+              onChange={(event) => setFrontPhotoNote(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="Front photo note"
+            />
+          </label>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00BF63]">Side</p>
+          <label className="mt-3 block space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Upload Side Photo</span>
+            <input
+              aria-label="Side Progress Photo Upload"
+              type="file"
+              accept="image/*"
+              onChange={(event) => readPhotoFile(event.target.files?.[0], "Side", setSidePhoto)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white file:mr-3 file:rounded-full file:border-0 file:bg-[#00BF63] file:px-3 file:py-2 file:text-xs file:font-black file:uppercase file:text-black"
+            />
+          </label>
+          {sidePhoto && (
+            <img
+              data-testid="side-progress-photo-preview"
+              src={sidePhoto.dataUrl}
+              alt="Side progress preview"
+              className="mt-3 h-56 w-full rounded-2xl border border-white/10 object-cover"
+            />
+          )}
+          <label className="mt-3 block space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Side Note</span>
+            <input
+              aria-label="Side Progress Photo Upload Note"
+              value={sidePhotoNote}
+              onChange={(event) => setSidePhotoNote(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="Side photo note"
+            />
+          </label>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00BF63]">Back</p>
+          <label className="mt-3 block space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Upload Back Photo</span>
+            <input
+              aria-label="Back Progress Photo Upload"
+              type="file"
+              accept="image/*"
+              onChange={(event) => readPhotoFile(event.target.files?.[0], "Back", setBackPhoto)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white file:mr-3 file:rounded-full file:border-0 file:bg-[#00BF63] file:px-3 file:py-2 file:text-xs file:font-black file:uppercase file:text-black"
+            />
+          </label>
+          {backPhoto && (
+            <img
+              data-testid="back-progress-photo-preview"
+              src={backPhoto.dataUrl}
+              alt="Back progress preview"
+              className="mt-3 h-56 w-full rounded-2xl border border-white/10 object-cover"
+            />
+          )}
+          <label className="mt-3 block space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Back Note</span>
+            <input
+              aria-label="Back Progress Photo Upload Note"
+              value={backPhotoNote}
+              onChange={(event) => setBackPhotoNote(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="Back photo note"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={saveProgressPhotoCheckIn}
+          className="rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+        >
+          Save Progress Photos
+        </button>
+
+        <button
+          type="button"
+          onClick={clearPendingPhotos}
+          className="rounded-full border border-white/10 px-5 py-3 text-xs font-black uppercase text-white/55 transition hover:border-red-400 hover:text-red-300"
+        >
+          Clear Pending Photos
+        </button>
+      </div>
+
+      {photoStatus && (
+        <p
+          data-testid="client-progress-photo-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {photoStatus}
+        </p>
+      )}
+
+      {latestPhotoCheckIn && (
+        <div
+          data-testid="client-latest-progress-photo-checkin"
+          className="mt-5 rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+            Latest Saved Photo Check-In
+          </p>
+          <p className="mt-2 text-lg font-black text-white">
+            {latestPhotoCheckIn.photoDate || "Latest"} | saved {latestPhotoCheckIn.savedAt}
+          </p>
+          <p className="mt-2 text-sm font-bold text-white/55">
+            Front: {latestPhotoCheckIn.frontPhoto ? "saved" : "none"} | Side: {latestPhotoCheckIn.sidePhoto ? "saved" : "none"} | Back: {latestPhotoCheckIn.backPhoto ? "saved" : "none"}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ClientWeeklyNutritionCheckInForm() {
   const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
 
   function readClientCheckIns() {
@@ -2714,6 +3024,8 @@ function NutritionCoachScreen() {
 
       <ClientWeeklyNutritionCheckInForm />
 
+      <ClientProgressPhotoUploadPanel />
+
       {!nutritionMode && (
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <button
@@ -3513,7 +3825,223 @@ function NutritionCoachScreen() {
   );
 }
 
-﻿function CoachClientWeeklyCheckInPanel() {
+﻿﻿function CoachProgressPhotoReviewPanel() {
+  const PROGRESS_PHOTOS_STORAGE_KEY = "nlf-client-progress-photos-v1";
+  const COACH_PROGRESS_PHOTO_NOTES_STORAGE_KEY = "nlf-coach-progress-photo-review-notes-v1";
+
+  function readSavedProgressPhotos() {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const raw = window.localStorage.getItem(PROGRESS_PHOTOS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function readCoachPhotoNotes() {
+    if (typeof window === "undefined") return "";
+
+    try {
+      return window.localStorage.getItem(COACH_PROGRESS_PHOTO_NOTES_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  const [progressPhotoCheckIns, setProgressPhotoCheckIns] = useState(readSavedProgressPhotos);
+  const [coachPhotoNotes, setCoachPhotoNotes] = useState(readCoachPhotoNotes);
+  const [photoReviewStatus, setPhotoReviewStatus] = useState("");
+
+  const latestPhotoCheckIn = progressPhotoCheckIns[0] || null;
+
+  function refreshProgressPhotos() {
+    setProgressPhotoCheckIns(readSavedProgressPhotos());
+    setPhotoReviewStatus("Progress photo review refreshed.");
+  }
+
+  function saveCoachPhotoReviewNotes() {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(COACH_PROGRESS_PHOTO_NOTES_STORAGE_KEY, coachPhotoNotes);
+      } catch {
+        // Ignore local storage failures in restricted browser modes.
+      }
+    }
+
+    setPhotoReviewStatus("Coach progress photo notes saved.");
+  }
+
+  return (
+    <section
+      data-testid="coach-progress-photo-review-panel"
+      aria-label="Coach progress photo review"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-black/60 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Progress Photo Review
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Front, Side, And Back Comparison
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/60">
+            Review the latest saved progress photos alongside check-in notes, weight trend, and nutrition adherence.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={refreshProgressPhotos}
+          className="w-fit rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+        >
+          Refresh Progress Photos
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Saved Photo Check-Ins</p>
+          <p className="mt-1 text-3xl font-black text-white">{progressPhotoCheckIns.length}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Latest Date</p>
+          <p className="mt-1 text-3xl font-black text-white">{latestPhotoCheckIn?.photoDate || "—"}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Angles Saved</p>
+          <p className="mt-1 text-3xl font-black text-white">
+            {latestPhotoCheckIn
+              ? [latestPhotoCheckIn.frontPhoto, latestPhotoCheckIn.sidePhoto, latestPhotoCheckIn.backPhoto].filter(Boolean).length
+              : 0}
+            /3
+          </p>
+        </div>
+      </div>
+
+      {latestPhotoCheckIn ? (
+        <div
+          data-testid="coach-latest-progress-photo-checkin"
+          className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Latest Photo Check-In
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">
+            {latestPhotoCheckIn.photoDate || "Latest Photo Check-In"}
+          </h4>
+
+          {latestPhotoCheckIn.photoCheckInNotes && (
+            <p className="mt-3 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+              Client Photo Notes: {latestPhotoCheckIn.photoCheckInNotes}
+            </p>
+          )}
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl border border-white/10 bg-black/40 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/45">Front</p>
+              {latestPhotoCheckIn.frontPhoto ? (
+                <img
+                  data-testid="coach-front-progress-photo"
+                  src={latestPhotoCheckIn.frontPhoto.dataUrl}
+                  alt="Coach front progress review"
+                  className="mt-3 h-72 w-full rounded-2xl border border-white/10 object-cover"
+                />
+              ) : (
+                <p className="mt-3 rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/40">
+                  No front photo saved.
+                </p>
+              )}
+              <p className="mt-3 text-sm font-bold text-white/55">
+                {latestPhotoCheckIn.frontPhotoNote || "No front note."}
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/40 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/45">Side</p>
+              {latestPhotoCheckIn.sidePhoto ? (
+                <img
+                  data-testid="coach-side-progress-photo"
+                  src={latestPhotoCheckIn.sidePhoto.dataUrl}
+                  alt="Coach side progress review"
+                  className="mt-3 h-72 w-full rounded-2xl border border-white/10 object-cover"
+                />
+              ) : (
+                <p className="mt-3 rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/40">
+                  No side photo saved.
+                </p>
+              )}
+              <p className="mt-3 text-sm font-bold text-white/55">
+                {latestPhotoCheckIn.sidePhotoNote || "No side note."}
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/40 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/45">Back</p>
+              {latestPhotoCheckIn.backPhoto ? (
+                <img
+                  data-testid="coach-back-progress-photo"
+                  src={latestPhotoCheckIn.backPhoto.dataUrl}
+                  alt="Coach back progress review"
+                  className="mt-3 h-72 w-full rounded-2xl border border-white/10 object-cover"
+                />
+              ) : (
+                <p className="mt-3 rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/40">
+                  No back photo saved.
+                </p>
+              )}
+              <p className="mt-3 text-sm font-bold text-white/55">
+                {latestPhotoCheckIn.backPhotoNote || "No back note."}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm font-bold text-white/45">
+          No progress photos saved yet. Ask the client to upload front, side, and back photos from Nutrition Coach.
+        </p>
+      )}
+
+      <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+        <label className="block space-y-2">
+          <span className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+            Coach Progress Photo Notes
+          </span>
+          <textarea
+            aria-label="Coach Progress Photo Notes"
+            value={coachPhotoNotes}
+            onChange={(event) => setCoachPhotoNotes(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Example: Waist appears tighter from side view. Keep calories steady and compare same lighting next week."
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={saveCoachPhotoReviewNotes}
+          className="mt-4 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+        >
+          Save Coach Photo Notes
+        </button>
+      </div>
+
+      {photoReviewStatus && (
+        <p
+          data-testid="coach-progress-photo-review-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {photoReviewStatus}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function CoachClientWeeklyCheckInPanel() {
   const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
   const COACH_CLIENT_CHECKIN_NOTES_STORAGE_KEY = "nlf-coach-client-checkin-notes-v1";
 
@@ -3920,6 +4448,8 @@ function CoachNutritionReviewPanel() {
       <WeeklyNutritionCheckInReport nutritionHistory={nutritionHistory} />
 
       <CoachClientWeeklyCheckInPanel />
+
+      <CoachProgressPhotoReviewPanel />
 
       {latestTarget ? (
         <div

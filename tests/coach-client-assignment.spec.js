@@ -556,3 +556,125 @@ test("client weekly check-in appears in coach nutrition review", async ({ page }
 
   await expect(page.getByTestId("coach-client-checkin-status").first()).toContainText("Coach check-in notes saved");
 });
+﻿
+test("client can upload progress photos and coach can review them", async ({ page }) => {
+  const tinyPng = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+    "base64"
+  );
+
+  await page.addInitScript(() => {
+    if (!window.location.search.includes("portalMode=coach")) {
+      window.localStorage.removeItem("nlf-client-progress-photos-v1");
+      window.localStorage.removeItem("nlf-coach-progress-photo-review-notes-v1");
+    }
+  });
+
+  await page.goto("/?testUnlock=true&portalMode=client");
+
+  await page
+    .getByRole("navigation", { name: /Main navigation/i })
+    .first()
+    .getByRole("button", { name: "Nutrition Coach", exact: true })
+    .click();
+
+  const photoPanel = page.getByTestId("client-progress-photo-upload-panel").first();
+
+  await expect(photoPanel).toBeVisible();
+
+  await photoPanel.getByLabel("Progress Photo Date").fill("2026-07-11");
+  await photoPanel.getByLabel("Progress Photo Check-In Notes").fill("Same lighting and morning check-in.");
+
+  await photoPanel.locator('input[type="file"][aria-label="Front Progress Photo Upload"]').setInputFiles({
+    name: "front-progress.png",
+    mimeType: "image/png",
+    buffer: tinyPng,
+  });
+  await expect(photoPanel.getByTestId("front-progress-photo-preview")).toBeVisible();
+
+  await photoPanel.locator('input[type="file"][aria-label="Side Progress Photo Upload"]').setInputFiles({
+    name: "side-progress.png",
+    mimeType: "image/png",
+    buffer: tinyPng,
+  });
+  await expect(photoPanel.getByTestId("side-progress-photo-preview")).toBeVisible();
+
+  await photoPanel.locator('input[type="file"][aria-label="Back Progress Photo Upload"]').setInputFiles({
+    name: "back-progress.png",
+    mimeType: "image/png",
+    buffer: tinyPng,
+  });
+  await expect(photoPanel.getByTestId("back-progress-photo-preview")).toBeVisible();
+
+  await photoPanel.getByRole("textbox", { name: "Front Progress Photo Upload Note", exact: true }).fill("Front view looks tighter.");
+  await photoPanel.getByRole("textbox", { name: "Side Progress Photo Upload Note", exact: true }).fill("Side waist looks improved.");
+  await photoPanel.getByRole("textbox", { name: "Back Progress Photo Upload Note", exact: true }).fill("Back photo uploaded.");
+
+  await photoPanel.getByRole("button", { name: "Save Progress Photos" }).click();
+
+  await expect(page.getByTestId("client-progress-photo-status").first()).toContainText("Progress photos saved");
+  await expect(page.getByTestId("client-latest-progress-photo-checkin").first()).toContainText("2026-07-11");
+
+  await page.evaluate(() => {
+    const tinyDataUrl =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+
+    window.localStorage.setItem(
+      "nlf-client-progress-photos-v1",
+      JSON.stringify([
+        {
+          id: "progress-photo-checkin-test",
+          photoDate: "2026-07-11",
+          photoCheckInNotes: "Same lighting and morning check-in.",
+          frontPhotoNote: "Front view looks tighter.",
+          sidePhotoNote: "Side waist looks improved.",
+          backPhotoNote: "Back photo uploaded.",
+          frontPhoto: {
+            name: "front-progress.png",
+            type: "image/png",
+            size: 68,
+            dataUrl: tinyDataUrl,
+            addedAt: "Test"
+          },
+          sidePhoto: {
+            name: "side-progress.png",
+            type: "image/png",
+            size: 68,
+            dataUrl: tinyDataUrl,
+            addedAt: "Test"
+          },
+          backPhoto: {
+            name: "back-progress.png",
+            type: "image/png",
+            size: 68,
+            dataUrl: tinyDataUrl,
+            addedAt: "Test"
+          },
+          savedAt: "Test photo check-in"
+        }
+      ])
+    );
+  });
+
+  await page.goto("/?testUnlock=true&portalMode=coach");
+
+  await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  const coachPhotoPanel = page.getByTestId("coach-progress-photo-review-panel").first();
+
+  await expect(coachPhotoPanel).toBeVisible();
+  await expect(coachPhotoPanel).toContainText("Progress Photo Review");
+  await expect(coachPhotoPanel).toContainText("2026-07-11");
+  await expect(coachPhotoPanel.getByTestId("coach-front-progress-photo").first()).toBeVisible();
+  await expect(coachPhotoPanel.getByTestId("coach-side-progress-photo").first()).toBeVisible();
+  await expect(coachPhotoPanel.getByTestId("coach-back-progress-photo").first()).toBeVisible();
+  await expect(coachPhotoPanel).toContainText("Side waist looks improved");
+
+  await coachPhotoPanel
+    .getByRole("textbox", { name: "Coach Progress Photo Notes", exact: true })
+    .fill("Progress photos reviewed. Keep nutrition steady and compare same lighting next week.");
+
+  await coachPhotoPanel.getByRole("button", { name: "Save Coach Photo Notes" }).click();
+
+  await expect(page.getByTestId("coach-progress-photo-review-status").first()).toContainText("Coach progress photo notes saved");
+});
