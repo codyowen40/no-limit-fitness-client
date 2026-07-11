@@ -2873,6 +2873,309 @@ function NutritionCoachScreen() {
 }
 
 
+﻿function WeeklyNutritionCheckInReport({ nutritionHistory }) {
+  const WEEKLY_CHECK_IN_STORAGE_KEY = "nlf-weekly-nutrition-checkin-v1";
+
+  function readSavedCheckIn() {
+    if (typeof window === "undefined") {
+      return {
+        startingWeight: "",
+        endingWeight: "",
+        checkInNotes: "",
+      };
+    }
+
+    try {
+      const raw = window.localStorage.getItem(WEEKLY_CHECK_IN_STORAGE_KEY);
+      if (!raw) {
+        return {
+          startingWeight: "",
+          endingWeight: "",
+          checkInNotes: "",
+        };
+      }
+
+      const parsed = JSON.parse(raw);
+
+      return {
+        startingWeight: parsed.startingWeight || "",
+        endingWeight: parsed.endingWeight || "",
+        checkInNotes: parsed.checkInNotes || "",
+      };
+    } catch {
+      return {
+        startingWeight: "",
+        endingWeight: "",
+        checkInNotes: "",
+      };
+    }
+  }
+
+  const savedCheckIn = readSavedCheckIn();
+  const [startingWeight, setStartingWeight] = useState(savedCheckIn.startingWeight);
+  const [endingWeight, setEndingWeight] = useState(savedCheckIn.endingWeight);
+  const [checkInNotes, setCheckInNotes] = useState(savedCheckIn.checkInNotes);
+  const [checkInStatus, setCheckInStatus] = useState("");
+
+  const savedTargets = Array.isArray(nutritionHistory?.targets) ? nutritionHistory.targets : [];
+  const savedMeals = Array.isArray(nutritionHistory?.meals) ? nutritionHistory.meals : [];
+  const latestTarget = savedTargets[0] || null;
+
+  const numericMeals = savedMeals.filter((meal) => Number.isFinite(Number(meal.calories)));
+
+  const mealTotals = numericMeals.reduce(
+    (sum, meal) => ({
+      calories: sum.calories + (Number(meal.calories) || 0),
+      protein: sum.protein + (Number(meal.protein) || 0),
+      carbs: sum.carbs + (Number(meal.carbs) || 0),
+      fat: sum.fat + (Number(meal.fat) || 0),
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+
+  const mealCount = numericMeals.length || 0;
+  const averageMealCalories = mealCount ? Math.round(mealTotals.calories / mealCount) : 0;
+  const averageProtein = mealCount ? Math.round(mealTotals.protein / mealCount) : 0;
+  const averageCarbs = mealCount ? Math.round(mealTotals.carbs / mealCount) : 0;
+  const averageFat = mealCount ? Math.round(mealTotals.fat / mealCount) : 0;
+
+  const proteinReadyMeals = numericMeals.filter((meal) => Number(meal.protein) >= 25);
+  const proteinConsistency = mealCount ? Math.round((proteinReadyMeals.length / mealCount) * 100) : 0;
+
+  const alcoholMeals = savedMeals.filter((meal) =>
+    Array.isArray(meal.matches) &&
+    meal.matches.some((item) =>
+      String(item.category || "").toLowerCase() === "alcohol" ||
+      /beer|vodka|whiskey|tequila|malt liquor|seltzer|wine|cocktail|margarita/i.test(String(item.name || ""))
+    )
+  );
+
+  const liquidCalorieMeals = savedMeals.filter((meal) =>
+    Array.isArray(meal.matches) &&
+    meal.matches.some((item) =>
+      /sweet tea|kool-aid|koolaid|soda|juice|lemonade|energy drink|frappuccino|chocolate milk/i.test(String(item.name || ""))
+    )
+  );
+
+  const convenienceMeals = savedMeals.filter((meal) =>
+    Array.isArray(meal.matches) &&
+    meal.matches.some((item) =>
+      /Convenience|Snack|Fast Food/i.test(String(item.category || ""))
+    )
+  );
+
+  const highCalorieMeals = savedMeals.filter((meal) => Number(meal.calories) >= 800);
+
+  const startWeightNumber = Number(startingWeight);
+  const endWeightNumber = Number(endingWeight);
+  const hasWeightTrend = Number.isFinite(startWeightNumber) && startWeightNumber > 0 && Number.isFinite(endWeightNumber) && endWeightNumber > 0;
+  const weightChange = hasWeightTrend ? Number((endWeightNumber - startWeightNumber).toFixed(1)) : 0;
+  const weightTrendLabel = !hasWeightTrend
+    ? "Add weights"
+    : weightChange < 0
+      ? Math.abs(weightChange).toFixed(1) + " lb down"
+      : weightChange > 0
+        ? weightChange.toFixed(1) + " lb up"
+        : "No change";
+
+  const primaryRecommendation =
+    mealCount < 3
+      ? "Get at least 3 saved meal logs before making a major calorie change."
+      : alcoholMeals.length > 0
+        ? "Address alcohol first before cutting food calories. Alcohol can affect recovery, sleep, hydration, and consistency."
+        : liquidCalorieMeals.length > 0
+          ? "Start with liquid calories. Sweet tea, Kool-Aid, soda, juice, and coffee drinks can be reduced without changing meals much."
+          : proteinConsistency < 60
+            ? "Improve protein consistency before changing calories. Aim for a clear protein source in most meals."
+            : highCalorieMeals.length > 0
+              ? "Audit high-calorie meals for serving size, sauces, oils, snacks, and drink calories."
+              : "Nutrition logs look usable. Make small adjustments based on weight trend, hunger, energy, and training performance.";
+
+  const weightRecommendation =
+    !hasWeightTrend
+      ? "Enter starting and ending weight to compare nutrition logs against scale trend."
+      : latestTarget?.goal === "fat-loss" && weightChange > 0
+        ? "Weight is trending up during a weight-loss goal. Review adherence, drinks, alcohol, snacks, and portions before lowering calories."
+        : latestTarget?.goal === "fat-loss" && weightChange < -2
+          ? "Weight is dropping quickly. Check energy, hunger, sleep, and workout performance before keeping the deficit this aggressive."
+          : latestTarget?.goal === "muscle-gain" && weightChange <= 0
+            ? "Muscle-gain goal is not showing a weight increase. Consider a small calorie increase if training performance and adherence are strong."
+            : "Weight trend is reasonable. Keep the plan steady unless energy, hunger, or performance says otherwise.";
+
+  function saveWeeklyCheckIn() {
+    const payload = {
+      startingWeight,
+      endingWeight,
+      checkInNotes,
+      savedAt: new Date().toLocaleString(),
+    };
+
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(WEEKLY_CHECK_IN_STORAGE_KEY, JSON.stringify(payload));
+      } catch {
+        // Ignore local storage failures in restricted browser modes.
+      }
+    }
+
+    setCheckInStatus("Weekly nutrition check-in saved.");
+  }
+
+  return (
+    <section
+      data-testid="weekly-nutrition-checkin-panel"
+      aria-label="Weekly nutrition check-in report"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Weekly Check-In
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Nutrition Report
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Summarize saved meals, protein consistency, drink/alcohol flags, convenience-food patterns, and weight trend before making adjustments.
+          </p>
+        </div>
+
+        <span className="w-fit rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs font-black uppercase text-white/55">
+          {mealCount} meal log(s)
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/50">Starting Weight</span>
+          <input
+            aria-label="Weekly Starting Weight"
+            value={startingWeight}
+            onChange={(event) => setStartingWeight(event.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="200"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/50">Ending Weight</span>
+          <input
+            aria-label="Weekly Ending Weight"
+            value={endingWeight}
+            onChange={(event) => setEndingWeight(event.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="198.5"
+          />
+        </label>
+
+        <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+          <p className="text-xs font-black uppercase text-[#00BF63]">Weight Trend</p>
+          <p className="mt-1 text-2xl font-black text-white">{weightTrendLabel}</p>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+          <p className="text-xs font-black uppercase text-[#00BF63]">Latest Goal</p>
+          <p className="mt-1 text-2xl font-black text-white">{latestTarget?.goalLabel || "—"}</p>
+        </div>
+      </div>
+
+      <div
+        data-testid="weekly-nutrition-summary"
+        className="mt-5 grid gap-3 md:grid-cols-4"
+      >
+        <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+          <p className="text-xs font-black uppercase text-white/45">Avg Meal Calories</p>
+          <p className="mt-1 text-3xl font-black text-white">{averageMealCalories}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+          <p className="text-xs font-black uppercase text-white/45">Avg Protein</p>
+          <p className="mt-1 text-3xl font-black text-white">{averageProtein}g</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+          <p className="text-xs font-black uppercase text-white/45">Avg Carbs</p>
+          <p className="mt-1 text-3xl font-black text-white">{averageCarbs}g</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+          <p className="text-xs font-black uppercase text-white/45">Avg Fat</p>
+          <p className="mt-1 text-3xl font-black text-white">{averageFat}g</p>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-4">
+        <div className="rounded-2xl border border-[#00BF63]/20 bg-black/40 p-4">
+          <p className="text-xs font-black uppercase text-[#00BF63]">Protein Consistency</p>
+          <p className="mt-1 text-3xl font-black text-white">{proteinConsistency}%</p>
+        </div>
+        <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4">
+          <p className="text-xs font-black uppercase text-red-100/70">Alcohol Logs</p>
+          <p className="mt-1 text-3xl font-black text-white">{alcoholMeals.length}</p>
+        </div>
+        <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4">
+          <p className="text-xs font-black uppercase text-yellow-100/70">Liquid Calories</p>
+          <p className="mt-1 text-3xl font-black text-white">{liquidCalorieMeals.length}</p>
+        </div>
+        <div className="rounded-2xl border border-orange-400/20 bg-orange-400/10 p-4">
+          <p className="text-xs font-black uppercase text-orange-100/70">Convenience Logs</p>
+          <p className="mt-1 text-3xl font-black text-white">{convenienceMeals.length}</p>
+        </div>
+      </div>
+
+      <div
+        data-testid="weekly-nutrition-recommendations"
+        className="mt-5 grid gap-3 md:grid-cols-2"
+      >
+        <div className="rounded-3xl border border-[#00BF63]/20 bg-black/40 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Main Adjustment
+          </p>
+          <p className="mt-3 text-sm font-bold leading-6 text-white/70">
+            {primaryRecommendation}
+          </p>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-black/40 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+            Weight Trend Decision
+          </p>
+          <p className="mt-3 text-sm font-bold leading-6 text-white/70">
+            {weightRecommendation}
+          </p>
+        </div>
+      </div>
+
+      <label className="mt-5 block space-y-2">
+        <span className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+          Weekly Coach Notes
+        </span>
+        <textarea
+          aria-label="Weekly Coach Nutrition Notes"
+          value={checkInNotes}
+          onChange={(event) => setCheckInNotes(event.target.value)}
+          className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+          placeholder="Example: Keep protein consistent, replace sweet tea during the week, limit alcohol to one planned day, and recheck weight trend next week."
+        />
+      </label>
+
+      <button
+        type="button"
+        onClick={saveWeeklyCheckIn}
+        className="mt-4 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+      >
+        Save Weekly Check-In
+      </button>
+
+      {checkInStatus && (
+        <p
+          data-testid="weekly-nutrition-checkin-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {checkInStatus}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function CoachNutritionReviewPanel() {
   const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
   const COACH_NUTRITION_NOTES_STORAGE_KEY = "nlf-coach-nutrition-review-notes-v1";
@@ -3006,6 +3309,8 @@ function CoachNutritionReviewPanel() {
           <p className="mt-1 text-3xl font-black text-white">{highCalorieMeals.length}</p>
         </div>
       </div>
+
+      <WeeklyNutritionCheckInReport nutritionHistory={nutritionHistory} />
 
       {latestTarget ? (
         <div

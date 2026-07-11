@@ -365,9 +365,100 @@ test("coach can review saved nutrition targets meals and notes", async ({ page }
   await expect(page.getByTestId("coach-nutrition-flags")).toContainText("Alcohol appears");
   await expect(page.getByTestId("coach-nutrition-flags")).toContainText("Liquid calories");
 
-  await page.getByLabel("Coach Nutrition Notes").fill("Review sweet drinks, alcohol logs, and protein consistency next check-in.");
+  await page
+    .getByRole("textbox", { name: "Coach Nutrition Notes", exact: true })
+    .fill("Review sweet drinks, alcohol logs, and protein consistency next check-in.");
   await page.getByRole("button", { name: "Save Coach Nutrition Notes" }).click();
 
   await expect(page.getByTestId("coach-nutrition-review-status")).toContainText("Coach nutrition notes saved");
 });
+﻿
+test("coach can save weekly nutrition check-in report", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "nlf-nutrition-history-v1",
+      JSON.stringify({
+        targets: [
+          {
+            id: "target-test",
+            goal: "fat-loss",
+            goalLabel: "Weight Loss",
+            dailyCalories: 2100,
+            maintenanceCalories: 2600,
+            protein: 200,
+            carbs: 190,
+            fat: 65,
+            savedAt: "Test week"
+          }
+        ],
+        meals: [
+          {
+            id: "meal-1",
+            title: "Meal Builder Estimate",
+            calories: 950,
+            protein: 34,
+            carbs: 110,
+            fat: 32,
+            confidence: "High",
+            matches: [
+              { id: "item-1", name: "Sweet Tea", category: "Drink", calories: 160 },
+              { id: "item-2", name: "Light Beer", category: "Alcohol", calories: 105 },
+              { id: "item-3", name: "Pizza Rolls", category: "Convenience", calories: 220 }
+            ]
+          },
+          {
+            id: "meal-2",
+            title: "Meal Estimate",
+            calories: 620,
+            protein: 18,
+            carbs: 80,
+            fat: 24,
+            confidence: "Moderate",
+            matches: [
+              { id: "item-4", name: "Kool-Aid", category: "Drink", calories: 150 },
+              { id: "item-5", name: "Ramen Noodles", category: "Convenience", calories: 380 }
+            ]
+          },
+          {
+            id: "meal-3",
+            title: "Meal Estimate",
+            calories: 500,
+            protein: 35,
+            carbs: 45,
+            fat: 12,
+            confidence: "Moderate",
+            matches: [
+              { id: "item-6", name: "Chicken Breast", category: "Protein", calories: 185 },
+              { id: "item-7", name: "White Rice", category: "Carb", calories: 205 }
+            ]
+          }
+        ]
+      })
+    );
+  });
 
+  await page.goto("/?testUnlock=true&portalMode=coach");
+
+  await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  const weeklyPanel = page.getByTestId("weekly-nutrition-checkin-panel");
+
+  await expect(weeklyPanel).toBeVisible();
+  await expect(weeklyPanel).toContainText("Nutrition Report");
+  await expect(page.getByTestId("weekly-nutrition-summary")).toContainText("Avg Meal Calories");
+  await expect(page.getByTestId("weekly-nutrition-summary")).toContainText("Avg Protein");
+  await expect(page.getByTestId("weekly-nutrition-recommendations")).toContainText("Main Adjustment");
+
+  await page.getByLabel("Weekly Starting Weight").fill("200");
+  await page.getByLabel("Weekly Ending Weight").fill("198.5");
+
+  await expect(weeklyPanel).toContainText("1.5 lb down");
+
+  await page
+    .getByLabel("Weekly Coach Nutrition Notes")
+    .fill("Keep protein consistent and reduce sweet drinks during the week.");
+
+  await page.getByRole("button", { name: "Save Weekly Check-In" }).click();
+
+  await expect(page.getByTestId("weekly-nutrition-checkin-status")).toContainText("Weekly nutrition check-in saved");
+});
