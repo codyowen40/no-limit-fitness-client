@@ -3022,10 +3022,6 @@ function NutritionCoachScreen() {
         </p>
       </div>
 
-      <ClientWeeklyNutritionCheckInForm />
-
-      <ClientProgressPhotoUploadPanel />
-
       {!nutritionMode && (
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <button
@@ -4447,10 +4443,6 @@ function CoachNutritionReviewPanel() {
 
       <WeeklyNutritionCheckInReport nutritionHistory={nutritionHistory} />
 
-      <CoachClientWeeklyCheckInPanel />
-
-      <CoachProgressPhotoReviewPanel />
-
       {latestTarget ? (
         <div
           data-testid="coach-latest-nutrition-target"
@@ -5301,6 +5293,51 @@ function ClientDashboardCheckInSummaryCards() {
   );
 }
 
+function ClientCheckInsWorkspace() {
+  return (
+    <section
+      data-testid="client-checkins-workspace"
+      aria-label="Client Check-Ins tab"
+      className="mb-5 rounded-3xl border border-[#00BF63]/25 bg-black/55 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Check-Ins
+          </p>
+          <h2 className="mt-2 text-2xl font-black uppercase text-white">
+            Client Check-Ins Workspace
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Weekly check-ins, progress photos, action-plan completion, and adjustment review tools now live in one dedicated workspace.
+          </p>
+        </div>
+
+        <div
+          role="tablist"
+          aria-label="Client check-ins workspace tabs"
+          className="flex w-fit rounded-full border border-[#00BF63]/25 bg-black/50 p-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected="true"
+            className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black"
+          >
+            Check-Ins
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-5">
+        <ClientWeeklyNutritionCheckInForm />
+        <ClientProgressPhotoUploadPanel />
+        <ClientActionPlanCompletionTracker />
+      </div>
+    </section>
+  );
+}
+
 function ClientPortalMyPlanPanel({
   clients,
   savedPlans,
@@ -5597,9 +5634,9 @@ return (
     >
       <ClientDashboardCheckInSummaryCards />
 
-      <ClientLatestCoachActionPlanPanel />
+      <ClientCheckInsWorkspace />
 
-      <ClientActionPlanCompletionTracker />
+      <ClientLatestCoachActionPlanPanel />
 
       <ClientLatestCoachAdjustmentPanel />
 
@@ -10280,6 +10317,333 @@ function CoachDashboardCommandSummaryCards() {
   );
 }
 
+function CoachWorkoutNotesLogGenerator() {
+  const COACH_GENERATED_WORKOUT_LOGS_STORAGE_KEY = "nlf-coach-generated-workout-logs-v1";
+
+  function readSavedWorkoutLogs() {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const raw = window.localStorage.getItem(COACH_GENERATED_WORKOUT_LOGS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function parseWorkoutNotes(rawNotes) {
+    const lines = String(rawNotes || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const clientLine = lines.find((line) => /^client\s*:/i.test(line));
+    const dateLine = lines.find((line) => /^date\s*:/i.test(line));
+    const workoutLine = lines.find((line) => /^(workout|focus|session)\s*:/i.test(line));
+
+    const clientName = clientLine ? clientLine.replace(/^client\s*:/i, "").trim() : "Client";
+    const workoutDate = dateLine ? dateLine.replace(/^date\s*:/i, "").trim() : new Date().toISOString().slice(0, 10);
+    const workoutFocus = workoutLine ? workoutLine.replace(/^(workout|focus|session)\s*:/i, "").trim() : "Workout Session";
+
+    const noteLines = lines
+      .filter((line) => /^notes?\s*:/i.test(line) || /^coach notes?\s*:/i.test(line))
+      .map((line) => line.replace(/^(coach\s*)?notes?\s*:/i, "").trim())
+      .filter(Boolean);
+
+    const exerciseLines = lines.filter((line) => {
+      if (/^(client|date|workout|focus|session|notes?|coach notes?)\s*:/i.test(line)) return false;
+      return /(\d+\s*[x×]\s*\d+)|(\d+\s*sets?)|(\d+\s*reps?)|(@\s*\d+)|(\d+\s*(lb|lbs|kg)\b)/i.test(line);
+    });
+
+    const entries = exerciseLines.map((line, index) => {
+      const cleanedLine = line.replace(/^[-•*]\s*/, "").trim();
+      const setRepMatch = cleanedLine.match(/^(.*?)(\d+)\s*[x×]\s*(\d+(?:\s*-\s*\d+)?)(?:\s*(?:@|at)\s*([\d.]+)\s*(lb|lbs|kg)?)?(.*)$/i);
+      const setsMatch = cleanedLine.match(/(\d+)\s*sets?/i);
+      const repsMatch = cleanedLine.match(/(\d+)\s*reps?/i);
+      const weightMatch = cleanedLine.match(/(?:@|at)?\s*([\d.]+)\s*(lb|lbs|kg)\b/i);
+
+      if (setRepMatch) {
+        const exerciseName = setRepMatch[1].replace(/[-:]+$/, "").trim() || "Exercise " + (index + 1);
+        const trailingNote = String(setRepMatch[6] || "").replace(/^[-:,\s]+/, "").trim();
+
+        return {
+          id: "generated-workout-entry-" + index,
+          exercise: exerciseName,
+          sets: setRepMatch[2],
+          reps: setRepMatch[3].replace(/\s+/g, ""),
+          weight: setRepMatch[4] ? setRepMatch[4] + " " + (setRepMatch[5] || "lb") : "",
+          notes: trailingNote || cleanedLine,
+        };
+      }
+
+      return {
+        id: "generated-workout-entry-" + index,
+        exercise: cleanedLine
+          .replace(/(\d+\s*sets?.*)$/i, "")
+          .replace(/(\d+\s*reps?.*)$/i, "")
+          .replace(/(@\s*[\d.]+\s*(lb|lbs|kg)?.*)$/i, "")
+          .trim() || "Exercise " + (index + 1),
+        sets: setsMatch ? setsMatch[1] : "",
+        reps: repsMatch ? repsMatch[1] : "",
+        weight: weightMatch ? weightMatch[1] + " " + weightMatch[2] : "",
+        notes: cleanedLine,
+      };
+    });
+
+    const totalSets = entries.reduce((sum, entry) => {
+      const sets = Number(entry.sets);
+      return Number.isFinite(sets) ? sum + sets : sum;
+    }, 0);
+
+    return {
+      id: "generated-workout-log-" + Date.now(),
+      clientName,
+      workoutDate,
+      workoutFocus,
+      entries,
+      totalExercises: entries.length,
+      totalSets,
+      coachNotes: noteLines.join(" ") || "No extra coach notes included.",
+      originalNotes: rawNotes,
+      generatedAt: new Date().toLocaleString(),
+    };
+  }
+
+  const [rawWorkoutNotes, setRawWorkoutNotes] = useState("");
+  const [generatedWorkoutLog, setGeneratedWorkoutLog] = useState(null);
+  const [savedWorkoutLogs, setSavedWorkoutLogs] = useState(readSavedWorkoutLogs);
+  const [workoutLogStatus, setWorkoutLogStatus] = useState("");
+
+  function generateWorkoutLogFromNotes() {
+    const nextLog = parseWorkoutNotes(rawWorkoutNotes);
+
+    if (!nextLog.entries.length) {
+      setGeneratedWorkoutLog(nextLog);
+      setWorkoutLogStatus("No exercise lines found. Add notes like Bench Press 3x8 @ 135.");
+      return;
+    }
+
+    setGeneratedWorkoutLog(nextLog);
+    setWorkoutLogStatus("Workout log generated from pasted notes.");
+  }
+
+  function saveGeneratedWorkoutLog() {
+    if (!generatedWorkoutLog || !generatedWorkoutLog.entries.length) {
+      setWorkoutLogStatus("Generate a workout log before saving.");
+      return;
+    }
+
+    const nextSavedLogs = [generatedWorkoutLog, ...savedWorkoutLogs].slice(0, 20);
+
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(COACH_GENERATED_WORKOUT_LOGS_STORAGE_KEY, JSON.stringify(nextSavedLogs));
+      } catch {
+        setWorkoutLogStatus("Could not save generated workout log locally.");
+        return;
+      }
+    }
+
+    setSavedWorkoutLogs(nextSavedLogs);
+    setWorkoutLogStatus("Generated workout log saved.");
+  }
+
+  function clearWorkoutNotes() {
+    setRawWorkoutNotes("");
+    setGeneratedWorkoutLog(null);
+    setWorkoutLogStatus("Workout notes cleared.");
+  }
+
+  const latestSavedLog = savedWorkoutLogs[0] || null;
+
+  return (
+    <section
+      data-testid="coach-workout-notes-log-generator"
+      aria-label="Coach workout notes log generator"
+      className="rounded-3xl border border-[#00BF63]/25 bg-black/60 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Workout Notes Parser
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Paste Notepad Notes And Generate Workout Log
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Paste rough coach notes from Notepad. The app will pull out client name, date, workout focus, exercises, sets, reps, and weights.
+          </p>
+        </div>
+
+        <span className="w-fit rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs font-black uppercase text-white/55">
+          {savedWorkoutLogs.length} saved
+        </span>
+      </div>
+
+      <label className="mt-5 block space-y-2">
+        <span className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+          Paste Workout Notes
+        </span>
+        <textarea
+          aria-label="Paste Workout Notes"
+          value={rawWorkoutNotes}
+          onChange={(event) => setRawWorkoutNotes(event.target.value)}
+          className="min-h-52 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+          placeholder={"Client: Jordan\nDate: 2026-07-11\nWorkout: Upper Body\nBench Press 3x8 @ 135\nLat Pulldown 3x10 @ 100\nDB Shoulder Press 2x12 @ 35\nNotes: Strong form, fatigue on last set."}
+        />
+      </label>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={generateWorkoutLogFromNotes}
+          className="rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+        >
+          Generate Workout Log
+        </button>
+
+        <button
+          type="button"
+          onClick={saveGeneratedWorkoutLog}
+          className="rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+        >
+          Save Generated Workout Log
+        </button>
+
+        <button
+          type="button"
+          onClick={clearWorkoutNotes}
+          className="rounded-full border border-white/10 px-5 py-3 text-xs font-black uppercase text-white/55 transition hover:border-red-400 hover:text-red-300"
+        >
+          Clear Notes
+        </button>
+      </div>
+
+      {workoutLogStatus && (
+        <p
+          data-testid="coach-workout-log-generator-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {workoutLogStatus}
+        </p>
+      )}
+
+      {generatedWorkoutLog && (
+        <div
+          data-testid="coach-generated-workout-log"
+          className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Generated Workout Log
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">
+            {generatedWorkoutLog.clientName} — {generatedWorkoutLog.workoutFocus}
+          </h4>
+          <p className="mt-2 text-sm font-bold text-white/60">
+            {generatedWorkoutLog.workoutDate} | {generatedWorkoutLog.totalExercises} exercises | {generatedWorkoutLog.totalSets} total sets
+          </p>
+
+          <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="bg-black/50 text-xs font-black uppercase tracking-[0.18em] text-white/45">
+                <tr>
+                  <th className="px-4 py-3">Exercise</th>
+                  <th className="px-4 py-3">Sets</th>
+                  <th className="px-4 py-3">Reps</th>
+                  <th className="px-4 py-3">Weight</th>
+                  <th className="px-4 py-3">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {generatedWorkoutLog.entries.map((entry) => (
+                  <tr key={entry.id} className="bg-black/25 text-white/70">
+                    <td className="px-4 py-3 font-black text-white">{entry.exercise}</td>
+                    <td className="px-4 py-3">{entry.sets || "—"}</td>
+                    <td className="px-4 py-3">{entry.reps || "—"}</td>
+                    <td className="px-4 py-3">{entry.weight || "—"}</td>
+                    <td className="px-4 py-3">{entry.notes || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/65">
+            Coach Notes: {generatedWorkoutLog.coachNotes}
+          </p>
+        </div>
+      )}
+
+      {latestSavedLog && (
+        <div
+          data-testid="coach-latest-saved-workout-log"
+          className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+            Latest Saved Workout Log
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">
+            {latestSavedLog.clientName} — {latestSavedLog.workoutFocus}
+          </h4>
+          <p className="mt-2 text-sm font-bold text-white/60">
+            {latestSavedLog.totalExercises} exercises | saved {latestSavedLog.generatedAt}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CoachCheckInsWorkspace() {
+  return (
+    <section
+      data-testid="coach-checkins-workspace"
+      aria-label="Coach Check-Ins tab"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-black/55 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Check-Ins
+          </p>
+          <h2 className="mt-2 text-2xl font-black uppercase text-white">
+            Coach Check-Ins Workspace
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Weekly client check-ins, photos, action-plan follow-through, adjustments, and workout-note logs are now grouped here.
+          </p>
+        </div>
+
+        <div
+          role="tablist"
+          aria-label="Coach check-ins workspace tabs"
+          className="flex w-fit rounded-full border border-[#00BF63]/25 bg-black/50 p-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected="true"
+            className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black"
+          >
+            Check-Ins
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-5">
+        <CoachWorkoutNotesLogGenerator />
+        <CoachClientWeeklyCheckInPanel />
+        <CoachProgressPhotoReviewPanel />
+        <CoachWeeklyActionPlanGenerator />
+        <CoachActionPlanCompletionReviewPanel />
+        <CoachWeeklyAdjustmentRecommendationPanel />
+      </div>
+    </section>
+  );
+}
+
 function CoachScreen({
   clients = [],
   notifications = [],
@@ -10573,11 +10937,7 @@ function CoachScreen({
 
       <CoachDashboardCommandSummaryCards />
 
-      <CoachWeeklyActionPlanGenerator />
-
-      <CoachActionPlanCompletionReviewPanel />
-
-      <CoachWeeklyAdjustmentRecommendationPanel />
+      <CoachCheckInsWorkspace />
 
       <CoachNutritionReviewPanel />
 

@@ -318,6 +318,8 @@ test.describe("Coach/client assignment data coverage", () => {
 test("coach can review saved nutrition targets meals and notes", async ({ page }) => {
   await page.goto("/?testUnlock=true&portalMode=client");
 
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+
   await page
     .getByRole("navigation", { name: /Main navigation/i })
     .first()
@@ -473,11 +475,7 @@ test("client weekly check-in appears in coach nutrition review", async ({ page }
 
   await page.goto("/?testUnlock=true&portalMode=client");
 
-  await page
-    .getByRole("navigation", { name: /Main navigation/i })
-    .first()
-    .getByRole("button", { name: "Nutrition Coach", exact: true })
-    .click();
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   const clientCheckInForm = page.getByTestId("client-weekly-checkin-form").first();
 
@@ -572,11 +570,7 @@ test("client can upload progress photos and coach can review them", async ({ pag
 
   await page.goto("/?testUnlock=true&portalMode=client");
 
-  await page
-    .getByRole("navigation", { name: /Main navigation/i })
-    .first()
-    .getByRole("button", { name: "Nutrition Coach", exact: true })
-    .click();
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   const photoPanel = page.getByTestId("client-progress-photo-upload-panel").first();
 
@@ -1160,4 +1154,64 @@ test("coach can generate weekly adjustment and client can view it", async ({ pag
   await expect(clientAdjustmentPanel).toBeVisible();
   await expect(page.getByTestId("client-coach-adjustment-card").first()).toContainText("Prioritize Recovery");
   await expect(page.getByTestId("client-coach-adjustment-card").first()).toContainText("Keep calories steady this week");
+});
+
+test("check-ins workspace contains moved check-in tools and coach can generate workout log from notes", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem("nlf-coach-generated-workout-logs-v1");
+  });
+
+  await page.goto("/?testUnlock=true&portalMode=client");
+
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+  await expect(page.getByTestId("client-checkins-workspace").first()).toBeVisible();
+  await expect(page.getByTestId("client-checkins-workspace").first()).toContainText("Client Check-Ins Workspace");
+  await expect(page.getByTestId("client-checkins-workspace").first()).toContainText("Weekly Client Check-In");
+  await expect(page.getByTestId("client-checkins-workspace").first()).toContainText("Progress Photos");
+  await expect(page.getByTestId("client-checkins-workspace").first()).toContainText("Action Plan Completion");
+
+  await page
+    .getByRole("navigation", { name: /Main navigation/i })
+    .first()
+    .getByRole("button", { name: "Nutrition Coach", exact: true })
+    .click();
+
+  await expect(page.getByTestId("nutrition-coach-window").first()).toBeVisible();
+  await expect(page.getByTestId("client-weekly-checkin-form")).toHaveCount(0);
+  await expect(page.getByTestId("client-progress-photo-upload-panel")).toHaveCount(0);
+
+  await page.goto("/?testUnlock=true&portalMode=coach");
+
+  await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  const coachCheckIns = page.getByTestId("coach-checkins-workspace").first();
+
+  await expect(coachCheckIns).toBeVisible();
+  await expect(coachCheckIns).toContainText("Coach Check-Ins Workspace");
+  await expect(coachCheckIns).toContainText("Workout Notes Parser");
+
+  const workoutGenerator = page.getByTestId("coach-workout-notes-log-generator").first();
+
+  await workoutGenerator
+    .getByRole("textbox", { name: "Paste Workout Notes", exact: true })
+    .fill(`Client: Jordan
+Date: 2026-07-11
+Workout: Upper Body Strength
+Bench Press 3x8 @ 135
+Lat Pulldown 3x10 @ 100
+DB Shoulder Press 2x12 @ 35
+Notes: Strong form, fatigue on last set.`);
+
+  await workoutGenerator.getByRole("button", { name: "Generate Workout Log" }).click();
+
+  await expect(page.getByTestId("coach-workout-log-generator-status").first()).toContainText("Workout log generated");
+  await expect(page.getByTestId("coach-generated-workout-log").first()).toContainText("Jordan");
+  await expect(page.getByTestId("coach-generated-workout-log").first()).toContainText("Upper Body Strength");
+  await expect(page.getByTestId("coach-generated-workout-log").first()).toContainText("Bench Press");
+  await expect(page.getByTestId("coach-generated-workout-log").first()).toContainText("135 lb");
+
+  await workoutGenerator.getByRole("button", { name: "Save Generated Workout Log" }).click();
+
+  await expect(page.getByTestId("coach-workout-log-generator-status").first()).toContainText("Generated workout log saved");
+  await expect(page.getByTestId("coach-latest-saved-workout-log").first()).toContainText("Jordan");
 });
