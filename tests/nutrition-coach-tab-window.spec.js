@@ -58,7 +58,7 @@ test("Nutrition Coach calculates and saves macro targets with age height and gen
   await expect(page.getByTestId("saved-nutrition-target").first()).toContainText("Weight Loss");
 });
 
-test("Nutrition Coach estimates and saves meals using matched foods and portions", async ({ page }) => {
+test("Nutrition Coach estimates and saves real world convenience foods and drinks", async ({ page }) => {
   await page.goto("/?testUnlock=true&portalMode=client");
 
   await page
@@ -75,7 +75,7 @@ test("Nutrition Coach estimates and saves meals using matched foods and portions
 
   await page
     .getByLabel("Meal Description")
-    .fill("2 eggs, 1 cup rice, chicken breast, avocado, salsa, and 1 tbsp olive oil");
+    .fill("moderate glass of sweet tea, Kool-Aid, ramen noodles, chips, 2 hot dogs, and pizza rolls");
 
   await page.getByRole("button", { name: "Estimate Meal" }).click();
 
@@ -83,9 +83,11 @@ test("Nutrition Coach estimates and saves meals using matched foods and portions
   await expect(page.getByTestId("meal-check-result")).toContainText("Meal Estimate");
   await expect(page.getByTestId("meal-check-result")).toContainText("Estimate Confidence");
   await expect(page.getByTestId("meal-check-result")).toContainText("Matched Foods");
-  await expect(page.getByTestId("meal-check-result")).toContainText("Chicken Breast");
-  await expect(page.getByTestId("meal-check-result")).toContainText("White Rice");
-  await expect(page.getByTestId("meal-check-result")).toContainText("Egg");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Sweet Tea");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Kool-Aid");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Ramen Noodles");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Hot Dog");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Pizza Rolls");
 
   await page.getByRole("button", { name: "Save Meal Estimate" }).click();
 

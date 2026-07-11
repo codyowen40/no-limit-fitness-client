@@ -1800,39 +1800,146 @@ function NutritionCoachScreen() {
 
   const foodDatabase = useMemo(
     () => [
+      // Proteins and normal meal staples
       { name: "Chicken Breast", keywords: ["chicken breast", "grilled chicken", "chicken"], serving: "4 oz cooked", calories: 185, protein: 35, carbs: 0, fat: 4 },
+      { name: "Chicken Thigh", keywords: ["chicken thigh", "dark meat chicken"], serving: "4 oz cooked", calories: 230, protein: 28, carbs: 0, fat: 12 },
+      { name: "Chicken Nuggets", keywords: ["chicken nuggets", "nuggets"], serving: "6 pieces", calories: 270, protein: 15, carbs: 17, fat: 16 },
+      { name: "Turkey Deli Meat", keywords: ["turkey deli", "deli turkey", "turkey slices"], serving: "3 oz", calories: 90, protein: 18, carbs: 2, fat: 1 },
       { name: "Lean Ground Beef", keywords: ["lean ground beef", "ground beef", "beef"], serving: "4 oz cooked", calories: 230, protein: 26, carbs: 0, fat: 13 },
       { name: "Steak", keywords: ["steak"], serving: "4 oz cooked", calories: 260, protein: 29, carbs: 0, fat: 16 },
+      { name: "Pork Chop", keywords: ["pork chop"], serving: "4 oz cooked", calories: 250, protein: 30, carbs: 0, fat: 14 },
+      { name: "Bacon", keywords: ["bacon"], serving: "2 slices", calories: 90, protein: 6, carbs: 0, fat: 7 },
+      { name: "Sausage Patty", keywords: ["sausage patty", "breakfast sausage", "sausage"], serving: "1 patty", calories: 180, protein: 9, carbs: 1, fat: 16 },
+      { name: "Hot Dog", keywords: ["hot dog", "hotdog"], serving: "1 hot dog", calories: 150, protein: 5, carbs: 2, fat: 13 },
       { name: "Salmon", keywords: ["salmon"], serving: "4 oz cooked", calories: 235, protein: 25, carbs: 0, fat: 14 },
       { name: "Tuna", keywords: ["tuna"], serving: "1 can", calories: 130, protein: 29, carbs: 0, fat: 1 },
+      { name: "Tilapia", keywords: ["tilapia"], serving: "4 oz cooked", calories: 145, protein: 29, carbs: 0, fat: 3 },
+      { name: "Shrimp", keywords: ["shrimp"], serving: "4 oz cooked", calories: 120, protein: 24, carbs: 1, fat: 2 },
       { name: "Egg", keywords: ["egg", "eggs"], serving: "1 large egg", calories: 70, protein: 6, carbs: 1, fat: 5 },
+      { name: "Egg Whites", keywords: ["egg whites"], serving: "1/2 cup", calories: 65, protein: 13, carbs: 1, fat: 0 },
       { name: "Greek Yogurt", keywords: ["greek yogurt", "yogurt"], serving: "1 cup", calories: 130, protein: 20, carbs: 9, fat: 0 },
+      { name: "Cottage Cheese", keywords: ["cottage cheese"], serving: "1 cup", calories: 185, protein: 25, carbs: 8, fat: 5 },
       { name: "Whey Protein", keywords: ["whey protein", "protein shake", "protein powder"], serving: "1 scoop", calories: 120, protein: 24, carbs: 3, fat: 2 },
+
+      // Carbs, grains, canned goods, boxed foods
       { name: "White Rice", keywords: ["white rice", "rice"], serving: "1 cup cooked", calories: 205, protein: 4, carbs: 45, fat: 0 },
       { name: "Brown Rice", keywords: ["brown rice"], serving: "1 cup cooked", calories: 215, protein: 5, carbs: 45, fat: 2 },
+      { name: "Spanish Rice", keywords: ["spanish rice", "mexican rice"], serving: "1 cup", calories: 230, protein: 5, carbs: 44, fat: 5 },
+      { name: "Fried Rice", keywords: ["fried rice"], serving: "1 cup", calories: 330, protein: 12, carbs: 45, fat: 12 },
       { name: "Pasta", keywords: ["pasta", "spaghetti", "noodles"], serving: "1 cup cooked", calories: 220, protein: 8, carbs: 43, fat: 1 },
+      { name: "Mac and Cheese", keywords: ["mac and cheese", "macaroni and cheese", "boxed mac"], serving: "1 cup prepared", calories: 350, protein: 10, carbs: 47, fat: 14 },
+      { name: "Ramen Noodles", keywords: ["ramen", "ramen noodles", "instant noodles"], serving: "1 package", calories: 380, protein: 8, carbs: 52, fat: 14 },
+      { name: "Canned Ravioli", keywords: ["ravioli", "beef ravioli", "canned ravioli"], serving: "1 cup", calories: 250, protein: 9, carbs: 36, fat: 8 },
+      { name: "SpaghettiOs", keywords: ["spaghettios", "canned spaghetti"], serving: "1 cup", calories: 170, protein: 6, carbs: 32, fat: 2 },
+      { name: "Canned Soup", keywords: ["canned soup", "chicken noodle soup", "soup"], serving: "1 cup", calories: 120, protein: 7, carbs: 15, fat: 4 },
+      { name: "Chili", keywords: ["chili", "canned chili"], serving: "1 cup", calories: 300, protein: 18, carbs: 30, fat: 12 },
       { name: "Oats", keywords: ["oats", "oatmeal"], serving: "1 cup cooked", calories: 155, protein: 6, carbs: 27, fat: 3 },
+      { name: "Instant Oatmeal Packet", keywords: ["instant oatmeal", "oatmeal packet"], serving: "1 packet", calories: 160, protein: 4, carbs: 32, fat: 2 },
       { name: "Bread", keywords: ["bread", "toast"], serving: "1 slice", calories: 80, protein: 3, carbs: 15, fat: 1 },
+      { name: "White Bun", keywords: ["bun", "hamburger bun", "hot dog bun"], serving: "1 bun", calories: 140, protein: 4, carbs: 26, fat: 2 },
       { name: "Tortilla", keywords: ["tortilla", "wrap"], serving: "1 medium tortilla", calories: 140, protein: 4, carbs: 24, fat: 4 },
+      { name: "Bagel", keywords: ["bagel"], serving: "1 plain bagel", calories: 280, protein: 10, carbs: 56, fat: 2 },
+      { name: "Pancake", keywords: ["pancake", "pancakes"], serving: "2 medium pancakes", calories: 230, protein: 6, carbs: 38, fat: 6 },
+      { name: "Waffle", keywords: ["waffle", "waffles"], serving: "2 frozen waffles", calories: 210, protein: 5, carbs: 30, fat: 8 },
       { name: "Potato", keywords: ["potato", "baked potato"], serving: "1 medium potato", calories: 160, protein: 4, carbs: 37, fat: 0 },
+      { name: "Mashed Potatoes", keywords: ["mashed potatoes"], serving: "1 cup", calories: 240, protein: 4, carbs: 35, fat: 9 },
+      { name: "Sweet Potato", keywords: ["sweet potato"], serving: "1 medium sweet potato", calories: 115, protein: 2, carbs: 27, fat: 0 },
       { name: "Black Beans", keywords: ["black beans", "beans"], serving: "1/2 cup", calories: 115, protein: 8, carbs: 20, fat: 0 },
+      { name: "Refried Beans", keywords: ["refried beans"], serving: "1/2 cup", calories: 120, protein: 6, carbs: 18, fat: 3 },
+
+      // Drinks, sweet drinks, convenience-store drinks
+      { name: "Water", keywords: ["water", "bottled water"], serving: "1 bottle", calories: 0, protein: 0, carbs: 0, fat: 0 },
+      { name: "Sweet Tea", keywords: ["sweet tea", "sweet iced tea"], serving: "moderate 16 oz glass", calories: 160, protein: 0, carbs: 40, fat: 0 },
+      { name: "Unsweet Tea", keywords: ["unsweet tea", "unsweetened tea"], serving: "16 oz", calories: 0, protein: 0, carbs: 0, fat: 0 },
+      { name: "Kool-Aid", keywords: ["kool-aid", "koolaid", "cool aid", "coolaid"], serving: "12 oz glass", calories: 150, protein: 0, carbs: 38, fat: 0 },
+      { name: "Lemonade", keywords: ["lemonade"], serving: "12 oz", calories: 150, protein: 0, carbs: 40, fat: 0 },
+      { name: "Regular Soda", keywords: ["soda", "coke", "pepsi", "mountain dew", "sprite", "dr pepper"], serving: "12 oz can", calories: 150, protein: 0, carbs: 39, fat: 0 },
+      { name: "Diet Soda", keywords: ["diet soda", "diet coke", "diet pepsi", "zero sugar soda", "coke zero"], serving: "12 oz can", calories: 0, protein: 0, carbs: 0, fat: 0 },
+      { name: "Sports Drink", keywords: ["gatorade", "powerade", "sports drink"], serving: "20 oz bottle", calories: 140, protein: 0, carbs: 36, fat: 0 },
+      { name: "Energy Drink", keywords: ["monster", "red bull", "energy drink"], serving: "16 oz can", calories: 210, protein: 0, carbs: 54, fat: 0 },
+      { name: "Sugar Free Energy Drink", keywords: ["zero sugar energy drink", "sugar free energy drink", "monster zero", "red bull sugar free"], serving: "16 oz can", calories: 10, protein: 0, carbs: 2, fat: 0 },
+      { name: "Orange Juice", keywords: ["orange juice", "oj"], serving: "8 oz", calories: 110, protein: 2, carbs: 26, fat: 0 },
+      { name: "Apple Juice", keywords: ["apple juice"], serving: "8 oz", calories: 115, protein: 0, carbs: 28, fat: 0 },
+      { name: "Cranberry Juice Cocktail", keywords: ["cranberry juice"], serving: "8 oz", calories: 120, protein: 0, carbs: 30, fat: 0 },
+      { name: "Whole Milk", keywords: ["whole milk"], serving: "1 cup", calories: 150, protein: 8, carbs: 12, fat: 8 },
+      { name: "Two Percent Milk", keywords: ["2% milk", "two percent milk", "milk"], serving: "1 cup", calories: 120, protein: 8, carbs: 12, fat: 5 },
+      { name: "Chocolate Milk", keywords: ["chocolate milk"], serving: "1 cup", calories: 200, protein: 8, carbs: 30, fat: 5 },
+      { name: "Almond Milk", keywords: ["almond milk"], serving: "1 cup", calories: 60, protein: 1, carbs: 8, fat: 3 },
+      { name: "Black Coffee", keywords: ["black coffee", "coffee"], serving: "12 oz", calories: 5, protein: 0, carbs: 1, fat: 0 },
+      { name: "Coffee With Cream And Sugar", keywords: ["coffee with cream", "coffee with sugar", "cream and sugar coffee"], serving: "12 oz", calories: 120, protein: 1, carbs: 18, fat: 5 },
+      { name: "Bottled Frappuccino", keywords: ["frappuccino", "bottled coffee", "iced coffee"], serving: "13.7 oz bottle", calories: 290, protein: 9, carbs: 47, fat: 6 },
+
+      // Snacks, sweets, Dollar General / convenience style foods
+      { name: "Potato Chips", keywords: ["potato chips", "chips"], serving: "1 oz bag", calories: 150, protein: 2, carbs: 15, fat: 10 },
+      { name: "Nacho Cheese Chips", keywords: ["doritos", "nacho chips", "nacho cheese chips"], serving: "1 oz bag", calories: 150, protein: 2, carbs: 18, fat: 8 },
+      { name: "Cheetos", keywords: ["cheetos", "cheese puffs"], serving: "1 oz bag", calories: 160, protein: 2, carbs: 15, fat: 10 },
+      { name: "Pretzels", keywords: ["pretzels"], serving: "1 oz", calories: 110, protein: 3, carbs: 23, fat: 1 },
+      { name: "Popcorn", keywords: ["popcorn"], serving: "3 cups popped", calories: 160, protein: 3, carbs: 18, fat: 9 },
+      { name: "Crackers", keywords: ["crackers", "saltines"], serving: "1 serving", calories: 120, protein: 2, carbs: 22, fat: 3 },
+      { name: "Peanut Butter Crackers", keywords: ["peanut butter crackers"], serving: "1 pack", calories: 200, protein: 5, carbs: 22, fat: 10 },
+      { name: "Granola Bar", keywords: ["granola bar"], serving: "1 bar", calories: 140, protein: 3, carbs: 25, fat: 4 },
+      { name: "Protein Bar", keywords: ["protein bar"], serving: "1 bar", calories: 220, protein: 20, carbs: 24, fat: 7 },
+      { name: "Pop Tart", keywords: ["pop tart", "pop-tart"], serving: "1 pastry", calories: 200, protein: 2, carbs: 38, fat: 5 },
+      { name: "Cereal", keywords: ["cereal", "frosted flakes", "fruit loops", "cinnamon toast crunch"], serving: "1 cup", calories: 150, protein: 2, carbs: 33, fat: 2 },
+      { name: "Candy Bar", keywords: ["candy bar", "snickers", "milky way", "reeses", "kit kat", "twix"], serving: "1 bar", calories: 250, protein: 4, carbs: 33, fat: 12 },
+      { name: "Chocolate Candy", keywords: ["m&ms", "m and ms", "chocolate candy"], serving: "1 pack", calories: 240, protein: 3, carbs: 34, fat: 10 },
+      { name: "Gummy Candy", keywords: ["gummies", "gummy worms", "gummy bears", "sour patch"], serving: "1 bag", calories: 200, protein: 2, carbs: 48, fat: 0 },
+      { name: "Cookies", keywords: ["cookies", "oreo", "chocolate chip cookies"], serving: "3 cookies", calories: 160, protein: 2, carbs: 25, fat: 7 },
+      { name: "Donut", keywords: ["donut", "doughnut"], serving: "1 donut", calories: 260, protein: 4, carbs: 31, fat: 14 },
+      { name: "Honey Bun", keywords: ["honey bun"], serving: "1 pastry", calories: 330, protein: 4, carbs: 45, fat: 15 },
+      { name: "Ice Cream", keywords: ["ice cream"], serving: "2/3 cup", calories: 210, protein: 4, carbs: 24, fat: 11 },
+      { name: "Trail Mix", keywords: ["trail mix"], serving: "1/4 cup", calories: 170, protein: 5, carbs: 16, fat: 10 },
+      { name: "Almonds", keywords: ["almonds", "nuts"], serving: "1 oz", calories: 165, protein: 6, carbs: 6, fat: 14 },
+      { name: "Peanuts", keywords: ["peanuts"], serving: "1 oz", calories: 165, protein: 7, carbs: 6, fat: 14 },
+      { name: "Beef Jerky", keywords: ["beef jerky", "jerky"], serving: "1 oz", calories: 90, protein: 11, carbs: 6, fat: 2 },
+
+      // Frozen and convenience meals
+      { name: "Frozen Pizza", keywords: ["frozen pizza"], serving: "1/3 pizza", calories: 380, protein: 17, carbs: 42, fat: 17 },
+      { name: "Pizza Rolls", keywords: ["pizza rolls"], serving: "6 rolls", calories: 220, protein: 7, carbs: 30, fat: 8 },
+      { name: "Corn Dog", keywords: ["corn dog"], serving: "1 corn dog", calories: 220, protein: 7, carbs: 24, fat: 10 },
+      { name: "Frozen Burrito", keywords: ["frozen burrito", "bean burrito", "beef burrito", "burrito"], serving: "1 burrito", calories: 320, protein: 12, carbs: 45, fat: 10 },
+      { name: "Taquitos", keywords: ["taquitos"], serving: "3 taquitos", calories: 270, protein: 9, carbs: 27, fat: 14 },
+      { name: "Chicken Pot Pie", keywords: ["chicken pot pie", "pot pie"], serving: "1 small pie", calories: 430, protein: 12, carbs: 42, fat: 24 },
+      { name: "Frozen Dinner", keywords: ["frozen dinner", "tv dinner", "microwave meal"], serving: "1 meal", calories: 420, protein: 20, carbs: 50, fat: 15 },
+      { name: "Instant Mashed Potatoes", keywords: ["instant mashed potatoes"], serving: "1 cup prepared", calories: 210, protein: 4, carbs: 35, fat: 6 },
+
+      // Fast-food style common items
+      { name: "Burger", keywords: ["burger", "cheeseburger", "hamburger"], serving: "1 burger", calories: 540, protein: 28, carbs: 40, fat: 30 },
+      { name: "Double Cheeseburger", keywords: ["double cheeseburger"], serving: "1 sandwich", calories: 700, protein: 40, carbs: 42, fat: 42 },
+      { name: "Chicken Sandwich", keywords: ["chicken sandwich"], serving: "1 sandwich", calories: 520, protein: 28, carbs: 45, fat: 25 },
+      { name: "Fries", keywords: ["fries", "french fries"], serving: "medium order", calories: 365, protein: 4, carbs: 48, fat: 17 },
+      { name: "Pizza", keywords: ["pizza"], serving: "1 slice", calories: 285, protein: 12, carbs: 36, fat: 10 },
+      { name: "Taco", keywords: ["taco"], serving: "1 taco", calories: 180, protein: 9, carbs: 18, fat: 9 },
+      { name: "Quesadilla", keywords: ["quesadilla"], serving: "1 medium quesadilla", calories: 520, protein: 24, carbs: 38, fat: 30 },
+      { name: "Nachos", keywords: ["nachos"], serving: "1 order", calories: 550, protein: 18, carbs: 55, fat: 30 },
+
+      // Fruit, vegetables, and sides
       { name: "Banana", keywords: ["banana"], serving: "1 medium banana", calories: 105, protein: 1, carbs: 27, fat: 0 },
       { name: "Apple", keywords: ["apple"], serving: "1 medium apple", calories: 95, protein: 0, carbs: 25, fat: 0 },
+      { name: "Orange", keywords: ["orange"], serving: "1 medium orange", calories: 60, protein: 1, carbs: 15, fat: 0 },
+      { name: "Grapes", keywords: ["grapes"], serving: "1 cup", calories: 105, protein: 1, carbs: 27, fat: 0 },
+      { name: "Strawberries", keywords: ["strawberries"], serving: "1 cup", calories: 50, protein: 1, carbs: 12, fat: 0 },
       { name: "Avocado", keywords: ["avocado"], serving: "1/2 avocado", calories: 160, protein: 2, carbs: 9, fat: 15 },
+      { name: "Broccoli", keywords: ["broccoli"], serving: "1 cup", calories: 55, protein: 4, carbs: 11, fat: 1 },
+      { name: "Green Beans", keywords: ["green beans"], serving: "1 cup", calories: 45, protein: 2, carbs: 10, fat: 0 },
+      { name: "Corn", keywords: ["corn"], serving: "1 cup", calories: 140, protein: 5, carbs: 31, fat: 2 },
+      { name: "Salad Greens", keywords: ["salad", "lettuce", "greens", "spinach"], serving: "2 cups", calories: 25, protein: 2, carbs: 5, fat: 0 },
+
+      // Sauces, toppings, condiments
       { name: "Cheese", keywords: ["cheese", "shredded cheese"], serving: "1 oz", calories: 110, protein: 7, carbs: 1, fat: 9 },
+      { name: "Cream Cheese", keywords: ["cream cheese"], serving: "2 tbsp", calories: 100, protein: 2, carbs: 2, fat: 10 },
+      { name: "Sour Cream", keywords: ["sour cream"], serving: "2 tbsp", calories: 60, protein: 1, carbs: 1, fat: 5 },
       { name: "Olive Oil", keywords: ["olive oil", "oil"], serving: "1 tbsp", calories: 120, protein: 0, carbs: 0, fat: 14 },
       { name: "Butter", keywords: ["butter"], serving: "1 tbsp", calories: 100, protein: 0, carbs: 0, fat: 11 },
       { name: "Peanut Butter", keywords: ["peanut butter"], serving: "2 tbsp", calories: 190, protein: 8, carbs: 7, fat: 16 },
       { name: "Mayo", keywords: ["mayo", "mayonnaise"], serving: "1 tbsp", calories: 95, protein: 0, carbs: 0, fat: 10 },
       { name: "Ranch", keywords: ["ranch"], serving: "2 tbsp", calories: 130, protein: 1, carbs: 2, fat: 14 },
+      { name: "BBQ Sauce", keywords: ["bbq sauce", "barbecue sauce"], serving: "2 tbsp", calories: 60, protein: 0, carbs: 14, fat: 0 },
+      { name: "Ketchup", keywords: ["ketchup"], serving: "1 tbsp", calories: 20, protein: 0, carbs: 5, fat: 0 },
+      { name: "Mustard", keywords: ["mustard"], serving: "1 tbsp", calories: 10, protein: 0, carbs: 1, fat: 0 },
       { name: "Salsa", keywords: ["salsa"], serving: "1/4 cup", calories: 20, protein: 1, carbs: 4, fat: 0 },
-      { name: "Broccoli", keywords: ["broccoli"], serving: "1 cup", calories: 55, protein: 4, carbs: 11, fat: 1 },
-      { name: "Salad Greens", keywords: ["salad", "lettuce", "greens", "spinach"], serving: "2 cups", calories: 25, protein: 2, carbs: 5, fat: 0 },
-      { name: "Fries", keywords: ["fries", "french fries"], serving: "medium order", calories: 365, protein: 4, carbs: 48, fat: 17 },
-      { name: "Burger", keywords: ["burger", "cheeseburger", "hamburger"], serving: "1 burger", calories: 540, protein: 28, carbs: 40, fat: 30 },
-      { name: "Pizza", keywords: ["pizza"], serving: "1 slice", calories: 285, protein: 12, carbs: 36, fat: 10 },
-      { name: "Milk", keywords: ["milk"], serving: "1 cup", calories: 150, protein: 8, carbs: 12, fat: 8 },
-      { name: "Almonds", keywords: ["almonds", "nuts"], serving: "1 oz", calories: 165, protein: 6, carbs: 6, fat: 14 },
+      { name: "Honey", keywords: ["honey"], serving: "1 tbsp", calories: 65, protein: 0, carbs: 17, fat: 0 },
+      { name: "Syrup", keywords: ["syrup", "pancake syrup"], serving: "2 tbsp", calories: 110, protein: 0, carbs: 28, fat: 0 },
     ],
     []
   );
@@ -1851,7 +1958,7 @@ function NutritionCoachScreen() {
     const escapedKeyword = escapeRegex(keyword);
 
     const beforePattern = new RegExp(
-      "(?:^|\\b)(\\d+(?:\\.\\d+)?)\\s*(?:x|servings?|cups?|slices?|pieces?|tbsp|tablespoons?|scoops?|eggs?|oz|ounces?)?\\s+(?:" +
+      "(?:^|\\b)(\\d+(?:\\.\\d+)?)\\s*(?:x|servings?|cups?|slices?|pieces?|tbsp|tablespoons?|scoops?|eggs?|oz|ounces?|cans?|bottles?|glasses?)?\\s+(?:" +
         escapedKeyword +
         ")s?\\b",
       "i"
@@ -1859,21 +1966,24 @@ function NutritionCoachScreen() {
 
     const beforeMatch = text.match(beforePattern);
     if (beforeMatch?.[1]) {
-      return Math.min(Math.max(Number(beforeMatch[1]) || 1, 0.25), 8);
+      return Math.min(Math.max(Number(beforeMatch[1]) || 1, 0.25), 10);
     }
 
-    const wordPattern = new RegExp("\\b(one|two|three|four|five|six)\\s+(?:" + escapedKeyword + ")s?\\b", "i");
+    const wordPattern = new RegExp("\\b(one|two|three|four|five|six|seven|eight|nine|ten)\\s+(?:" + escapedKeyword + ")s?\\b", "i");
     const wordMatch = text.match(wordPattern);
 
     if (wordMatch?.[1]) {
-      const wordNumbers = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+      const wordNumbers = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
       return wordNumbers[wordMatch[1].toLowerCase()] || 1;
     }
 
-    const largePattern = new RegExp("\\b(large|big|extra|double)\\b.{0,24}\\b(?:" + escapedKeyword + ")s?\\b|\\b(?:" + escapedKeyword + ")s?\\b.{0,24}\\b(large|big|extra|double)\\b", "i");
+    const largePattern = new RegExp("\\b(large|big|extra|double|supersize)\\b.{0,24}\\b(?:" + escapedKeyword + ")s?\\b|\\b(?:" + escapedKeyword + ")s?\\b.{0,24}\\b(large|big|extra|double|supersize)\\b", "i");
     if (largePattern.test(text)) return 1.5;
 
-    const smallPattern = new RegExp("\\b(small|light|half)\\b.{0,24}\\b(?:" + escapedKeyword + ")s?\\b|\\b(?:" + escapedKeyword + ")s?\\b.{0,24}\\b(small|light|half)\\b", "i");
+    const moderatePattern = new RegExp("\\b(moderate|medium|regular)\\b.{0,24}\\b(?:" + escapedKeyword + ")s?\\b|\\b(?:" + escapedKeyword + ")s?\\b.{0,24}\\b(moderate|medium|regular)\\b", "i");
+    if (moderatePattern.test(text)) return 1;
+
+    const smallPattern = new RegExp("\\b(small|light|half|mini)\\b.{0,24}\\b(?:" + escapedKeyword + ")s?\\b|\\b(?:" + escapedKeyword + ")s?\\b.{0,24}\\b(small|light|half|mini)\\b", "i");
     if (smallPattern.test(text)) return 0.5;
 
     return 1;
@@ -1934,25 +2044,18 @@ function NutritionCoachScreen() {
       activityLevel === "high" ? 1.65 : activityLevel === "low" ? 1.25 : 1.45;
 
     const maintenanceCalories = Math.round(bmr * activityMultiplier);
-
-    const goalMultiplier =
-      goal === "fat-loss" ? 0.82 : goal === "muscle-gain" ? 1.1 : 1;
-
-    const minimumCalories =
-      genderFormula === "female" ? 1200 : genderFormula === "average" ? 1350 : 1500;
+    const goalMultiplier = goal === "fat-loss" ? 0.82 : goal === "muscle-gain" ? 1.1 : 1;
+    const minimumCalories = genderFormula === "female" ? 1200 : genderFormula === "average" ? 1350 : 1500;
 
     const dailyCalories = Math.max(
       Math.round(maintenanceCalories * goalMultiplier),
       goal === "fat-loss" ? minimumCalories : 0
     );
 
-    const proteinMultiplier =
-      goal === "fat-loss" ? 1.0 : goal === "muscle-gain" ? 0.95 : 0.85;
-
+    const proteinMultiplier = goal === "fat-loss" ? 1.0 : goal === "muscle-gain" ? 0.95 : 0.85;
     const protein = Math.round(weightLb * proteinMultiplier);
     const fat = Math.round(Math.max(weightLb * 0.3, dailyCalories * 0.22 / 9));
     const carbs = Math.max(Math.round((dailyCalories - protein * 4 - fat * 9) / 4), 0);
-
     const calorieDifference = dailyCalories - maintenanceCalories;
     const estimatedWeeklyChange = Math.abs((calorieDifference * 7) / 3500).toFixed(1);
 
@@ -2023,7 +2126,7 @@ function NutritionCoachScreen() {
         fat: 18,
         confidence: "Low",
         matches: [],
-        coachTip: "No specific foods were matched. Add foods and portions like chicken, rice, 2 eggs, oil, cheese, avocado, oats, or potato for a better estimate.",
+        coachTip: "No specific foods were matched. Add details like sweet tea, Kool-Aid, chicken, ramen, pizza rolls, chips, burger, rice, eggs, oil, cheese, avocado, oats, or potato for a better estimate.",
         savedAt: new Date().toLocaleString(),
       });
       setNutritionSaveStatus("");
@@ -2040,21 +2143,28 @@ function NutritionCoachScreen() {
       { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );
 
+    const hasDrinkCalories = matches.some((item) =>
+      ["Sweet Tea", "Kool-Aid", "Lemonade", "Regular Soda", "Sports Drink", "Energy Drink", "Orange Juice", "Apple Juice", "Chocolate Milk", "Bottled Frappuccino"].includes(item.name)
+    );
     const hasAddedFat = matches.some((item) =>
-      ["Olive Oil", "Butter", "Peanut Butter", "Mayo", "Ranch", "Avocado", "Cheese"].includes(item.name)
+      ["Olive Oil", "Butter", "Peanut Butter", "Mayo", "Ranch", "Avocado", "Cheese", "Cream Cheese", "Sour Cream"].includes(item.name)
     );
     const hasProtein = matches.some((item) => item.protein >= 20);
-    const hasCarb = matches.some((item) => item.carbs >= 20);
+    const hasConvenienceFood = matches.some((item) =>
+      ["Ramen Noodles", "Pizza Rolls", "Frozen Pizza", "Corn Dog", "Frozen Burrito", "Taquitos", "Chicken Pot Pie", "Frozen Dinner", "Canned Ravioli", "SpaghettiOs", "Candy Bar", "Honey Bun"].includes(item.name)
+    );
 
-    const confidence = matches.length >= 4 ? "High" : matches.length >= 2 ? "Moderate" : "Low";
+    const confidence = matches.length >= 5 ? "High" : matches.length >= 2 ? "Moderate" : "Low";
 
-    const coachTip = !hasProtein
-      ? "Protein looks low from the matched foods. Add a lean protein source if this is a training meal."
-      : hasAddedFat
-        ? "Fats from sauces, oils, cheese, avocado, nuts, and dressings can move calories fast. Measure those when possible."
-        : hasCarb
-          ? "This looks like a usable training meal. Match the carb portion to the goal and workout timing."
-          : "This meal is protein-forward. Add carbs if performance or recovery is the priority.";
+    const coachTip = hasDrinkCalories
+      ? "Liquid calories can add up fast. Sweet tea, Kool-Aid, soda, juice, and energy drinks should be counted like food."
+      : hasConvenienceFood
+        ? "Convenience foods are easy to underestimate. Check the label when possible, especially serving size, sodium, and calories."
+        : !hasProtein
+          ? "Protein looks low from the matched foods. Add a lean protein source if this is a training meal."
+          : hasAddedFat
+            ? "Fats from sauces, oils, cheese, avocado, nuts, and dressings can move calories fast. Measure those when possible."
+            : "This looks like a usable training meal. Match portions to the goal and workout timing.";
 
     setMealResult({
       id: makeId("meal-estimate"),
@@ -2116,7 +2226,7 @@ function NutritionCoachScreen() {
           Build your target. Check your meals. Stay consistent.
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
-          A practical nutrition tool using age, height, gender/formula factor, activity, goal, and serving-based meal estimates.
+          A practical nutrition tool using age, height, gender/formula factor, activity, goal, and a larger real-world food database.
         </p>
       </div>
 
@@ -2154,7 +2264,7 @@ function NutritionCoachScreen() {
               Check What I Ate
             </span>
             <span className="mt-2 block text-sm leading-6 text-white/65">
-              Match foods against a local nutrition database and save the estimate.
+              Match meals, drinks, snacks, and convenience foods against the local database.
             </span>
           </button>
         </div>
@@ -2375,7 +2485,7 @@ function NutritionCoachScreen() {
 
           <h3 className="text-xl font-black uppercase text-white">Meal Check</h3>
           <p className="mt-2 text-sm leading-6 text-white/65">
-            Enter foods and portions. Example: 2 eggs, 1 cup rice, chicken breast, avocado, salsa, and 1 tbsp olive oil.
+            Enter real foods, drinks, snacks, sauces, and portions. Example: moderate glass of sweet tea, ramen, chips, and 2 hot dogs.
           </p>
 
           <label className="mt-5 block space-y-2">
@@ -2385,7 +2495,7 @@ function NutritionCoachScreen() {
               value={mealText}
               onChange={(event) => setMealText(event.target.value)}
               className="min-h-32 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-              placeholder="Example: 2 eggs, 1 cup rice, chicken breast, avocado, salsa, and 1 tbsp olive oil"
+              placeholder="Example: moderate glass of sweet tea, ramen, chips, and 2 hot dogs"
             />
           </label>
 
@@ -2409,7 +2519,7 @@ function NutritionCoachScreen() {
                   </p>
                 </div>
                 <span className="w-fit rounded-full border border-white/10 bg-black/40 px-3 py-2 text-xs font-black uppercase text-white/55">
-                  Local food database
+                  Expanded local database
                 </span>
               </div>
 
