@@ -4603,7 +4603,264 @@ function CoachNutritionReviewPanel() {
 }
 
 
-﻿﻿function ClientLatestCoachActionPlanPanel() {
+﻿﻿﻿function ClientActionPlanCompletionTracker() {
+  const COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY = "nlf-coach-client-weekly-action-plans-v1";
+  const CLIENT_ACTION_PLAN_COMPLETIONS_STORAGE_KEY = "nlf-client-action-plan-completions-v1";
+
+  function readJsonStorage(key, fallback) {
+    if (typeof window === "undefined") return fallback;
+
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function readSavedPlans() {
+    const saved = readJsonStorage(COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY, []);
+    return Array.isArray(saved) ? saved : [];
+  }
+
+  function readSavedCompletions() {
+    const saved = readJsonStorage(CLIENT_ACTION_PLAN_COMPLETIONS_STORAGE_KEY, []);
+    return Array.isArray(saved) ? saved : [];
+  }
+
+  const [savedPlans, setSavedPlans] = useState(readSavedPlans);
+  const [savedCompletions, setSavedCompletions] = useState(readSavedCompletions);
+  const [nutritionComplete, setNutritionComplete] = useState(false);
+  const [trainingComplete, setTrainingComplete] = useState(false);
+  const [habitComplete, setHabitComplete] = useState(false);
+  const [messageReviewed, setMessageReviewed] = useState(false);
+  const [clientCompletionNotes, setClientCompletionNotes] = useState("");
+  const [completionStatus, setCompletionStatus] = useState("");
+
+  const latestPlan = savedPlans[0] || null;
+  const latestCompletion = savedCompletions[0] || null;
+
+  function refreshCompletionTracker() {
+    setSavedPlans(readSavedPlans());
+    setSavedCompletions(readSavedCompletions());
+    setCompletionStatus("Action plan completion tracker refreshed.");
+  }
+
+  function saveActionPlanCompletion() {
+    if (!latestPlan) {
+      setCompletionStatus("No coach action plan is available to complete yet.");
+      return;
+    }
+
+    const completedItems = [
+      nutritionComplete,
+      trainingComplete,
+      habitComplete,
+      messageReviewed,
+    ].filter(Boolean).length;
+
+    const completionPercent = Math.round((completedItems / 4) * 100);
+
+    const nextCompletion = {
+      id: "client-action-plan-completion-" + Date.now(),
+      actionPlanId: latestPlan.id,
+      planTitle: latestPlan.planTitle,
+      priorityFocus: latestPlan.priorityFocus,
+      nutritionComplete,
+      trainingComplete,
+      habitComplete,
+      messageReviewed,
+      completedItems,
+      totalItems: 4,
+      completionPercent,
+      clientCompletionNotes,
+      savedAt: new Date().toLocaleString(),
+    };
+
+    const nextCompletions = [nextCompletion, ...savedCompletions].slice(0, 12);
+
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(CLIENT_ACTION_PLAN_COMPLETIONS_STORAGE_KEY, JSON.stringify(nextCompletions));
+      } catch {
+        setCompletionStatus("Could not save action plan completion locally.");
+        return;
+      }
+    }
+
+    setSavedCompletions(nextCompletions);
+    setCompletionStatus("Action plan completion saved for coach review.");
+  }
+
+  return (
+    <section
+      data-testid="client-action-plan-completion-tracker"
+      aria-label="Client action plan completion tracker"
+      className="mb-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Action Plan Completion
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Mark This Week Complete
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Track whether the coach’s nutrition, training/recovery, and habit actions were completed this week.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={refreshCompletionTracker}
+          className="w-fit rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+        >
+          Refresh Completion
+        </button>
+      </div>
+
+      {latestPlan ? (
+        <div
+          data-testid="client-action-plan-completion-card"
+          className="mt-5 rounded-3xl border border-white/10 bg-black/40 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Completing: {latestPlan.planTitle}
+          </p>
+          <p className="mt-2 text-sm font-black uppercase text-white/55">
+            Priority: {latestPlan.priorityFocus || "—"}
+          </p>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <input
+                aria-label="Nutrition Action Complete"
+                type="checkbox"
+                checked={nutritionComplete}
+                onChange={(event) => setNutritionComplete(event.target.checked)}
+                className="mt-1 h-5 w-5 rounded border-white/20 bg-black accent-[#00BF63]"
+              />
+              <span>
+                <span className="block text-sm font-black uppercase text-white">Nutrition Action</span>
+                <span className="mt-1 block text-sm leading-6 text-white/60">
+                  {latestPlan.nutritionAction || "No nutrition action saved."}
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <input
+                aria-label="Training Recovery Action Complete"
+                type="checkbox"
+                checked={trainingComplete}
+                onChange={(event) => setTrainingComplete(event.target.checked)}
+                className="mt-1 h-5 w-5 rounded border-white/20 bg-black accent-[#00BF63]"
+              />
+              <span>
+                <span className="block text-sm font-black uppercase text-white">Training / Recovery Action</span>
+                <span className="mt-1 block text-sm leading-6 text-white/60">
+                  {latestPlan.trainingAction || "No training or recovery action saved."}
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <input
+                aria-label="Habit Action Complete"
+                type="checkbox"
+                checked={habitComplete}
+                onChange={(event) => setHabitComplete(event.target.checked)}
+                className="mt-1 h-5 w-5 rounded border-white/20 bg-black accent-[#00BF63]"
+              />
+              <span>
+                <span className="block text-sm font-black uppercase text-white">Habit Action</span>
+                <span className="mt-1 block text-sm leading-6 text-white/60">
+                  {latestPlan.habitAction || "No habit action saved."}
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <input
+                aria-label="Coach Message Reviewed"
+                type="checkbox"
+                checked={messageReviewed}
+                onChange={(event) => setMessageReviewed(event.target.checked)}
+                className="mt-1 h-5 w-5 rounded border-white/20 bg-black accent-[#00BF63]"
+              />
+              <span>
+                <span className="block text-sm font-black uppercase text-white">Coach Message Reviewed</span>
+                <span className="mt-1 block text-sm leading-6 text-white/60">
+                  {latestPlan.clientMessage || "No coach message saved."}
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <label className="mt-5 block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Client Completion Notes
+            </span>
+            <textarea
+              aria-label="Client Action Plan Completion Notes"
+              value={clientCompletionNotes}
+              onChange={(event) => setClientCompletionNotes(event.target.value)}
+              className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="What got done? What was hard? What should coach know before the next adjustment?"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={saveActionPlanCompletion}
+            className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+          >
+            Save Action Plan Completion
+          </button>
+        </div>
+      ) : (
+        <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm font-bold text-white/45">
+          No coach action plan is saved yet.
+        </p>
+      )}
+
+      {completionStatus && (
+        <p
+          data-testid="client-action-plan-completion-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-black/40 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {completionStatus}
+        </p>
+      )}
+
+      {latestCompletion && (
+        <div
+          data-testid="client-latest-action-plan-completion"
+          className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-black/40 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Latest Completion
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">
+            {latestCompletion.completionPercent}% complete
+          </h4>
+          <p className="mt-2 text-sm font-bold text-white/60">
+            {latestCompletion.completedItems}/{latestCompletion.totalItems} items completed | saved {latestCompletion.savedAt}
+          </p>
+          {latestCompletion.clientCompletionNotes && (
+            <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm font-bold leading-6 text-white/70">
+              {latestCompletion.clientCompletionNotes}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ClientLatestCoachActionPlanPanel() {
   const COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY = "nlf-coach-client-weekly-action-plans-v1";
 
   function readSavedActionPlans() {
@@ -5240,6 +5497,8 @@ return (
       <ClientDashboardCheckInSummaryCards />
 
       <ClientLatestCoachActionPlanPanel />
+
+      <ClientActionPlanCompletionTracker />
 
         {/* NLF_BUILD_WORKOUT_PLAN_MERGED_WORKSPACE */}
 
@@ -8455,7 +8714,220 @@ function ClientDashboardScreen({
 }
 
 
-﻿﻿function CoachWeeklyActionPlanGenerator() {
+﻿﻿﻿function CoachActionPlanCompletionReviewPanel() {
+  const CLIENT_ACTION_PLAN_COMPLETIONS_STORAGE_KEY = "nlf-client-action-plan-completions-v1";
+  const COACH_COMPLETION_REVIEW_NOTES_STORAGE_KEY = "nlf-coach-action-plan-completion-review-notes-v1";
+
+  function readJsonStorage(key, fallback) {
+    if (typeof window === "undefined") return fallback;
+
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function readSavedCompletions() {
+    const saved = readJsonStorage(CLIENT_ACTION_PLAN_COMPLETIONS_STORAGE_KEY, []);
+    return Array.isArray(saved) ? saved : [];
+  }
+
+  function readCoachReviewNotes() {
+    if (typeof window === "undefined") return "";
+
+    try {
+      return window.localStorage.getItem(COACH_COMPLETION_REVIEW_NOTES_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  const [savedCompletions, setSavedCompletions] = useState(readSavedCompletions);
+  const [coachCompletionReviewNotes, setCoachCompletionReviewNotes] = useState(readCoachReviewNotes);
+  const [completionReviewStatus, setCompletionReviewStatus] = useState("");
+
+  const latestCompletion = savedCompletions[0] || null;
+
+  const completionPercent = Number(latestCompletion?.completionPercent || 0);
+  const completionLabel =
+    completionPercent >= 100
+      ? "Complete"
+      : completionPercent >= 75
+        ? "Strong"
+        : completionPercent >= 50
+          ? "Partial"
+          : latestCompletion
+            ? "Low"
+            : "No completion yet";
+
+  function refreshCompletionReview() {
+    setSavedCompletions(readSavedCompletions());
+    setCompletionReviewStatus("Action plan completion review refreshed.");
+  }
+
+  function saveCompletionReviewNotes() {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(COACH_COMPLETION_REVIEW_NOTES_STORAGE_KEY, coachCompletionReviewNotes);
+      } catch {
+        setCompletionReviewStatus("Could not save completion review notes locally.");
+        return;
+      }
+    }
+
+    setCompletionReviewStatus("Coach completion review notes saved.");
+  }
+
+  return (
+    <section
+      data-testid="coach-action-plan-completion-review"
+      aria-label="Coach action plan completion review"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-black/60 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Completion Review
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Client Action Plan Follow-Through
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Review whether the client completed the coach-saved weekly action plan before making the next adjustment.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={refreshCompletionReview}
+          className="w-fit rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+        >
+          Refresh Completion Review
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Completion Logs</p>
+          <p className="mt-1 text-3xl font-black text-white">{savedCompletions.length}</p>
+        </div>
+
+        <div
+          data-testid="coach-action-plan-completion-score"
+          className="rounded-3xl border border-white/10 bg-white/[0.03] p-4"
+        >
+          <p className="text-xs font-black uppercase text-white/45">Completion Score</p>
+          <p className="mt-1 text-3xl font-black text-white">
+            {latestCompletion ? latestCompletion.completionPercent + "%" : "—"}
+          </p>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Completed Items</p>
+          <p className="mt-1 text-3xl font-black text-white">
+            {latestCompletion ? latestCompletion.completedItems + "/" + latestCompletion.totalItems : "—"}
+          </p>
+        </div>
+
+        <div
+          data-testid="coach-action-plan-completion-label"
+          className="rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-4"
+        >
+          <p className="text-xs font-black uppercase text-[#00BF63]">Status</p>
+          <p className="mt-1 text-3xl font-black text-white">{completionLabel}</p>
+        </div>
+      </div>
+
+      {latestCompletion ? (
+        <div
+          data-testid="coach-latest-action-plan-completion"
+          className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Latest Client Completion
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">
+            {latestCompletion.planTitle || "Weekly Action Plan"}
+          </h4>
+          <p className="mt-2 text-sm font-black uppercase text-white/55">
+            Priority: {latestCompletion.priorityFocus || "—"}
+          </p>
+
+          <div className="mt-4 grid gap-2 md:grid-cols-4">
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Nutrition: {latestCompletion.nutritionComplete ? "Done" : "Not done"}
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Training: {latestCompletion.trainingComplete ? "Done" : "Not done"}
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Habit: {latestCompletion.habitComplete ? "Done" : "Not done"}
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Message: {latestCompletion.messageReviewed ? "Reviewed" : "Not reviewed"}
+            </p>
+          </div>
+
+          {latestCompletion.clientCompletionNotes && (
+            <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+              Client Notes: {latestCompletion.clientCompletionNotes}
+            </p>
+          )}
+
+          {completionPercent < 75 && (
+            <p
+              data-testid="coach-action-plan-completion-flag"
+              className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4 text-sm font-bold text-yellow-100/80"
+            >
+              Completion is under 75%. Review barriers before increasing plan difficulty.
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm font-bold text-white/45">
+          No client completion has been saved yet.
+        </p>
+      )}
+
+      <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+        <label className="block space-y-2">
+          <span className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+            Coach Completion Review Notes
+          </span>
+          <textarea
+            aria-label="Coach Action Plan Completion Review Notes"
+            value={coachCompletionReviewNotes}
+            onChange={(event) => setCoachCompletionReviewNotes(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Example: Client completed nutrition and habit actions but missed recovery action. Keep next plan simple."
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={saveCompletionReviewNotes}
+          className="mt-4 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+        >
+          Save Completion Review Notes
+        </button>
+      </div>
+
+      {completionReviewStatus && (
+        <p
+          data-testid="coach-action-plan-completion-review-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {completionReviewStatus}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function CoachWeeklyActionPlanGenerator() {
   const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
   const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
   const PROGRESS_PHOTOS_STORAGE_KEY = "nlf-client-progress-photos-v1";
@@ -9500,6 +9972,8 @@ function CoachScreen({
       <CoachDashboardCommandSummaryCards />
 
       <CoachWeeklyActionPlanGenerator />
+
+      <CoachActionPlanCompletionReviewPanel />
 
       <CoachNutritionReviewPanel />
 

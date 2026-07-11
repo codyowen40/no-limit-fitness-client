@@ -920,3 +920,74 @@ test("coach can generate weekly action plan and client can view it", async ({ pa
   await expect(page.getByTestId("client-coach-action-plan-card").first()).toContainText("Recovery First Weekly Plan");
   await expect(page.getByTestId("client-coach-action-plan-card").first()).toContainText("Focus on sleep");
 });
+﻿
+test("client can complete coach action plan and coach can review completion", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!window.location.search.includes("portalMode=coach")) {
+      window.localStorage.removeItem("nlf-client-action-plan-completions-v1");
+      window.localStorage.removeItem("nlf-coach-action-plan-completion-review-notes-v1");
+    }
+
+    window.localStorage.setItem(
+      "nlf-coach-client-weekly-action-plans-v1",
+      JSON.stringify([
+        {
+          id: "coach-weekly-action-plan-completion-test",
+          planTitle: "Recovery First Weekly Plan",
+          priorityFocus: "Recovery, sleep, and consistency",
+          nutritionAction: "Hit protein first, reduce alcohol, and keep calories steady.",
+          trainingAction: "Keep training controlled and avoid adding extra volume.",
+          habitAction: "Set a simple sleep target and prep one high-protein meal option.",
+          clientMessage: "Focus on sleep, protein, water, and steady training this week.",
+          coachInternalNote: "Generated from low energy and poor sleep.",
+          flags: ["Sleep is poor", "Energy is low"],
+          savedAt: "Test action plan"
+        }
+      ])
+    );
+  });
+
+  await page.goto("/?testUnlock=true&portalMode=client");
+
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+
+  const completionPanel = page.getByTestId("client-action-plan-completion-tracker").first();
+
+  await expect(completionPanel).toBeVisible();
+  await expect(completionPanel).toContainText("Mark This Week Complete");
+  await expect(page.getByTestId("client-action-plan-completion-card").first()).toContainText("Recovery First Weekly Plan");
+
+  await completionPanel.getByRole("checkbox", { name: "Nutrition Action Complete" }).check();
+  await completionPanel.getByRole("checkbox", { name: "Training Recovery Action Complete" }).check();
+  await completionPanel.getByRole("checkbox", { name: "Habit Action Complete" }).check();
+  await completionPanel.getByRole("checkbox", { name: "Coach Message Reviewed" }).check();
+
+  await completionPanel
+    .getByRole("textbox", { name: "Client Action Plan Completion Notes", exact: true })
+    .fill("I completed the plan, hit protein, kept workouts controlled, and slept better.");
+
+  await completionPanel.getByRole("button", { name: "Save Action Plan Completion" }).click();
+
+  await expect(page.getByTestId("client-action-plan-completion-status").first()).toContainText("Action plan completion saved");
+  await expect(page.getByTestId("client-latest-action-plan-completion").first()).toContainText("100% complete");
+
+  await page.goto("/?testUnlock=true&portalMode=coach");
+
+  await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  const coachCompletionPanel = page.getByTestId("coach-action-plan-completion-review").first();
+
+  await expect(coachCompletionPanel).toBeVisible();
+  await expect(coachCompletionPanel).toContainText("Client Action Plan Follow-Through");
+  await expect(page.getByTestId("coach-action-plan-completion-score").first()).toContainText("100%");
+  await expect(page.getByTestId("coach-action-plan-completion-label").first()).toContainText("Complete");
+  await expect(page.getByTestId("coach-latest-action-plan-completion").first()).toContainText("I completed the plan");
+
+  await coachCompletionPanel
+    .getByRole("textbox", { name: "Coach Action Plan Completion Review Notes", exact: true })
+    .fill("Client completed all weekly actions. Next plan can progress slightly.");
+
+  await coachCompletionPanel.getByRole("button", { name: "Save Completion Review Notes" }).click();
+
+  await expect(page.getByTestId("coach-action-plan-completion-review-status").first()).toContainText("Coach completion review notes saved");
+});
