@@ -4603,7 +4603,108 @@ function CoachNutritionReviewPanel() {
 }
 
 
-﻿function ClientDashboardCheckInSummaryCards() {
+﻿﻿function ClientLatestCoachActionPlanPanel() {
+  const COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY = "nlf-coach-client-weekly-action-plans-v1";
+
+  function readSavedActionPlans() {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const raw = window.localStorage.getItem(COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  const [savedActionPlans, setSavedActionPlans] = useState(readSavedActionPlans);
+  const [clientPlanStatus, setClientPlanStatus] = useState("");
+
+  function refreshLatestCoachPlan() {
+    setSavedActionPlans(readSavedActionPlans());
+    setClientPlanStatus("Latest coach action plan refreshed.");
+  }
+
+  const latestPlan = savedActionPlans[0] || null;
+
+  return (
+    <section
+      data-testid="client-latest-coach-action-plan"
+      aria-label="Client latest coach action plan"
+      className="mb-5 rounded-3xl border border-[#00BF63]/25 bg-black/50 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Coach Action Plan
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Latest Weekly Focus
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Your latest coach-saved weekly plan will show here after review.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={refreshLatestCoachPlan}
+          className="w-fit rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+        >
+          Refresh Coach Plan
+        </button>
+      </div>
+
+      {latestPlan ? (
+        <div
+          data-testid="client-coach-action-plan-card"
+          className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Saved {latestPlan.savedAt || "recently"}
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">{latestPlan.planTitle}</h4>
+          <p className="mt-2 text-sm font-black uppercase text-white/55">
+            Priority: {latestPlan.priorityFocus || "—"}
+          </p>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+              Nutrition: {latestPlan.nutritionAction || "—"}
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+              Training / Recovery: {latestPlan.trainingAction || "—"}
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+              Habit: {latestPlan.habitAction || "—"}
+            </p>
+          </div>
+
+          <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/75">
+            Coach Message: {latestPlan.clientMessage || "No message saved."}
+          </p>
+        </div>
+      ) : (
+        <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm font-bold text-white/45">
+          No coach weekly action plan saved yet.
+        </p>
+      )}
+
+      {clientPlanStatus && (
+        <p
+          data-testid="client-coach-action-plan-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {clientPlanStatus}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function ClientDashboardCheckInSummaryCards() {
   const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
   const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
   const PROGRESS_PHOTOS_STORAGE_KEY = "nlf-client-progress-photos-v1";
@@ -5137,6 +5238,8 @@ return (
       className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
     >
       <ClientDashboardCheckInSummaryCards />
+
+      <ClientLatestCoachActionPlanPanel />
 
         {/* NLF_BUILD_WORKOUT_PLAN_MERGED_WORKSPACE */}
 
@@ -8352,7 +8455,410 @@ function ClientDashboardScreen({
 }
 
 
-﻿function CoachDashboardCommandSummaryCards() {
+﻿﻿function CoachWeeklyActionPlanGenerator() {
+  const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
+  const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
+  const PROGRESS_PHOTOS_STORAGE_KEY = "nlf-client-progress-photos-v1";
+  const COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY = "nlf-coach-client-weekly-action-plans-v1";
+
+  function readJsonStorage(key, fallback) {
+    if (typeof window === "undefined") return fallback;
+
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function readSavedActionPlans() {
+    const saved = readJsonStorage(COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY, []);
+    return Array.isArray(saved) ? saved : [];
+  }
+
+  function buildRiskSnapshot() {
+    const nutritionHistory = readJsonStorage(NUTRITION_HISTORY_STORAGE_KEY, { targets: [], meals: [] });
+    const clientCheckIns = readJsonStorage(CLIENT_WEEKLY_CHECKINS_STORAGE_KEY, []);
+    const progressPhotos = readJsonStorage(PROGRESS_PHOTOS_STORAGE_KEY, []);
+
+    const savedTargets = Array.isArray(nutritionHistory.targets) ? nutritionHistory.targets : [];
+    const savedMeals = Array.isArray(nutritionHistory.meals) ? nutritionHistory.meals : [];
+    const savedCheckIns = Array.isArray(clientCheckIns) ? clientCheckIns : [];
+    const savedPhotos = Array.isArray(progressPhotos) ? progressPhotos : [];
+
+    const latestTarget = savedTargets[0] || null;
+    const latestMeal = savedMeals[0] || null;
+    const latestCheckIn = savedCheckIns[0] || null;
+    const latestPhotoCheckIn = savedPhotos[0] || null;
+
+    const hasAlcohol = Array.isArray(latestMeal?.matches) &&
+      latestMeal.matches.some((item) =>
+        String(item.category || "").toLowerCase() === "alcohol" ||
+        /beer|vodka|whiskey|tequila|malt liquor|seltzer|wine|cocktail|margarita/i.test(String(item.name || ""))
+      );
+
+    const hasLiquidCalories = Array.isArray(latestMeal?.matches) &&
+      latestMeal.matches.some((item) =>
+        /sweet tea|kool-aid|koolaid|soda|juice|lemonade|energy drink|frappuccino|chocolate milk/i.test(String(item.name || ""))
+      );
+
+    const highCalorieMeal = Number(latestMeal?.calories) >= 800;
+    const lowAdherence = Number(latestCheckIn?.adherenceScore) > 0 && Number(latestCheckIn?.adherenceScore) < 75;
+    const highHunger = Number(latestCheckIn?.hungerScore) >= 4;
+    const lowEnergy = Number(latestCheckIn?.energyScore) <= 2;
+    const poorSleep = Number(latestCheckIn?.sleepScore) <= 2;
+    const highStress = Number(latestCheckIn?.stressScore) >= 4;
+    const lowRecovery = Number(latestCheckIn?.recoveryScore) <= 2;
+
+    const photoAnglesSaved = latestPhotoCheckIn
+      ? [latestPhotoCheckIn.frontPhoto, latestPhotoCheckIn.sidePhoto, latestPhotoCheckIn.backPhoto].filter(Boolean).length
+      : 0;
+
+    const flags = [];
+
+    if (poorSleep) flags.push("Sleep is poor");
+    if (lowEnergy) flags.push("Energy is low");
+    if (lowRecovery) flags.push("Recovery is low");
+    if (highStress) flags.push("Stress is high");
+    if (lowAdherence) flags.push("Adherence is below 75%");
+    if (highHunger) flags.push("Hunger is high");
+    if (hasAlcohol) flags.push("Alcohol appears in latest meal log");
+    if (hasLiquidCalories) flags.push("Liquid calories appear in latest meal log");
+    if (highCalorieMeal) flags.push("Latest meal is 800+ calories");
+    if (photoAnglesSaved > 0 && photoAnglesSaved < 3) flags.push("Progress photo check-in is incomplete");
+
+    return {
+      latestTarget,
+      latestMeal,
+      latestCheckIn,
+      latestPhotoCheckIn,
+      photoAnglesSaved,
+      flags,
+      poorSleep,
+      lowEnergy,
+      lowRecovery,
+      highStress,
+      lowAdherence,
+      highHunger,
+      hasAlcohol,
+      hasLiquidCalories,
+      highCalorieMeal,
+    };
+  }
+
+  function createSuggestedPlan(snapshot) {
+    if (snapshot.poorSleep || snapshot.lowEnergy || snapshot.lowRecovery) {
+      return {
+        title: "Recovery First Weekly Plan",
+        priority: "Recovery, sleep, and consistency",
+        nutritionAction: "Keep calories steady this week. Hit protein first, reduce alcohol, drink water with each meal, and avoid cutting harder until sleep and energy improve.",
+        trainingAction: "Keep training controlled. Avoid adding extra volume. Track soreness, sleep, and performance before increasing intensity.",
+        habitAction: "Set a simple sleep target, prep one high-protein meal option, and keep the same weigh-in routine for the next check-in.",
+        clientMessage: "This week we are not chasing a harder plan. We are going to stabilize sleep, energy, protein, and consistency first so the next adjustment is based on better data.",
+      };
+    }
+
+    if (snapshot.hasAlcohol || snapshot.hasLiquidCalories) {
+      return {
+        title: "Liquid Calories And Weekend Control Plan",
+        priority: "Alcohol, drinks, and weekend consistency",
+        nutritionAction: "Keep the current macro target. Replace weekday liquid calories with zero-calorie options and limit alcohol to one planned day if the client chooses to drink.",
+        trainingAction: "Keep workouts normal but monitor recovery after alcohol or low-sleep days.",
+        habitAction: "Log all drinks before the next check-in and add one high-protein meal before any social event.",
+        clientMessage: "The main focus this week is honest drink tracking and better weekend control. We are keeping the plan simple so consistency improves.",
+      };
+    }
+
+    if (snapshot.lowAdherence) {
+      return {
+        title: "Adherence Reset Weekly Plan",
+        priority: "Execution before adjustment",
+        nutritionAction: "Do not lower calories yet. Simplify meals, repeat easy protein options, and reduce the number of decisions during busy days.",
+        trainingAction: "Keep workouts realistic and schedule them earlier in the day when possible.",
+        habitAction: "Pick two non-negotiables: protein at each meal and one planned grocery/convenience backup meal.",
+        clientMessage: "Before we change numbers, we need a more consistent week. The goal is not perfection. The goal is to make the plan easier to follow.",
+      };
+    }
+
+    if (snapshot.highHunger || snapshot.highCalorieMeal) {
+      return {
+        title: "Hunger And Portion Control Plan",
+        priority: "Protein, fiber, and meal structure",
+        nutritionAction: "Keep protein high, add more filling foods, watch sauces/snacks, and build meals around lean protein before carbs or fats.",
+        trainingAction: "Keep training steady and monitor whether hunger spikes on harder workout days.",
+        habitAction: "Use a planned snack or protein option before the highest-risk meal of the day.",
+        clientMessage: "This week we are going to control hunger without making the plan harder. More structure, better protein, and fewer surprise calories.",
+      };
+    }
+
+    return {
+      title: "Steady Progress Weekly Plan",
+      priority: "Stay consistent and monitor trend",
+      nutritionAction: "Keep the current target steady. Continue logging meals and compare next check-in weight, waist, photos, and adherence.",
+      trainingAction: "Keep workouts consistent and track performance.",
+      habitAction: "Save one weekly check-in and progress photos using the same lighting and timing.",
+      clientMessage: "Everything looks stable enough to keep the plan steady. Let’s collect another clean week of data before making changes.",
+    };
+  }
+
+  const [riskSnapshot, setRiskSnapshot] = useState(buildRiskSnapshot);
+  const [savedActionPlans, setSavedActionPlans] = useState(readSavedActionPlans);
+  const [planTitle, setPlanTitle] = useState("");
+  const [priorityFocus, setPriorityFocus] = useState("");
+  const [nutritionAction, setNutritionAction] = useState("");
+  const [trainingAction, setTrainingAction] = useState("");
+  const [habitAction, setHabitAction] = useState("");
+  const [clientMessage, setClientMessage] = useState("");
+  const [coachInternalNote, setCoachInternalNote] = useState("");
+  const [actionPlanStatus, setActionPlanStatus] = useState("");
+
+  function refreshRiskSnapshot() {
+    setRiskSnapshot(buildRiskSnapshot());
+    setSavedActionPlans(readSavedActionPlans());
+    setActionPlanStatus("Action plan snapshot refreshed.");
+  }
+
+  function generateWeeklyActionPlan() {
+    const snapshot = buildRiskSnapshot();
+    const suggested = createSuggestedPlan(snapshot);
+
+    setRiskSnapshot(snapshot);
+    setPlanTitle(suggested.title);
+    setPriorityFocus(suggested.priority);
+    setNutritionAction(suggested.nutritionAction);
+    setTrainingAction(suggested.trainingAction);
+    setHabitAction(suggested.habitAction);
+    setClientMessage(suggested.clientMessage);
+    setCoachInternalNote(
+      snapshot.flags.length
+        ? "Generated from flags: " + snapshot.flags.join(", ")
+        : "Generated from a clear risk snapshot."
+    );
+    setActionPlanStatus("Weekly action plan generated.");
+  }
+
+  function saveWeeklyActionPlan() {
+    const nextPlan = {
+      id: "coach-weekly-action-plan-" + Date.now(),
+      planTitle: planTitle || "Weekly Coach Action Plan",
+      priorityFocus,
+      nutritionAction,
+      trainingAction,
+      habitAction,
+      clientMessage,
+      coachInternalNote,
+      flags: riskSnapshot.flags,
+      latestWeight: riskSnapshot.latestCheckIn?.checkInWeight || "",
+      latestCalories: riskSnapshot.latestMeal?.calories || "",
+      latestTargetCalories: riskSnapshot.latestTarget?.dailyCalories || "",
+      photoAnglesSaved: riskSnapshot.photoAnglesSaved,
+      savedAt: new Date().toLocaleString(),
+    };
+
+    const nextPlans = [nextPlan, ...savedActionPlans].slice(0, 12);
+
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(COACH_WEEKLY_ACTION_PLANS_STORAGE_KEY, JSON.stringify(nextPlans));
+      } catch {
+        setActionPlanStatus("Could not save weekly action plan locally.");
+        return;
+      }
+    }
+
+    setSavedActionPlans(nextPlans);
+    setActionPlanStatus("Weekly coach action plan saved for client.");
+  }
+
+  const latestSavedPlan = savedActionPlans[0] || null;
+
+  return (
+    <section
+      data-testid="coach-weekly-action-plan-generator"
+      aria-label="Coach weekly action plan generator"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-black/60 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Weekly Action Plan
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Turn Risk Flags Into A Client Plan
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Generate a simple weekly plan from saved nutrition, check-in, and progress-photo data. Edit it before saving it for the client.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={refreshRiskSnapshot}
+            className="rounded-full border border-white/10 px-5 py-3 text-xs font-black uppercase text-white/55 transition hover:border-[#00BF63] hover:text-[#00BF63]"
+          >
+            Refresh Snapshot
+          </button>
+
+          <button
+            type="button"
+            onClick={generateWeeklyActionPlan}
+            className="rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+          >
+            Generate Weekly Action Plan
+          </button>
+        </div>
+      </div>
+
+      <div
+        data-testid="coach-action-plan-risk-snapshot"
+        className="mt-5 rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-4"
+      >
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/70">
+          Current Risk Snapshot
+        </p>
+
+        {riskSnapshot.flags.length ? (
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {riskSnapshot.flags.map((flag) => (
+              <p
+                key={flag}
+                className="rounded-2xl border border-white/10 bg-black/30 p-3 text-sm font-bold text-white/75"
+              >
+                {flag}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3 text-sm font-bold text-white/55">
+            No major flags found yet.
+          </p>
+        )}
+      </div>
+
+      <div
+        data-testid="coach-generated-action-plan"
+        className="mt-5 grid gap-4 md:grid-cols-2"
+      >
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Plan Title</span>
+          <input
+            aria-label="Coach Weekly Action Plan Title"
+            value={planTitle}
+            onChange={(event) => setPlanTitle(event.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Generate or type a plan title"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Priority Focus</span>
+          <input
+            aria-label="Coach Weekly Priority Focus"
+            value={priorityFocus}
+            onChange={(event) => setPriorityFocus(event.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Main focus for the week"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Nutrition Action</span>
+          <textarea
+            aria-label="Coach Weekly Nutrition Action"
+            value={nutritionAction}
+            onChange={(event) => setNutritionAction(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Nutrition action for the week"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Training / Recovery Action</span>
+          <textarea
+            aria-label="Coach Weekly Training Recovery Action"
+            value={trainingAction}
+            onChange={(event) => setTrainingAction(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Training or recovery action for the week"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Habit Action</span>
+          <textarea
+            aria-label="Coach Weekly Habit Action"
+            value={habitAction}
+            onChange={(event) => setHabitAction(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Simple weekly habit focus"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-black uppercase text-white/45">Client Message</span>
+          <textarea
+            aria-label="Coach Weekly Client Message"
+            value={clientMessage}
+            onChange={(event) => setClientMessage(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Client-facing message"
+          />
+        </label>
+
+        <label className="space-y-2 md:col-span-2">
+          <span className="text-xs font-black uppercase text-white/45">Coach Internal Notes</span>
+          <textarea
+            aria-label="Coach Weekly Internal Notes"
+            value={coachInternalNote}
+            onChange={(event) => setCoachInternalNote(event.target.value)}
+            className="min-h-24 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Private coach notes about why this plan was chosen"
+          />
+        </label>
+      </div>
+
+      <button
+        type="button"
+        onClick={saveWeeklyActionPlan}
+        className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+      >
+        Save Weekly Action Plan
+      </button>
+
+      {actionPlanStatus && (
+        <p
+          data-testid="coach-weekly-action-plan-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {actionPlanStatus}
+        </p>
+      )}
+
+      {latestSavedPlan && (
+        <div
+          data-testid="coach-saved-action-plan-card"
+          className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Latest Saved Client Plan
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">{latestSavedPlan.planTitle}</h4>
+          <p className="mt-2 text-sm font-bold text-white/65">
+            Priority: {latestSavedPlan.priorityFocus || "—"}
+          </p>
+          <p className="mt-3 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+            {latestSavedPlan.clientMessage || "No client message saved."}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CoachDashboardCommandSummaryCards() {
   const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
   const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
   const PROGRESS_PHOTOS_STORAGE_KEY = "nlf-client-progress-photos-v1";
@@ -8992,6 +9498,8 @@ function CoachScreen({
         </section>
 
       <CoachDashboardCommandSummaryCards />
+
+      <CoachWeeklyActionPlanGenerator />
 
       <CoachNutritionReviewPanel />
 

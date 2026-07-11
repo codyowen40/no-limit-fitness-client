@@ -800,3 +800,123 @@ test("coach command center shows nutrition check-in risk summary cards", async (
 
   await expect(page.getByTestId("coach-command-summary-status").first()).toContainText("Coach command summary refreshed");
 });
+﻿
+test("coach can generate weekly action plan and client can view it", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!window.location.search.includes("portalMode=client")) {
+      window.localStorage.removeItem("nlf-coach-client-weekly-action-plans-v1");
+    }
+
+    const tinyDataUrl =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+
+    window.localStorage.setItem(
+      "nlf-nutrition-history-v1",
+      JSON.stringify({
+        targets: [
+          {
+            id: "target-action-plan-test",
+            goal: "fat-loss",
+            goalLabel: "Weight Loss",
+            dailyCalories: 2100,
+            maintenanceCalories: 2600,
+            protein: 200,
+            carbs: 190,
+            fat: 65,
+            savedAt: "Test"
+          }
+        ],
+        meals: [
+          {
+            id: "meal-action-plan-test",
+            title: "Meal Builder Estimate",
+            calories: 950,
+            protein: 34,
+            carbs: 110,
+            fat: 32,
+            confidence: "High",
+            matches: [
+              { id: "item-1", name: "Light Beer", category: "Alcohol", calories: 105 },
+              { id: "item-2", name: "Sweet Tea", category: "Drink", calories: 160 }
+            ]
+          }
+        ]
+      })
+    );
+
+    window.localStorage.setItem(
+      "nlf-client-weekly-checkins-v1",
+      JSON.stringify([
+        {
+          id: "client-action-checkin-current",
+          checkInDate: "2026-07-11",
+          checkInWeight: "198.4",
+          waistMeasurement: "34.5",
+          adherenceScore: "70",
+          workoutsCompleted: "4",
+          proteinConsistency: "4",
+          hungerScore: "4",
+          energyScore: "2",
+          sleepScore: "2",
+          stressScore: "4",
+          digestionScore: "3",
+          recoveryScore: "2",
+          clientCheckInNotes: "Energy was low this week.",
+          savedAt: "Test current"
+        }
+      ])
+    );
+
+    window.localStorage.setItem(
+      "nlf-client-progress-photos-v1",
+      JSON.stringify([
+        {
+          id: "photo-action-test",
+          photoDate: "2026-07-11",
+          photoCheckInNotes: "Same lighting.",
+          frontPhoto: { name: "front.png", dataUrl: tinyDataUrl },
+          sidePhoto: { name: "side.png", dataUrl: tinyDataUrl },
+          backPhoto: { name: "back.png", dataUrl: tinyDataUrl },
+          savedAt: "Test"
+        }
+      ])
+    );
+  });
+
+  await page.goto("/?testUnlock=true&portalMode=coach");
+
+  await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  const actionPlanPanel = page.getByTestId("coach-weekly-action-plan-generator").first();
+
+  await expect(actionPlanPanel).toBeVisible();
+  await expect(actionPlanPanel).toContainText("Turn Risk Flags Into A Client Plan");
+  await expect(page.getByTestId("coach-action-plan-risk-snapshot").first()).toContainText("Sleep is poor");
+  await expect(page.getByTestId("coach-action-plan-risk-snapshot").first()).toContainText("Alcohol appears");
+
+  await actionPlanPanel.getByRole("button", { name: "Generate Weekly Action Plan" }).click();
+
+  await expect(page.getByTestId("coach-weekly-action-plan-status").first()).toContainText("Weekly action plan generated");
+  await expect(actionPlanPanel.getByLabel("Coach Weekly Action Plan Title")).toHaveValue("Recovery First Weekly Plan");
+  await expect(actionPlanPanel.getByLabel("Coach Weekly Priority Focus")).toHaveValue("Recovery, sleep, and consistency");
+
+  await actionPlanPanel
+    .getByRole("textbox", { name: "Coach Weekly Client Message", exact: true })
+    .fill("Focus on sleep, protein, water, and steady training this week.");
+
+  await actionPlanPanel.getByRole("button", { name: "Save Weekly Action Plan" }).click();
+
+  await expect(page.getByTestId("coach-weekly-action-plan-status").first()).toContainText("Weekly coach action plan saved");
+  await expect(page.getByTestId("coach-saved-action-plan-card").first()).toContainText("Recovery First Weekly Plan");
+  await expect(page.getByTestId("coach-saved-action-plan-card").first()).toContainText("Focus on sleep");
+
+  await page.goto("/?testUnlock=true&portalMode=client");
+
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+
+  const clientActionPlanPanel = page.getByTestId("client-latest-coach-action-plan").first();
+
+  await expect(clientActionPlanPanel).toBeVisible();
+  await expect(page.getByTestId("client-coach-action-plan-card").first()).toContainText("Recovery First Weekly Plan");
+  await expect(page.getByTestId("client-coach-action-plan-card").first()).toContainText("Focus on sleep");
+});
