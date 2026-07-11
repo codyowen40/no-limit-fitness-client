@@ -4603,6 +4603,245 @@ function CoachNutritionReviewPanel() {
 }
 
 
+﻿function ClientDashboardCheckInSummaryCards() {
+  const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
+  const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
+  const PROGRESS_PHOTOS_STORAGE_KEY = "nlf-client-progress-photos-v1";
+
+  function readJsonStorage(key, fallback) {
+    if (typeof window === "undefined") return fallback;
+
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function buildSummary() {
+    const nutritionHistory = readJsonStorage(NUTRITION_HISTORY_STORAGE_KEY, { targets: [], meals: [] });
+    const clientCheckIns = readJsonStorage(CLIENT_WEEKLY_CHECKINS_STORAGE_KEY, []);
+    const progressPhotos = readJsonStorage(PROGRESS_PHOTOS_STORAGE_KEY, []);
+
+    const savedTargets = Array.isArray(nutritionHistory.targets) ? nutritionHistory.targets : [];
+    const savedMeals = Array.isArray(nutritionHistory.meals) ? nutritionHistory.meals : [];
+    const savedCheckIns = Array.isArray(clientCheckIns) ? clientCheckIns : [];
+    const savedPhotos = Array.isArray(progressPhotos) ? progressPhotos : [];
+
+    return {
+      latestTarget: savedTargets[0] || null,
+      latestMeal: savedMeals[0] || null,
+      latestCheckIn: savedCheckIns[0] || null,
+      latestPhotoCheckIn: savedPhotos[0] || null,
+      targetCount: savedTargets.length,
+      mealCount: savedMeals.length,
+      checkInCount: savedCheckIns.length,
+      photoCount: savedPhotos.length,
+    };
+  }
+
+  const [summary, setSummary] = useState(buildSummary);
+  const [summaryStatus, setSummaryStatus] = useState("");
+
+  function refreshSummary() {
+    setSummary(buildSummary());
+    setSummaryStatus("Dashboard summary refreshed.");
+  }
+
+  const latestTarget = summary.latestTarget;
+  const latestMeal = summary.latestMeal;
+  const latestCheckIn = summary.latestCheckIn;
+  const latestPhotoCheckIn = summary.latestPhotoCheckIn;
+
+  const lowAdherence = Number(latestCheckIn?.adherenceScore) > 0 && Number(latestCheckIn?.adherenceScore) < 75;
+  const highHunger = Number(latestCheckIn?.hungerScore) >= 4;
+  const lowEnergy = Number(latestCheckIn?.energyScore) <= 2;
+  const poorSleep = Number(latestCheckIn?.sleepScore) <= 2;
+  const highCalorieMeal = Number(latestMeal?.calories) >= 800;
+  const hasAlcohol = Array.isArray(latestMeal?.matches) &&
+    latestMeal.matches.some((item) =>
+      String(item.category || "").toLowerCase() === "alcohol" ||
+      /beer|vodka|whiskey|tequila|malt liquor|seltzer|wine|cocktail|margarita/i.test(String(item.name || ""))
+    );
+
+  const photoAnglesSaved = latestPhotoCheckIn
+    ? [latestPhotoCheckIn.frontPhoto, latestPhotoCheckIn.sidePhoto, latestPhotoCheckIn.backPhoto].filter(Boolean).length
+    : 0;
+
+  return (
+    <section
+      data-testid="client-dashboard-checkin-summary"
+      aria-label="Client dashboard check-in summary"
+      className="mb-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5 shadow-xl shadow-black/20"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Progress Snapshot
+          </p>
+          <h2 className="mt-2 text-2xl font-black uppercase text-white">
+            Nutrition, Check-In, And Photo Summary
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Quick view of your latest saved target, meal, weekly check-in, and progress-photo check-in.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={refreshSummary}
+          className="w-fit rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+        >
+          Refresh Summary
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <div
+          data-testid="client-dashboard-target-card"
+          className="rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <p className="text-xs font-black uppercase text-[#00BF63]">Macro Target</p>
+          {latestTarget ? (
+            <>
+              <p className="mt-2 text-2xl font-black text-white">{latestTarget.dailyCalories} cal</p>
+              <p className="mt-1 text-xs font-bold uppercase text-white/55">
+                {latestTarget.goalLabel || "Goal"} | {latestTarget.protein}g protein
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm font-bold text-white/45">No saved target yet.</p>
+          )}
+        </div>
+
+        <div
+          data-testid="client-dashboard-meal-card"
+          className="rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <p className="text-xs font-black uppercase text-[#00BF63]">Latest Meal</p>
+          {latestMeal ? (
+            <>
+              <p className="mt-2 text-2xl font-black text-white">{latestMeal.calories} cal</p>
+              <p className="mt-1 text-xs font-bold uppercase text-white/55">
+                {latestMeal.protein}g protein | {latestMeal.confidence || "—"} confidence
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm font-bold text-white/45">No saved meal yet.</p>
+          )}
+        </div>
+
+        <div
+          data-testid="client-dashboard-checkin-card"
+          className="rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <p className="text-xs font-black uppercase text-[#00BF63]">Weekly Check-In</p>
+          {latestCheckIn ? (
+            <>
+              <p className="mt-2 text-2xl font-black text-white">{latestCheckIn.checkInWeight || "—"} lb</p>
+              <p className="mt-1 text-xs font-bold uppercase text-white/55">
+                {latestCheckIn.adherenceScore || "—"}% adherence | sleep {latestCheckIn.sleepScore || "—"}/5
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm font-bold text-white/45">No weekly check-in yet.</p>
+          )}
+        </div>
+
+        <div
+          data-testid="client-dashboard-photo-card"
+          className="rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <p className="text-xs font-black uppercase text-[#00BF63]">Photo Check-In</p>
+          {latestPhotoCheckIn ? (
+            <>
+              <p className="mt-2 text-2xl font-black text-white">{photoAnglesSaved}/3</p>
+              <p className="mt-1 text-xs font-bold uppercase text-white/55">
+                angles saved | {latestPhotoCheckIn.photoDate || "latest"}
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm font-bold text-white/45">No progress photos yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div
+        data-testid="client-dashboard-summary-counts"
+        className="mt-4 grid gap-3 md:grid-cols-4"
+      >
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs font-black uppercase text-white/55">
+          Targets: {summary.targetCount}
+        </p>
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs font-black uppercase text-white/55">
+          Meals: {summary.mealCount}
+        </p>
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs font-black uppercase text-white/55">
+          Check-ins: {summary.checkInCount}
+        </p>
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs font-black uppercase text-white/55">
+          Photo logs: {summary.photoCount}
+        </p>
+      </div>
+
+      {(lowAdherence || highHunger || lowEnergy || poorSleep || highCalorieMeal || hasAlcohol) && (
+        <div
+          data-testid="client-dashboard-action-flags"
+          className="mt-5 rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-4"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/70">
+            Action Flags
+          </p>
+
+          <div className="mt-3 grid gap-2">
+            {lowAdherence && (
+              <p className="rounded-2xl border border-orange-400/20 bg-black/30 p-3 text-sm font-bold text-orange-100/80">
+                Adherence is under 75%. Focus on consistency before changing the plan.
+              </p>
+            )}
+            {highHunger && (
+              <p className="rounded-2xl border border-yellow-400/20 bg-black/30 p-3 text-sm font-bold text-yellow-100/80">
+                Hunger is high. Review protein, meal timing, fiber, and sleep.
+              </p>
+            )}
+            {lowEnergy && (
+              <p className="rounded-2xl border border-red-400/20 bg-black/30 p-3 text-sm font-bold text-red-100/80">
+                Energy is low. Check sleep, recovery, calories, and hydration.
+              </p>
+            )}
+            {poorSleep && (
+              <p className="rounded-2xl border border-red-400/20 bg-black/30 p-3 text-sm font-bold text-red-100/80">
+                Sleep score is low. Fix sleep before making aggressive nutrition changes.
+              </p>
+            )}
+            {highCalorieMeal && (
+              <p className="rounded-2xl border border-white/10 bg-black/30 p-3 text-sm font-bold text-white/70">
+                Latest meal is 800+ calories. Review portions, sauces, drinks, and snacks.
+              </p>
+            )}
+            {hasAlcohol && (
+              <p className="rounded-2xl border border-red-400/20 bg-black/30 p-3 text-sm font-bold text-red-100/80">
+                Alcohol appeared in the latest meal log. Track it honestly and watch recovery.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {summaryStatus && (
+        <p
+          data-testid="client-dashboard-summary-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-black/40 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {summaryStatus}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function ClientPortalMyPlanPanel({
   clients,
   savedPlans,
@@ -4897,6 +5136,7 @@ return (
       aria-label="Client My Plan dashboard"
       className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
     >
+      <ClientDashboardCheckInSummaryCards />
 
         {/* NLF_BUILD_WORKOUT_PLAN_MERGED_WORKSPACE */}
 
