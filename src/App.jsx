@@ -5349,6 +5349,7 @@ function ClientPortalMyPlanPanel({
   forceBuildWorkoutPlanOpen = false,
   onOpenPlans = () => {},
 }) {
+  const [clientDashboardTab, setClientDashboardTab] = useState("dashboard");
 
   // NLF_BUNDLE_12V_CLIENT_PLAN_BUILDER_STATE
   const storedClientPlanDraft = getStoredClientPlanDraft();
@@ -5632,9 +5633,43 @@ return (
       aria-label="Client My Plan dashboard"
       className="mb-28 rounded-3xl border border-[#00BF63]/25 bg-gradient-to-br from-black via-zinc-950 to-black p-4 shadow-2xl shadow-black/40 md:mb-6 md:p-5"
     >
-      <ClientDashboardCheckInSummaryCards />
+      <div
+        data-testid="client-dashboard-tab-strip"
+        role="tablist"
+        aria-label="Client dashboard tabs"
+        className="mb-5 flex w-fit flex-wrap gap-2 rounded-full border border-[#00BF63]/25 bg-black/50 p-1"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={clientDashboardTab === "dashboard"}
+          onClick={() => setClientDashboardTab("dashboard")}
+          className={
+            clientDashboardTab === "dashboard"
+              ? "rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black"
+              : "rounded-full px-4 py-2 text-xs font-black uppercase text-white/55 transition hover:text-[#00BF63]"
+          }
+        >
+          Dashboard
+        </button>
 
-      <ClientCheckInsWorkspace />
+        <button
+          type="button"
+          role="tab"
+          aria-selected={clientDashboardTab === "checkins"}
+          onClick={() => setClientDashboardTab("checkins")}
+          className={
+            clientDashboardTab === "checkins"
+              ? "rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black"
+              : "rounded-full px-4 py-2 text-xs font-black uppercase text-white/55 transition hover:text-[#00BF63]"
+          }
+        >
+          Check-Ins
+        </button>
+      </div>
+
+      {clientDashboardTab === "checkins" && <ClientCheckInsWorkspace />}
+      <ClientDashboardCheckInSummaryCards />
 
       <ClientLatestCoachActionPlanPanel />
 
@@ -10664,6 +10699,7 @@ function CoachScreen({
   openMessagesForClient = () => {},
   openPlansForClient = () => {},
 }) {
+  const [coachCommandTab, setCoachCommandTab] = useState("command");
   const [selectedCoachClientId, setSelectedCoachClientId] = useState("");
   const [coachSessionExercise, setCoachSessionExercise] = useState("Back Squat");
   const [coachSessionSets, setCoachSessionSets] = useState("3");
@@ -10935,9 +10971,44 @@ function CoachScreen({
           </div>
         </section>
 
-      <CoachDashboardCommandSummaryCards />
+            <div
+        data-testid="coach-command-tab-strip"
+        role="tablist"
+        aria-label="Coach command center tabs"
+        className="mt-5 flex w-fit flex-wrap gap-2 rounded-full border border-[#00BF63]/25 bg-black/50 p-1"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={coachCommandTab === "command"}
+          onClick={() => setCoachCommandTab("command")}
+          className={
+            coachCommandTab === "command"
+              ? "rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black"
+              : "rounded-full px-4 py-2 text-xs font-black uppercase text-white/55 transition hover:text-[#00BF63]"
+          }
+        >
+          Command Center
+        </button>
 
-      <CoachCheckInsWorkspace />
+        <button
+          type="button"
+          role="tab"
+          aria-selected={coachCommandTab === "checkins"}
+          onClick={() => setCoachCommandTab("checkins")}
+          className={
+            coachCommandTab === "checkins"
+              ? "rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black"
+              : "rounded-full px-4 py-2 text-xs font-black uppercase text-white/55 transition hover:text-[#00BF63]"
+          }
+        >
+          Check-Ins
+        </button>
+      </div>
+
+      {coachCommandTab === "checkins" && <CoachCheckInsWorkspace />}
+
+      <CoachDashboardCommandSummaryCards />
 
       <CoachNutritionReviewPanel />
 

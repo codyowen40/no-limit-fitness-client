@@ -477,6 +477,9 @@ test("client weekly check-in appears in coach nutrition review", async ({ page }
 
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
+  await page.getByTestId("client-dashboard-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
+  await expect(page.getByTestId("client-checkins-workspace").first()).toBeVisible();
+
   const clientCheckInForm = page.getByTestId("client-weekly-checkin-form").first();
 
   await expect(clientCheckInForm).toBeVisible();
@@ -535,6 +538,9 @@ test("client weekly check-in appears in coach nutrition review", async ({ page }
 
   await expect(page.getByText("Coach Command Center").first()).toBeVisible();
 
+  await page.getByTestId("coach-command-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
+  await expect(page.getByTestId("coach-checkins-workspace").first()).toBeVisible();
+
   const coachCheckInPanel = page.getByTestId("coach-client-weekly-checkin-panel").first();
 
   await expect(coachCheckInPanel).toBeVisible();
@@ -571,6 +577,9 @@ test("client can upload progress photos and coach can review them", async ({ pag
   await page.goto("/?testUnlock=true&portalMode=client");
 
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+
+  await page.getByTestId("client-dashboard-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
+  await expect(page.getByTestId("client-checkins-workspace").first()).toBeVisible();
 
   const photoPanel = page.getByTestId("client-progress-photo-upload-panel").first();
 
@@ -653,6 +662,9 @@ test("client can upload progress photos and coach can review them", async ({ pag
   await page.goto("/?testUnlock=true&portalMode=coach");
 
   await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  await page.getByTestId("coach-command-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
+  await expect(page.getByTestId("coach-checkins-workspace").first()).toBeVisible();
 
   const coachPhotoPanel = page.getByTestId("coach-progress-photo-review-panel").first();
 
@@ -881,6 +893,9 @@ test("coach can generate weekly action plan and client can view it", async ({ pa
 
   await expect(page.getByText("Coach Command Center").first()).toBeVisible();
 
+  await page.getByTestId("coach-command-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
+  await expect(page.getByTestId("coach-checkins-workspace").first()).toBeVisible();
+
   const actionPlanPanel = page.getByTestId("coach-weekly-action-plan-generator").first();
 
   await expect(actionPlanPanel).toBeVisible();
@@ -945,6 +960,9 @@ test("client can complete coach action plan and coach can review completion", as
 
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
+  await page.getByTestId("client-dashboard-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
+  await expect(page.getByTestId("client-checkins-workspace").first()).toBeVisible();
+
   const completionPanel = page.getByTestId("client-action-plan-completion-tracker").first();
 
   await expect(completionPanel).toBeVisible();
@@ -968,6 +986,9 @@ test("client can complete coach action plan and coach can review completion", as
   await page.goto("/?testUnlock=true&portalMode=coach");
 
   await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  await page.getByTestId("coach-command-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
+  await expect(page.getByTestId("coach-checkins-workspace").first()).toBeVisible();
 
   const coachCompletionPanel = page.getByTestId("coach-action-plan-completion-review").first();
 
@@ -1122,6 +1143,9 @@ test("coach can generate weekly adjustment and client can view it", async ({ pag
 
   await expect(page.getByText("Coach Command Center").first()).toBeVisible();
 
+  await page.getByTestId("coach-command-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
+  await expect(page.getByTestId("coach-checkins-workspace").first()).toBeVisible();
+
   const adjustmentPanel = page.getByTestId("coach-weekly-adjustment-recommendation").first();
 
   await expect(adjustmentPanel).toBeVisible();
@@ -1164,6 +1188,10 @@ test("check-ins workspace contains moved check-in tools and coach can generate w
   await page.goto("/?testUnlock=true&portalMode=client");
 
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+  await expect(page.getByTestId("client-checkins-workspace")).toHaveCount(0);
+
+  await page.getByTestId("client-dashboard-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
+
   await expect(page.getByTestId("client-checkins-workspace").first()).toBeVisible();
   await expect(page.getByTestId("client-checkins-workspace").first()).toContainText("Client Check-Ins Workspace");
   await expect(page.getByTestId("client-checkins-workspace").first()).toContainText("Weekly Client Check-In");
@@ -1183,6 +1211,9 @@ test("check-ins workspace contains moved check-in tools and coach can generate w
   await page.goto("/?testUnlock=true&portalMode=coach");
 
   await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+  await expect(page.getByTestId("coach-checkins-workspace")).toHaveCount(0);
+
+  await page.getByTestId("coach-command-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
 
   const coachCheckIns = page.getByTestId("coach-checkins-workspace").first();
 
