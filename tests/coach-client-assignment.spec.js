@@ -678,3 +678,125 @@ test("client can upload progress photos and coach can review them", async ({ pag
 
   await expect(page.getByTestId("coach-progress-photo-review-status").first()).toContainText("Coach progress photo notes saved");
 });
+﻿
+test("coach command center shows nutrition check-in risk summary cards", async ({ page }) => {
+  await page.addInitScript(() => {
+    const tinyDataUrl =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+
+    window.localStorage.setItem(
+      "nlf-nutrition-history-v1",
+      JSON.stringify({
+        targets: [
+          {
+            id: "target-coach-command-test",
+            goal: "fat-loss",
+            goalLabel: "Weight Loss",
+            dailyCalories: 2100,
+            maintenanceCalories: 2600,
+            protein: 200,
+            carbs: 190,
+            fat: 65,
+            savedAt: "Test"
+          }
+        ],
+        meals: [
+          {
+            id: "meal-coach-command-test",
+            title: "Meal Builder Estimate",
+            calories: 950,
+            protein: 34,
+            carbs: 110,
+            fat: 32,
+            confidence: "High",
+            matches: [
+              { id: "item-1", name: "Light Beer", category: "Alcohol", calories: 105 },
+              { id: "item-2", name: "Sweet Tea", category: "Drink", calories: 160 },
+              { id: "item-3", name: "Pizza Rolls", category: "Convenience", calories: 220 }
+            ]
+          }
+        ]
+      })
+    );
+
+    window.localStorage.setItem(
+      "nlf-client-weekly-checkins-v1",
+      JSON.stringify([
+        {
+          id: "client-command-checkin-current",
+          checkInDate: "2026-07-11",
+          checkInWeight: "198.4",
+          waistMeasurement: "34.5",
+          adherenceScore: "70",
+          workoutsCompleted: "4",
+          proteinConsistency: "4",
+          hungerScore: "4",
+          energyScore: "2",
+          sleepScore: "2",
+          stressScore: "4",
+          digestionScore: "3",
+          recoveryScore: "2",
+          clientCheckInNotes: "Energy was low this week.",
+          savedAt: "Test current"
+        },
+        {
+          id: "client-command-checkin-previous",
+          checkInDate: "2026-07-04",
+          checkInWeight: "200.0",
+          waistMeasurement: "35",
+          adherenceScore: "80",
+          workoutsCompleted: "3",
+          proteinConsistency: "3",
+          hungerScore: "3",
+          energyScore: "3",
+          sleepScore: "3",
+          stressScore: "3",
+          digestionScore: "3",
+          recoveryScore: "3",
+          clientCheckInNotes: "Previous week.",
+          savedAt: "Test previous"
+        }
+      ])
+    );
+
+    window.localStorage.setItem(
+      "nlf-client-progress-photos-v1",
+      JSON.stringify([
+        {
+          id: "photo-command-test",
+          photoDate: "2026-07-11",
+          photoCheckInNotes: "Same lighting.",
+          frontPhoto: { name: "front.png", dataUrl: tinyDataUrl },
+          sidePhoto: { name: "side.png", dataUrl: tinyDataUrl },
+          backPhoto: { name: "back.png", dataUrl: tinyDataUrl },
+          frontPhotoNote: "Front view looks tighter.",
+          sidePhotoNote: "Side waist looks improved.",
+          backPhotoNote: "Back photo uploaded.",
+          savedAt: "Test"
+        }
+      ])
+    );
+  });
+
+  await page.goto("/?testUnlock=true&portalMode=coach");
+
+  await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  const commandSummary = page.getByTestId("coach-command-summary-cards").first();
+
+  await expect(commandSummary).toBeVisible();
+  await expect(commandSummary).toContainText("Client Nutrition And Check-In Risk Summary");
+  await expect(page.getByTestId("coach-command-weight-card").first()).toContainText("1.6 lb down");
+  await expect(page.getByTestId("coach-command-target-card").first()).toContainText("2100 cal");
+  await expect(page.getByTestId("coach-command-meal-card").first()).toContainText("950 cal");
+  await expect(page.getByTestId("coach-command-photo-card").first()).toContainText("3/3");
+  await expect(page.getByTestId("coach-command-risk-card").first()).toContainText("High");
+  await expect(page.getByTestId("coach-command-summary-counts").first()).toContainText("Check-ins: 2");
+  await expect(page.getByTestId("coach-command-risk-flags").first()).toContainText("Alcohol appears");
+  await expect(page.getByTestId("coach-command-risk-flags").first()).toContainText("Sleep is poor");
+  await expect(page.getByTestId("coach-command-recommended-action").first()).toContainText("Prioritize recovery first");
+
+  await commandSummary.getByRole("button", { name: "Refresh Command Summary" }).click();
+
+  await expect(page.getByTestId("coach-command-summary-status").first()).toContainText("Coach command summary refreshed");
+});

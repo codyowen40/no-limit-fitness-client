@@ -8352,6 +8352,354 @@ function ClientDashboardScreen({
 }
 
 
+﻿function CoachDashboardCommandSummaryCards() {
+  const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
+  const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
+  const PROGRESS_PHOTOS_STORAGE_KEY = "nlf-client-progress-photos-v1";
+
+  function readJsonStorage(key, fallback) {
+    if (typeof window === "undefined") return fallback;
+
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function buildCoachSummary() {
+    const nutritionHistory = readJsonStorage(NUTRITION_HISTORY_STORAGE_KEY, { targets: [], meals: [] });
+    const clientCheckIns = readJsonStorage(CLIENT_WEEKLY_CHECKINS_STORAGE_KEY, []);
+    const progressPhotos = readJsonStorage(PROGRESS_PHOTOS_STORAGE_KEY, []);
+
+    const savedTargets = Array.isArray(nutritionHistory.targets) ? nutritionHistory.targets : [];
+    const savedMeals = Array.isArray(nutritionHistory.meals) ? nutritionHistory.meals : [];
+    const savedCheckIns = Array.isArray(clientCheckIns) ? clientCheckIns : [];
+    const savedPhotos = Array.isArray(progressPhotos) ? progressPhotos : [];
+
+    return {
+      latestTarget: savedTargets[0] || null,
+      latestMeal: savedMeals[0] || null,
+      latestCheckIn: savedCheckIns[0] || null,
+      previousCheckIn: savedCheckIns[1] || null,
+      latestPhotoCheckIn: savedPhotos[0] || null,
+      targetCount: savedTargets.length,
+      mealCount: savedMeals.length,
+      checkInCount: savedCheckIns.length,
+      photoCount: savedPhotos.length,
+    };
+  }
+
+  const [coachSummary, setCoachSummary] = useState(buildCoachSummary);
+  const [summaryStatus, setSummaryStatus] = useState("");
+
+  function refreshCoachSummary() {
+    setCoachSummary(buildCoachSummary());
+    setSummaryStatus("Coach command summary refreshed.");
+  }
+
+  const latestTarget = coachSummary.latestTarget;
+  const latestMeal = coachSummary.latestMeal;
+  const latestCheckIn = coachSummary.latestCheckIn;
+  const previousCheckIn = coachSummary.previousCheckIn;
+  const latestPhotoCheckIn = coachSummary.latestPhotoCheckIn;
+
+  const latestWeight = Number(latestCheckIn?.checkInWeight);
+  const previousWeight = Number(previousCheckIn?.checkInWeight);
+  const hasWeightChange = Number.isFinite(latestWeight) && Number.isFinite(previousWeight);
+  const weightChange = hasWeightChange ? Number((latestWeight - previousWeight).toFixed(1)) : 0;
+  const weightTrendLabel = !latestCheckIn
+    ? "No check-in"
+    : !hasWeightChange
+      ? latestCheckIn.checkInWeight + " lb"
+      : weightChange < 0
+        ? Math.abs(weightChange).toFixed(1) + " lb down"
+        : weightChange > 0
+          ? weightChange.toFixed(1) + " lb up"
+          : "No change";
+
+  const hasAlcohol = Array.isArray(latestMeal?.matches) &&
+    latestMeal.matches.some((item) =>
+      String(item.category || "").toLowerCase() === "alcohol" ||
+      /beer|vodka|whiskey|tequila|malt liquor|seltzer|wine|cocktail|margarita/i.test(String(item.name || ""))
+    );
+
+  const hasLiquidCalories = Array.isArray(latestMeal?.matches) &&
+    latestMeal.matches.some((item) =>
+      /sweet tea|kool-aid|koolaid|soda|juice|lemonade|energy drink|frappuccino|chocolate milk/i.test(String(item.name || ""))
+    );
+
+  const hasConvenienceFood = Array.isArray(latestMeal?.matches) &&
+    latestMeal.matches.some((item) =>
+      /Convenience|Snack|Fast Food/i.test(String(item.category || ""))
+    );
+
+  const highCalorieMeal = Number(latestMeal?.calories) >= 800;
+  const lowAdherence = Number(latestCheckIn?.adherenceScore) > 0 && Number(latestCheckIn?.adherenceScore) < 75;
+  const highHunger = Number(latestCheckIn?.hungerScore) >= 4;
+  const lowEnergy = Number(latestCheckIn?.energyScore) <= 2;
+  const poorSleep = Number(latestCheckIn?.sleepScore) <= 2;
+  const highStress = Number(latestCheckIn?.stressScore) >= 4;
+  const lowRecovery = Number(latestCheckIn?.recoveryScore) <= 2;
+
+  const photoAnglesSaved = latestPhotoCheckIn
+    ? [latestPhotoCheckIn.frontPhoto, latestPhotoCheckIn.sidePhoto, latestPhotoCheckIn.backPhoto].filter(Boolean).length
+    : 0;
+
+  const riskFlags = [
+    hasAlcohol,
+    hasLiquidCalories,
+    hasConvenienceFood,
+    highCalorieMeal,
+    lowAdherence,
+    highHunger,
+    lowEnergy,
+    poorSleep,
+    highStress,
+    lowRecovery,
+    photoAnglesSaved > 0 && photoAnglesSaved < 3,
+  ].filter(Boolean).length;
+
+  const riskLabel =
+    riskFlags >= 6
+      ? "High"
+      : riskFlags >= 3
+        ? "Moderate"
+        : riskFlags >= 1
+          ? "Low"
+          : "Clear";
+
+  const recommendedAction =
+    !latestCheckIn && !latestMeal && !latestTarget
+      ? "Client needs to save a macro target, meal log, and weekly check-in before the next review."
+      : poorSleep || lowEnergy || lowRecovery
+        ? "Prioritize recovery first. Review sleep, energy, hydration, training load, alcohol, and calories before cutting harder."
+        : hasAlcohol
+          ? "Review alcohol before adjusting food. Check sleep, recovery, weekend intake, and liquid calories."
+          : lowAdherence
+            ? "Address adherence barriers before changing calories or macros."
+            : highHunger
+              ? "Review meal timing, protein, fiber, sleep, and deficit size."
+              : highCalorieMeal || hasLiquidCalories
+                ? "Audit drinks, sauces, snacks, and portion sizes before making a macro change."
+                : "No urgent nutrition risk. Review trend and keep the plan steady unless performance or adherence changes.";
+
+  return (
+    <section
+      data-testid="coach-command-summary-cards"
+      aria-label="Coach command center nutrition summary"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5 shadow-xl shadow-black/20"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Coach Command Snapshot
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Client Nutrition And Check-In Risk Summary
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Fast view of saved targets, meals, weekly check-ins, photos, and coaching risks before opening the full review sections.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={refreshCoachSummary}
+          className="w-fit rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+        >
+          Refresh Command Summary
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-5">
+        <div
+          data-testid="coach-command-weight-card"
+          className="rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <p className="text-xs font-black uppercase text-[#00BF63]">Weight Trend</p>
+          <p className="mt-2 text-2xl font-black text-white">{weightTrendLabel}</p>
+          <p className="mt-1 text-xs font-bold uppercase text-white/45">
+            {coachSummary.checkInCount} check-in(s)
+          </p>
+        </div>
+
+        <div
+          data-testid="coach-command-target-card"
+          className="rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <p className="text-xs font-black uppercase text-[#00BF63]">Macro Target</p>
+          {latestTarget ? (
+            <>
+              <p className="mt-2 text-2xl font-black text-white">{latestTarget.dailyCalories} cal</p>
+              <p className="mt-1 text-xs font-bold uppercase text-white/45">
+                {latestTarget.goalLabel || "Goal"} | {latestTarget.protein}g protein
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm font-bold text-white/45">No target saved.</p>
+          )}
+        </div>
+
+        <div
+          data-testid="coach-command-meal-card"
+          className="rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <p className="text-xs font-black uppercase text-[#00BF63]">Latest Meal</p>
+          {latestMeal ? (
+            <>
+              <p className="mt-2 text-2xl font-black text-white">{latestMeal.calories} cal</p>
+              <p className="mt-1 text-xs font-bold uppercase text-white/45">
+                {latestMeal.protein}g protein | {latestMeal.confidence || "—"}
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm font-bold text-white/45">No meal saved.</p>
+          )}
+        </div>
+
+        <div
+          data-testid="coach-command-photo-card"
+          className="rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <p className="text-xs font-black uppercase text-[#00BF63]">Photos</p>
+          {latestPhotoCheckIn ? (
+            <>
+              <p className="mt-2 text-2xl font-black text-white">{photoAnglesSaved}/3</p>
+              <p className="mt-1 text-xs font-bold uppercase text-white/45">
+                angles | {latestPhotoCheckIn.photoDate || "latest"}
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm font-bold text-white/45">No photos saved.</p>
+          )}
+        </div>
+
+        <div
+          data-testid="coach-command-risk-card"
+          className="rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-4"
+        >
+          <p className="text-xs font-black uppercase text-yellow-100/70">Risk Level</p>
+          <p className="mt-2 text-2xl font-black text-white">{riskLabel}</p>
+          <p className="mt-1 text-xs font-bold uppercase text-yellow-100/55">
+            {riskFlags} active flag(s)
+          </p>
+        </div>
+      </div>
+
+      <div
+        data-testid="coach-command-summary-counts"
+        className="mt-4 grid gap-3 md:grid-cols-4"
+      >
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs font-black uppercase text-white/55">
+          Targets: {coachSummary.targetCount}
+        </p>
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs font-black uppercase text-white/55">
+          Meals: {coachSummary.mealCount}
+        </p>
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs font-black uppercase text-white/55">
+          Check-ins: {coachSummary.checkInCount}
+        </p>
+        <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs font-black uppercase text-white/55">
+          Photo logs: {coachSummary.photoCount}
+        </p>
+      </div>
+
+      {(riskFlags > 0) && (
+        <div
+          data-testid="coach-command-risk-flags"
+          className="mt-5 rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-4"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/70">
+            Risk Flags
+          </p>
+
+          <div className="mt-3 grid gap-2">
+            {hasAlcohol && (
+              <p className="rounded-2xl border border-red-400/20 bg-black/30 p-3 text-sm font-bold text-red-100/80">
+                Alcohol appears in the latest meal log.
+              </p>
+            )}
+            {hasLiquidCalories && (
+              <p className="rounded-2xl border border-yellow-400/20 bg-black/30 p-3 text-sm font-bold text-yellow-100/80">
+                Liquid calories appear in the latest meal log.
+              </p>
+            )}
+            {hasConvenienceFood && (
+              <p className="rounded-2xl border border-orange-400/20 bg-black/30 p-3 text-sm font-bold text-orange-100/80">
+                Convenience or snack foods appear in the latest meal log.
+              </p>
+            )}
+            {highCalorieMeal && (
+              <p className="rounded-2xl border border-white/10 bg-black/30 p-3 text-sm font-bold text-white/70">
+                Latest meal is 800+ calories.
+              </p>
+            )}
+            {lowAdherence && (
+              <p className="rounded-2xl border border-orange-400/20 bg-black/30 p-3 text-sm font-bold text-orange-100/80">
+                Weekly adherence is below 75%.
+              </p>
+            )}
+            {highHunger && (
+              <p className="rounded-2xl border border-yellow-400/20 bg-black/30 p-3 text-sm font-bold text-yellow-100/80">
+                Hunger is high.
+              </p>
+            )}
+            {lowEnergy && (
+              <p className="rounded-2xl border border-red-400/20 bg-black/30 p-3 text-sm font-bold text-red-100/80">
+                Energy is low.
+              </p>
+            )}
+            {poorSleep && (
+              <p className="rounded-2xl border border-red-400/20 bg-black/30 p-3 text-sm font-bold text-red-100/80">
+                Sleep is poor.
+              </p>
+            )}
+            {highStress && (
+              <p className="rounded-2xl border border-yellow-400/20 bg-black/30 p-3 text-sm font-bold text-yellow-100/80">
+                Stress is high.
+              </p>
+            )}
+            {lowRecovery && (
+              <p className="rounded-2xl border border-orange-400/20 bg-black/30 p-3 text-sm font-bold text-orange-100/80">
+                Recovery is low.
+              </p>
+            )}
+            {photoAnglesSaved > 0 && photoAnglesSaved < 3 && (
+              <p className="rounded-2xl border border-white/10 bg-black/30 p-3 text-sm font-bold text-white/70">
+                Progress photo check-in is incomplete.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div
+        data-testid="coach-command-recommended-action"
+        className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-black/40 p-5"
+      >
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+          Recommended Coach Action
+        </p>
+        <p className="mt-3 text-sm font-bold leading-6 text-white/70">
+          {recommendedAction}
+        </p>
+      </div>
+
+      {summaryStatus && (
+        <p
+          data-testid="coach-command-summary-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-black/40 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {summaryStatus}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function CoachScreen({
   clients = [],
   notifications = [],
@@ -8642,6 +8990,8 @@ function CoachScreen({
             )}
           </div>
         </section>
+
+      <CoachDashboardCommandSummaryCards />
 
       <CoachNutritionReviewPanel />
 
