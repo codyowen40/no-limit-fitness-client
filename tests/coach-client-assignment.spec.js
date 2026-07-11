@@ -1241,8 +1241,75 @@ Notes: Strong form, fatigue on last set.`);
   await expect(page.getByTestId("coach-generated-workout-log").first()).toContainText("Bench Press");
   await expect(page.getByTestId("coach-generated-workout-log").first()).toContainText("135 lb");
 
-  await workoutGenerator.getByRole("button", { name: "Save Generated Workout Log" }).click();
+  await workoutGenerator.getByRole("button", { name: "Save Edited Workout Log" }).click();
 
-  await expect(page.getByTestId("coach-workout-log-generator-status").first()).toContainText("Generated workout log saved");
+  await expect(page.getByTestId("coach-workout-log-generator-status").first()).toContainText("Edited workout log saved");
   await expect(page.getByTestId("coach-latest-saved-workout-log").first()).toContainText("Jordan");
+});
+
+test("coach can edit generated workout log before saving", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem("nlf-coach-generated-workout-logs-v1");
+  });
+
+  await page.goto("/?testUnlock=true&portalMode=coach");
+
+  await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  await page.getByTestId("coach-command-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
+
+  const workoutGenerator = page.getByTestId("coach-workout-notes-log-generator").first();
+
+  await expect(workoutGenerator).toBeVisible();
+
+  await workoutGenerator
+    .getByRole("textbox", { name: "Paste Workout Notes", exact: true })
+    .fill(`Client: Jordan
+Date: 2026-07-11
+Workout: Upper Body Strength
+Bench Press 3x8 @ 135
+Lat Pulldown 3x10 @ 100
+DB Shoulder Press 2x12 @ 35
+Notes: Strong form, fatigue on last set.`);
+
+  await workoutGenerator.getByRole("button", { name: "Generate Workout Log" }).click();
+
+  await expect(page.getByTestId("coach-workout-log-generator-status").first()).toContainText("Workout log generated");
+  await expect(page.getByTestId("coach-generated-workout-log").first()).toContainText("Bench Press");
+
+  await workoutGenerator.getByLabel("Generated Client Name").fill("Jordan Smith");
+  await workoutGenerator.getByLabel("Generated Workout Focus").fill("Upper Body Strength - Edited");
+  await workoutGenerator.getByLabel("Exercise 1 Name").fill("Barbell Bench Press");
+  await workoutGenerator.getByLabel("Exercise 1 Sets").fill("4");
+  await workoutGenerator.getByLabel("Exercise 1 Reps").fill("6");
+  await workoutGenerator.getByLabel("Exercise 1 Weight").fill("145 lb");
+  await workoutGenerator.getByLabel("Exercise 1 Notes").fill("Smooth reps after warm-up.");
+
+  await workoutGenerator.getByRole("button", { name: "Remove" }).nth(1).click();
+
+  await expect(page.getByTestId("coach-generated-workout-log-totals").first()).toContainText("2 exercises");
+  await expect(page.getByTestId("coach-generated-workout-log-totals").first()).toContainText("6 total sets");
+
+  await workoutGenerator.getByRole("button", { name: "Add Exercise Row" }).click();
+
+  await workoutGenerator.getByLabel("Exercise 3 Name").fill("Face Pull");
+  await workoutGenerator.getByLabel("Exercise 3 Sets").fill("3");
+  await workoutGenerator.getByLabel("Exercise 3 Reps").fill("15");
+  await workoutGenerator.getByLabel("Exercise 3 Weight").fill("40 lb");
+  await workoutGenerator.getByLabel("Exercise 3 Notes").fill("Controlled tempo.");
+
+  await expect(page.getByTestId("coach-generated-workout-log-totals").first()).toContainText("3 exercises");
+  await expect(page.getByTestId("coach-generated-workout-log-totals").first()).toContainText("9 total sets");
+
+  await workoutGenerator
+    .getByRole("textbox", { name: "Generated Coach Notes", exact: true })
+    .fill("Edited after reviewing Notepad notes. Keep pressing volume steady.");
+
+  await workoutGenerator.getByRole("button", { name: "Save Edited Workout Log" }).click();
+
+  await expect(page.getByTestId("coach-workout-log-generator-status").first()).toContainText("Edited workout log saved");
+  await expect(page.getByTestId("coach-latest-saved-workout-log").first()).toContainText("Jordan Smith");
+  await expect(page.getByTestId("coach-latest-saved-workout-log").first()).toContainText("Upper Body Strength - Edited");
+  await expect(page.getByTestId("coach-latest-saved-workout-log").first()).toContainText("Barbell Bench Press");
+  await expect(page.getByTestId("coach-latest-saved-workout-log").first()).toContainText("Face Pull");
 });

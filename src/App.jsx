@@ -10427,27 +10427,38 @@ function CoachWorkoutNotesLogGenerator() {
       };
     });
 
-    const totalSets = entries.reduce((sum, entry) => {
-      const sets = Number(entry.sets);
-      return Number.isFinite(sets) ? sum + sets : sum;
-    }, 0);
-
-    return {
+    return recalculateWorkoutLog({
       id: "generated-workout-log-" + Date.now(),
       clientName,
       workoutDate,
       workoutFocus,
       entries,
-      totalExercises: entries.length,
-      totalSets,
       coachNotes: noteLines.join(" ") || "No extra coach notes included.",
       originalNotes: rawNotes,
       generatedAt: new Date().toLocaleString(),
+      editedAt: "",
+    });
+  }
+
+  function recalculateWorkoutLog(workoutLog) {
+    const safeEntries = Array.isArray(workoutLog.entries) ? workoutLog.entries : [];
+
+    const totalSets = safeEntries.reduce((sum, entry) => {
+      const sets = Number(String(entry.sets || "").match(/\d+/)?.[0] || 0);
+      return Number.isFinite(sets) ? sum + sets : sum;
+    }, 0);
+
+    return {
+      ...workoutLog,
+      entries: safeEntries,
+      totalExercises: safeEntries.length,
+      totalSets,
     };
   }
 
   const [rawWorkoutNotes, setRawWorkoutNotes] = useState("");
   const [generatedWorkoutLog, setGeneratedWorkoutLog] = useState(null);
+  const [editableWorkoutLog, setEditableWorkoutLog] = useState(null);
   const [savedWorkoutLogs, setSavedWorkoutLogs] = useState(readSavedWorkoutLogs);
   const [workoutLogStatus, setWorkoutLogStatus] = useState("");
 
@@ -10456,42 +10467,143 @@ function CoachWorkoutNotesLogGenerator() {
 
     if (!nextLog.entries.length) {
       setGeneratedWorkoutLog(nextLog);
+      setEditableWorkoutLog(nextLog);
       setWorkoutLogStatus("No exercise lines found. Add notes like Bench Press 3x8 @ 135.");
       return;
     }
 
     setGeneratedWorkoutLog(nextLog);
+    setEditableWorkoutLog(nextLog);
     setWorkoutLogStatus("Workout log generated from pasted notes.");
   }
 
+  function updateWorkoutLogField(fieldName, value) {
+    setEditableWorkoutLog((currentLog) => {
+      if (!currentLog) return currentLog;
+
+      return recalculateWorkoutLog({
+        ...currentLog,
+        [fieldName]: value,
+        editedAt: new Date().toLocaleString(),
+      });
+    });
+  }
+
+  function updateWorkoutEntry(index, fieldName, value) {
+    setEditableWorkoutLog((currentLog) => {
+      if (!currentLog) return currentLog;
+
+      const nextEntries = currentLog.entries.map((entry, entryIndex) => {
+        if (entryIndex !== index) return entry;
+
+        return {
+          ...entry,
+          [fieldName]: value,
+        };
+      });
+
+      return recalculateWorkoutLog({
+        ...currentLog,
+        entries: nextEntries,
+        editedAt: new Date().toLocaleString(),
+      });
+    });
+  }
+
+  function addWorkoutEntry() {
+    setEditableWorkoutLog((currentLog) => {
+      const baseLog = currentLog || parseWorkoutNotes(rawWorkoutNotes);
+      const nextEntries = [
+        ...(Array.isArray(baseLog.entries) ? baseLog.entries : []),
+        {
+          id: "generated-workout-entry-manual-" + Date.now(),
+          exercise: "",
+          sets: "",
+          reps: "",
+          weight: "",
+          notes: "",
+        },
+      ];
+
+      return recalculateWorkoutLog({
+        ...baseLog,
+        entries: nextEntries,
+        editedAt: new Date().toLocaleString(),
+      });
+    });
+
+    setWorkoutLogStatus("Manual exercise row added.");
+  }
+
+  function removeWorkoutEntry(index) {
+    setEditableWorkoutLog((currentLog) => {
+      if (!currentLog) return currentLog;
+
+      const nextEntries = currentLog.entries.filter((entry, entryIndex) => entryIndex !== index);
+
+      return recalculateWorkoutLog({
+        ...currentLog,
+        entries: nextEntries,
+        editedAt: new Date().toLocaleString(),
+      });
+    });
+
+    setWorkoutLogStatus("Exercise row removed.");
+  }
+
   function saveGeneratedWorkoutLog() {
-    if (!generatedWorkoutLog || !generatedWorkoutLog.entries.length) {
-      setWorkoutLogStatus("Generate a workout log before saving.");
+    const logToSave = editableWorkoutLog ? recalculateWorkoutLog(editableWorkoutLog) : null;
+
+    if (!logToSave || !logToSave.entries.length) {
+      setWorkoutLogStatus("Generate and review a workout log before saving.");
       return;
     }
 
-    const nextSavedLogs = [generatedWorkoutLog, ...savedWorkoutLogs].slice(0, 20);
+    const cleanedLog = recalculateWorkoutLog({
+      ...logToSave,
+      entries: logToSave.entries
+        .map((entry) => ({
+          ...entry,
+          exercise: String(entry.exercise || "").trim(),
+          sets: String(entry.sets || "").trim(),
+          reps: String(entry.reps || "").trim(),
+          weight: String(entry.weight || "").trim(),
+          notes: String(entry.notes || "").trim(),
+        }))
+        .filter((entry) => entry.exercise || entry.sets || entry.reps || entry.weight || entry.notes),
+      savedAt: new Date().toLocaleString(),
+    });
+
+    if (!cleanedLog.entries.length) {
+      setWorkoutLogStatus("Add at least one exercise before saving.");
+      return;
+    }
+
+    const nextSavedLogs = [cleanedLog, ...savedWorkoutLogs].slice(0, 20);
 
     if (typeof window !== "undefined") {
       try {
         window.localStorage.setItem(COACH_GENERATED_WORKOUT_LOGS_STORAGE_KEY, JSON.stringify(nextSavedLogs));
       } catch {
-        setWorkoutLogStatus("Could not save generated workout log locally.");
+        setWorkoutLogStatus("Could not save edited workout log locally.");
         return;
       }
     }
 
+    setEditableWorkoutLog(cleanedLog);
     setSavedWorkoutLogs(nextSavedLogs);
-    setWorkoutLogStatus("Generated workout log saved.");
+    setWorkoutLogStatus("Edited workout log saved.");
   }
 
   function clearWorkoutNotes() {
     setRawWorkoutNotes("");
     setGeneratedWorkoutLog(null);
+    setEditableWorkoutLog(null);
     setWorkoutLogStatus("Workout notes cleared.");
   }
 
   const latestSavedLog = savedWorkoutLogs[0] || null;
+  const activeWorkoutLog = editableWorkoutLog || generatedWorkoutLog;
 
   return (
     <section
@@ -10508,7 +10620,7 @@ function CoachWorkoutNotesLogGenerator() {
             Paste Notepad Notes And Generate Workout Log
           </h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
-            Paste rough coach notes from Notepad. The app will pull out client name, date, workout focus, exercises, sets, reps, and weights.
+            Paste rough coach notes from Notepad, generate a structured workout log, edit the parsed fields, then save the cleaned version.
           </p>
         </div>
 
@@ -10541,10 +10653,18 @@ function CoachWorkoutNotesLogGenerator() {
 
         <button
           type="button"
+          onClick={addWorkoutEntry}
+          className="rounded-full border border-white/10 px-5 py-3 text-xs font-black uppercase text-white/55 transition hover:border-[#00BF63] hover:text-[#00BF63]"
+        >
+          Add Exercise Row
+        </button>
+
+        <button
+          type="button"
           onClick={saveGeneratedWorkoutLog}
           className="rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
         >
-          Save Generated Workout Log
+          Save Edited Workout Log
         </button>
 
         <button
@@ -10565,23 +10685,59 @@ function CoachWorkoutNotesLogGenerator() {
         </p>
       )}
 
-      {generatedWorkoutLog && (
+      {activeWorkoutLog && (
         <div
           data-testid="coach-generated-workout-log"
           className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5"
         >
           <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
-            Generated Workout Log
-          </p>
-          <h4 className="mt-2 text-xl font-black text-white">
-            {generatedWorkoutLog.clientName} — {generatedWorkoutLog.workoutFocus}
-          </h4>
-          <p className="mt-2 text-sm font-bold text-white/60">
-            {generatedWorkoutLog.workoutDate} | {generatedWorkoutLog.totalExercises} exercises | {generatedWorkoutLog.totalSets} total sets
+            Editable Generated Workout Log
           </p>
 
-          <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
-            <table className="w-full min-w-[720px] text-left text-sm">
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/45">Client Name</span>
+              <input
+                aria-label="Generated Client Name"
+                value={activeWorkoutLog.clientName}
+                onChange={(event) => updateWorkoutLogField("clientName", event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/45">Workout Date</span>
+              <input
+                aria-label="Generated Workout Date"
+                value={activeWorkoutLog.workoutDate}
+                onChange={(event) => updateWorkoutLogField("workoutDate", event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/45">Workout Focus</span>
+              <input
+                aria-label="Generated Workout Focus"
+                value={activeWorkoutLog.workoutFocus}
+                onChange={(event) => updateWorkoutLogField("workoutFocus", event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              />
+            </label>
+          </div>
+
+          <h4 className="mt-5 text-xl font-black text-white">
+            {activeWorkoutLog.clientName} — {activeWorkoutLog.workoutFocus}
+          </h4>
+          <p
+            data-testid="coach-generated-workout-log-totals"
+            className="mt-2 text-sm font-bold text-white/60"
+          >
+            {activeWorkoutLog.workoutDate} | {activeWorkoutLog.totalExercises} exercises | {activeWorkoutLog.totalSets} total sets
+          </p>
+
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10">
+            <table className="w-full min-w-[980px] text-left text-sm">
               <thead className="bg-black/50 text-xs font-black uppercase tracking-[0.18em] text-white/45">
                 <tr>
                   <th className="px-4 py-3">Exercise</th>
@@ -10589,25 +10745,81 @@ function CoachWorkoutNotesLogGenerator() {
                   <th className="px-4 py-3">Reps</th>
                   <th className="px-4 py-3">Weight</th>
                   <th className="px-4 py-3">Notes</th>
+                  <th className="px-4 py-3">Remove</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
-                {generatedWorkoutLog.entries.map((entry) => (
+                {activeWorkoutLog.entries.map((entry, index) => (
                   <tr key={entry.id} className="bg-black/25 text-white/70">
-                    <td className="px-4 py-3 font-black text-white">{entry.exercise}</td>
-                    <td className="px-4 py-3">{entry.sets || "—"}</td>
-                    <td className="px-4 py-3">{entry.reps || "—"}</td>
-                    <td className="px-4 py-3">{entry.weight || "—"}</td>
-                    <td className="px-4 py-3">{entry.notes || "—"}</td>
+                    <td className="px-4 py-3">
+                      <span className="sr-only">
+                        {entry.exercise} {entry.sets} {entry.reps} {entry.weight} {entry.notes}
+                      </span>
+                      <input
+                        aria-label={"Exercise " + (index + 1) + " Name"}
+                        value={entry.exercise}
+                        onChange={(event) => updateWorkoutEntry(index, "exercise", event.target.value)}
+                        className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm font-black text-white outline-none transition focus:border-[#00BF63]"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        aria-label={"Exercise " + (index + 1) + " Sets"}
+                        value={entry.sets}
+                        onChange={(event) => updateWorkoutEntry(index, "sets", event.target.value)}
+                        className="w-20 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        aria-label={"Exercise " + (index + 1) + " Reps"}
+                        value={entry.reps}
+                        onChange={(event) => updateWorkoutEntry(index, "reps", event.target.value)}
+                        className="w-24 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        aria-label={"Exercise " + (index + 1) + " Weight"}
+                        value={entry.weight}
+                        onChange={(event) => updateWorkoutEntry(index, "weight", event.target.value)}
+                        className="w-28 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        aria-label={"Exercise " + (index + 1) + " Notes"}
+                        value={entry.notes}
+                        onChange={(event) => updateWorkoutEntry(index, "notes", event.target.value)}
+                        className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => removeWorkoutEntry(index)}
+                        className="rounded-full border border-red-400/25 px-3 py-2 text-xs font-black uppercase text-red-200 transition hover:bg-red-400 hover:text-black"
+                      >
+                        Remove
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/65">
-            Coach Notes: {generatedWorkoutLog.coachNotes}
-          </p>
+          <label className="mt-4 block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Generated Coach Notes
+            </span>
+            <textarea
+              aria-label="Generated Coach Notes"
+              value={activeWorkoutLog.coachNotes}
+              onChange={(event) => updateWorkoutLogField("coachNotes", event.target.value)}
+              className="min-h-24 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            />
+          </label>
         </div>
       )}
 
@@ -10623,14 +10835,16 @@ function CoachWorkoutNotesLogGenerator() {
             {latestSavedLog.clientName} — {latestSavedLog.workoutFocus}
           </h4>
           <p className="mt-2 text-sm font-bold text-white/60">
-            {latestSavedLog.totalExercises} exercises | saved {latestSavedLog.generatedAt}
+            {latestSavedLog.totalExercises} exercises | {latestSavedLog.totalSets} total sets | saved {latestSavedLog.savedAt || latestSavedLog.generatedAt}
+          </p>
+          <p className="mt-3 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/65">
+            {latestSavedLog.entries.map((entry) => entry.exercise).filter(Boolean).join(", ")}
           </p>
         </div>
       )}
     </section>
   );
 }
-
 function CoachCheckInsWorkspace() {
   return (
     <section
