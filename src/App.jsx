@@ -1749,123 +1749,357 @@ function ClientApprovedWorkoutPlanPanel() {
 }
 
 function NutritionCoachScreen() {
+  const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
+
+  function getSavedNutritionHistory() {
+    if (typeof window === "undefined") return { targets: [], meals: [] };
+
+    try {
+      const raw = window.localStorage.getItem(NUTRITION_HISTORY_STORAGE_KEY);
+      if (!raw) return { targets: [], meals: [] };
+
+      const parsed = JSON.parse(raw);
+
+      return {
+        targets: Array.isArray(parsed.targets) ? parsed.targets : [],
+        meals: Array.isArray(parsed.meals) ? parsed.meals : [],
+      };
+    } catch {
+      return { targets: [], meals: [] };
+    }
+  }
+
+  function saveNutritionHistory(nextHistory) {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.localStorage.setItem(NUTRITION_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
+    } catch {
+      // Ignore local storage failures in restricted browser modes.
+    }
+  }
+
   const [nutritionMode, setNutritionMode] = useState("");
   const [bodyWeight, setBodyWeight] = useState("180");
-  const [goal, setGoal] = useState("maintain");
+  const [heightFeet, setHeightFeet] = useState("5");
+  const [heightInches, setHeightInches] = useState("10");
+  const [age, setAge] = useState("30");
+  const [genderFormula, setGenderFormula] = useState("male");
+  const [goal, setGoal] = useState("fat-loss");
   const [trainingDays, setTrainingDays] = useState("4");
   const [activityLevel, setActivityLevel] = useState("moderate");
   const [targetResult, setTargetResult] = useState(null);
   const [mealText, setMealText] = useState("");
   const [mealResult, setMealResult] = useState(null);
+  const [nutritionHistory, setNutritionHistory] = useState(getSavedNutritionHistory);
+  const [nutritionSaveStatus, setNutritionSaveStatus] = useState("");
+
+  useEffect(() => {
+    saveNutritionHistory(nutritionHistory);
+  }, [nutritionHistory]);
+
+  const foodDatabase = useMemo(
+    () => [
+      { name: "Chicken Breast", keywords: ["chicken breast", "grilled chicken", "chicken"], serving: "4 oz cooked", calories: 185, protein: 35, carbs: 0, fat: 4 },
+      { name: "Lean Ground Beef", keywords: ["lean ground beef", "ground beef", "beef"], serving: "4 oz cooked", calories: 230, protein: 26, carbs: 0, fat: 13 },
+      { name: "Steak", keywords: ["steak"], serving: "4 oz cooked", calories: 260, protein: 29, carbs: 0, fat: 16 },
+      { name: "Salmon", keywords: ["salmon"], serving: "4 oz cooked", calories: 235, protein: 25, carbs: 0, fat: 14 },
+      { name: "Tuna", keywords: ["tuna"], serving: "1 can", calories: 130, protein: 29, carbs: 0, fat: 1 },
+      { name: "Egg", keywords: ["egg", "eggs"], serving: "1 large egg", calories: 70, protein: 6, carbs: 1, fat: 5 },
+      { name: "Greek Yogurt", keywords: ["greek yogurt", "yogurt"], serving: "1 cup", calories: 130, protein: 20, carbs: 9, fat: 0 },
+      { name: "Whey Protein", keywords: ["whey protein", "protein shake", "protein powder"], serving: "1 scoop", calories: 120, protein: 24, carbs: 3, fat: 2 },
+      { name: "White Rice", keywords: ["white rice", "rice"], serving: "1 cup cooked", calories: 205, protein: 4, carbs: 45, fat: 0 },
+      { name: "Brown Rice", keywords: ["brown rice"], serving: "1 cup cooked", calories: 215, protein: 5, carbs: 45, fat: 2 },
+      { name: "Pasta", keywords: ["pasta", "spaghetti", "noodles"], serving: "1 cup cooked", calories: 220, protein: 8, carbs: 43, fat: 1 },
+      { name: "Oats", keywords: ["oats", "oatmeal"], serving: "1 cup cooked", calories: 155, protein: 6, carbs: 27, fat: 3 },
+      { name: "Bread", keywords: ["bread", "toast"], serving: "1 slice", calories: 80, protein: 3, carbs: 15, fat: 1 },
+      { name: "Tortilla", keywords: ["tortilla", "wrap"], serving: "1 medium tortilla", calories: 140, protein: 4, carbs: 24, fat: 4 },
+      { name: "Potato", keywords: ["potato", "baked potato"], serving: "1 medium potato", calories: 160, protein: 4, carbs: 37, fat: 0 },
+      { name: "Black Beans", keywords: ["black beans", "beans"], serving: "1/2 cup", calories: 115, protein: 8, carbs: 20, fat: 0 },
+      { name: "Banana", keywords: ["banana"], serving: "1 medium banana", calories: 105, protein: 1, carbs: 27, fat: 0 },
+      { name: "Apple", keywords: ["apple"], serving: "1 medium apple", calories: 95, protein: 0, carbs: 25, fat: 0 },
+      { name: "Avocado", keywords: ["avocado"], serving: "1/2 avocado", calories: 160, protein: 2, carbs: 9, fat: 15 },
+      { name: "Cheese", keywords: ["cheese", "shredded cheese"], serving: "1 oz", calories: 110, protein: 7, carbs: 1, fat: 9 },
+      { name: "Olive Oil", keywords: ["olive oil", "oil"], serving: "1 tbsp", calories: 120, protein: 0, carbs: 0, fat: 14 },
+      { name: "Butter", keywords: ["butter"], serving: "1 tbsp", calories: 100, protein: 0, carbs: 0, fat: 11 },
+      { name: "Peanut Butter", keywords: ["peanut butter"], serving: "2 tbsp", calories: 190, protein: 8, carbs: 7, fat: 16 },
+      { name: "Mayo", keywords: ["mayo", "mayonnaise"], serving: "1 tbsp", calories: 95, protein: 0, carbs: 0, fat: 10 },
+      { name: "Ranch", keywords: ["ranch"], serving: "2 tbsp", calories: 130, protein: 1, carbs: 2, fat: 14 },
+      { name: "Salsa", keywords: ["salsa"], serving: "1/4 cup", calories: 20, protein: 1, carbs: 4, fat: 0 },
+      { name: "Broccoli", keywords: ["broccoli"], serving: "1 cup", calories: 55, protein: 4, carbs: 11, fat: 1 },
+      { name: "Salad Greens", keywords: ["salad", "lettuce", "greens", "spinach"], serving: "2 cups", calories: 25, protein: 2, carbs: 5, fat: 0 },
+      { name: "Fries", keywords: ["fries", "french fries"], serving: "medium order", calories: 365, protein: 4, carbs: 48, fat: 17 },
+      { name: "Burger", keywords: ["burger", "cheeseburger", "hamburger"], serving: "1 burger", calories: 540, protein: 28, carbs: 40, fat: 30 },
+      { name: "Pizza", keywords: ["pizza"], serving: "1 slice", calories: 285, protein: 12, carbs: 36, fat: 10 },
+      { name: "Milk", keywords: ["milk"], serving: "1 cup", calories: 150, protein: 8, carbs: 12, fat: 8 },
+      { name: "Almonds", keywords: ["almonds", "nuts"], serving: "1 oz", calories: 165, protein: 6, carbs: 6, fat: 14 },
+    ],
+    []
+  );
+
+  function getGoalLabel(value) {
+    if (value === "fat-loss") return "Weight Loss";
+    if (value === "muscle-gain") return "Muscle Gain";
+    return "Maintain";
+  }
+
+  function escapeRegex(value) {
+    return String(value).replace(/[.*+?^\\$\\{\\}()|[\\]\\\\]/g, "\\$&");
+  }
+
+  function readSimpleQuantity(text, keyword) {
+    const escapedKeyword = escapeRegex(keyword);
+
+    const beforePattern = new RegExp(
+      "(?:^|\\b)(\\d+(?:\\.\\d+)?)\\s*(?:x|servings?|cups?|slices?|pieces?|tbsp|tablespoons?|scoops?|eggs?|oz|ounces?)?\\s+(?:" +
+        escapedKeyword +
+        ")s?\\b",
+      "i"
+    );
+
+    const beforeMatch = text.match(beforePattern);
+    if (beforeMatch?.[1]) {
+      return Math.min(Math.max(Number(beforeMatch[1]) || 1, 0.25), 8);
+    }
+
+    const wordPattern = new RegExp("\\b(one|two|three|four|five|six)\\s+(?:" + escapedKeyword + ")s?\\b", "i");
+    const wordMatch = text.match(wordPattern);
+
+    if (wordMatch?.[1]) {
+      const wordNumbers = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+      return wordNumbers[wordMatch[1].toLowerCase()] || 1;
+    }
+
+    const largePattern = new RegExp("\\b(large|big|extra|double)\\b.{0,24}\\b(?:" + escapedKeyword + ")s?\\b|\\b(?:" + escapedKeyword + ")s?\\b.{0,24}\\b(large|big|extra|double)\\b", "i");
+    if (largePattern.test(text)) return 1.5;
+
+    const smallPattern = new RegExp("\\b(small|light|half)\\b.{0,24}\\b(?:" + escapedKeyword + ")s?\\b|\\b(?:" + escapedKeyword + ")s?\\b.{0,24}\\b(small|light|half)\\b", "i");
+    if (smallPattern.test(text)) return 0.5;
+
+    return 1;
+  }
+
+  function estimateFoodMatches(text) {
+    const lowerText = text.toLowerCase();
+    const usedNames = new Set();
+
+    return foodDatabase
+      .map((food) => {
+        const matchedKeyword = [...food.keywords]
+          .sort((a, b) => b.length - a.length)
+          .find((keyword) => new RegExp("\\b" + escapeRegex(keyword) + "s?\\b", "i").test(lowerText));
+
+        if (!matchedKeyword || usedNames.has(food.name)) return null;
+
+        usedNames.add(food.name);
+
+        const multiplier = readSimpleQuantity(lowerText, matchedKeyword);
+
+        return {
+          ...food,
+          matchedKeyword,
+          multiplier,
+          calories: Math.round(food.calories * multiplier),
+          protein: Math.round(food.protein * multiplier),
+          carbs: Math.round(food.carbs * multiplier),
+          fat: Math.round(food.fat * multiplier),
+        };
+      })
+      .filter(Boolean);
+  }
 
   function calculateTargets(event) {
     event.preventDefault();
 
-    const weight = Math.max(Number(bodyWeight) || 0, 1);
+    const weightLb = Math.max(Number(bodyWeight) || 0, 1);
+    const totalHeightInches =
+      Math.max(Number(heightFeet) || 0, 0) * 12 + Math.max(Number(heightInches) || 0, 0);
+    const safeHeightInches = Math.max(totalHeightInches || 70, 36);
+    const safeAge = Math.min(Math.max(Number(age) || 30, 13), 90);
     const days = Math.max(Number(trainingDays) || 0, 0);
 
+    const weightKg = weightLb / 2.20462;
+    const heightCm = safeHeightInches * 2.54;
+
+    const maleBmr = 10 * weightKg + 6.25 * heightCm - 5 * safeAge + 5;
+    const femaleBmr = 10 * weightKg + 6.25 * heightCm - 5 * safeAge - 161;
+    const bmr =
+      genderFormula === "female"
+        ? femaleBmr
+        : genderFormula === "average"
+          ? (maleBmr + femaleBmr) / 2
+          : maleBmr;
+
     const activityMultiplier =
-      activityLevel === "high" ? 16 : activityLevel === "low" ? 12 : 14;
+      activityLevel === "high" ? 1.65 : activityLevel === "low" ? 1.25 : 1.45;
 
-    const goalAdjustment =
-      goal === "fat-loss" ? -350 : goal === "muscle-gain" ? 250 : 0;
+    const maintenanceCalories = Math.round(bmr * activityMultiplier);
 
-    const dailyCalories = Math.round(weight * activityMultiplier + goalAdjustment);
-    const protein = Math.round(weight * (goal === "muscle-gain" ? 1 : 0.85));
-    const fat = Math.round(weight * 0.35);
-    const carbs = Math.max(
-      Math.round((dailyCalories - protein * 4 - fat * 9) / 4),
-      0
+    const goalMultiplier =
+      goal === "fat-loss" ? 0.82 : goal === "muscle-gain" ? 1.1 : 1;
+
+    const minimumCalories =
+      genderFormula === "female" ? 1200 : genderFormula === "average" ? 1350 : 1500;
+
+    const dailyCalories = Math.max(
+      Math.round(maintenanceCalories * goalMultiplier),
+      goal === "fat-loss" ? minimumCalories : 0
     );
+
+    const proteinMultiplier =
+      goal === "fat-loss" ? 1.0 : goal === "muscle-gain" ? 0.95 : 0.85;
+
+    const protein = Math.round(weightLb * proteinMultiplier);
+    const fat = Math.round(Math.max(weightLb * 0.3, dailyCalories * 0.22 / 9));
+    const carbs = Math.max(Math.round((dailyCalories - protein * 4 - fat * 9) / 4), 0);
+
+    const calorieDifference = dailyCalories - maintenanceCalories;
+    const estimatedWeeklyChange = Math.abs((calorieDifference * 7) / 3500).toFixed(1);
 
     const coachNote =
       goal === "fat-loss"
-        ? "Start with a small deficit, keep protein high, and adjust after 2 weeks of weigh-ins."
+        ? "This uses age, height, body weight, activity, and gender/formula factor. Keep the deficit moderate and adjust from 2 weeks of scale trend, energy, and gym performance."
         : goal === "muscle-gain"
-          ? "Start with a controlled surplus and track strength, body weight, and recovery."
-          : "Start near maintenance and adjust from weekly progress, energy, and workout performance.";
+          ? "This uses a controlled surplus. Watch strength, recovery, and weekly body-weight trend before raising calories again."
+          : "This is a maintenance starting point. Adjust from weekly progress, hunger, energy, and workout performance.";
 
     setTargetResult({
+      id: makeId("nutrition-target"),
+      goal,
+      goalLabel: getGoalLabel(goal),
+      bodyWeight: weightLb,
+      heightFeet,
+      heightInches,
+      age: safeAge,
+      genderFormula,
+      trainingDays: days,
+      activityLevel,
+      bmr: Math.round(bmr),
+      maintenanceCalories,
       dailyCalories,
       protein,
       carbs,
       fat,
-      trainingDays: days,
+      estimatedWeeklyChange,
       coachNote,
+      savedAt: new Date().toLocaleString(),
     });
+
+    setNutritionSaveStatus("");
   }
 
   function estimateMeal(event) {
     event.preventDefault();
 
     const text = mealText.trim();
-    const lowerText = text.toLowerCase();
 
     if (!text) {
       setMealResult({
+        id: makeId("meal-estimate"),
         title: "Add a meal first",
         calories: "—",
         protein: "—",
         carbs: "—",
         fat: "—",
-        coachTip: "Enter the foods, portions, sauces, and drinks so the estimate is useful.",
+        confidence: "Low",
+        matches: [],
+        coachTip: "Enter the foods, portions, sauces, drinks, and cooking method so the estimate is useful.",
+        savedAt: new Date().toLocaleString(),
       });
+      setNutritionSaveStatus("");
       return;
     }
 
-    let calories = 350;
-    let protein = 20;
-    let carbs = 35;
-    let fat = 12;
+    const matches = estimateFoodMatches(text);
 
-    if (/chicken|turkey|fish|tuna|salmon|steak|beef|eggs|egg|protein|greek yogurt|yogurt/i.test(text)) {
-      protein += 25;
-      calories += 160;
+    if (matches.length === 0) {
+      setMealResult({
+        id: makeId("meal-estimate"),
+        title: "General Meal Estimate",
+        mealText: text,
+        calories: 500,
+        protein: 25,
+        carbs: 55,
+        fat: 18,
+        confidence: "Low",
+        matches: [],
+        coachTip: "No specific foods were matched. Add foods and portions like chicken, rice, 2 eggs, oil, cheese, avocado, oats, or potato for a better estimate.",
+        savedAt: new Date().toLocaleString(),
+      });
+      setNutritionSaveStatus("");
+      return;
     }
 
-    if (/rice|pasta|bread|potato|tortilla|oats|cereal|fries|chips|beans|fruit/i.test(text)) {
-      carbs += 35;
-      calories += 180;
-    }
+    const totals = matches.reduce(
+      (sum, item) => ({
+        calories: sum.calories + item.calories,
+        protein: sum.protein + item.protein,
+        carbs: sum.carbs + item.carbs,
+        fat: sum.fat + item.fat,
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
 
-    if (/cheese|oil|butter|mayo|avocado|nuts|peanut|sauce|ranch|cream/i.test(text)) {
-      fat += 14;
-      calories += 170;
-    }
+    const hasAddedFat = matches.some((item) =>
+      ["Olive Oil", "Butter", "Peanut Butter", "Mayo", "Ranch", "Avocado", "Cheese"].includes(item.name)
+    );
+    const hasProtein = matches.some((item) => item.protein >= 20);
+    const hasCarb = matches.some((item) => item.carbs >= 20);
 
-    if (/large|double|extra|big|bowl|plate/i.test(text)) {
-      calories += 200;
-      protein += 8;
-      carbs += 18;
-      fat += 6;
-    }
+    const confidence = matches.length >= 4 ? "High" : matches.length >= 2 ? "Moderate" : "Low";
 
-    if (/salad|vegetable|veggies|broccoli|spinach|greens/i.test(text)) {
-      carbs += 8;
-      calories += 60;
-    }
-
-    const coachTip =
-      lowerText.includes("sauce") || lowerText.includes("oil") || lowerText.includes("mayo")
-        ? "Sauces and oils can change the total fast. Log them separately when possible."
-        : protein < 35
-          ? "This meal may need more protein if it is meant to support training recovery."
-          : "This looks like a solid training meal. Match portions to the client’s goal.";
+    const coachTip = !hasProtein
+      ? "Protein looks low from the matched foods. Add a lean protein source if this is a training meal."
+      : hasAddedFat
+        ? "Fats from sauces, oils, cheese, avocado, nuts, and dressings can move calories fast. Measure those when possible."
+        : hasCarb
+          ? "This looks like a usable training meal. Match the carb portion to the goal and workout timing."
+          : "This meal is protein-forward. Add carbs if performance or recovery is the priority.";
 
     setMealResult({
+      id: makeId("meal-estimate"),
       title: "Meal Estimate",
-      calories,
-      protein,
-      carbs,
-      fat,
+      mealText: text,
+      calories: totals.calories,
+      protein: totals.protein,
+      carbs: totals.carbs,
+      fat: totals.fat,
+      confidence,
+      matches,
       coachTip,
+      savedAt: new Date().toLocaleString(),
     });
+
+    setNutritionSaveStatus("");
+  }
+
+  function saveTargetResult() {
+    if (!targetResult) return;
+
+    setNutritionHistory((current) => ({
+      ...current,
+      targets: [{ ...targetResult, id: makeId("saved-nutrition-target"), savedAt: new Date().toLocaleString() }, ...current.targets].slice(0, 8),
+    }));
+
+    setNutritionSaveStatus("Macro target saved to nutrition history.");
+  }
+
+  function saveMealResult() {
+    if (!mealResult) return;
+
+    setNutritionHistory((current) => ({
+      ...current,
+      meals: [{ ...mealResult, id: makeId("saved-meal-estimate"), savedAt: new Date().toLocaleString() }, ...current.meals].slice(0, 8),
+    }));
+
+    setNutritionSaveStatus("Meal estimate saved to nutrition history.");
   }
 
   function resetNutritionMode() {
     setNutritionMode("");
     setTargetResult(null);
     setMealResult(null);
+    setNutritionSaveStatus("");
   }
 
   return (
@@ -1882,7 +2116,7 @@ function NutritionCoachScreen() {
           Build your target. Check your meals. Stay consistent.
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
-          A simple nutrition tool for daily calories, macros, meal estimates, and coach-friendly feedback.
+          A practical nutrition tool using age, height, gender/formula factor, activity, goal, and serving-based meal estimates.
         </p>
       </div>
 
@@ -1894,6 +2128,7 @@ function NutritionCoachScreen() {
             onClick={() => {
               setNutritionMode("target");
               setTargetResult(null);
+              setNutritionSaveStatus("");
             }}
             className="rounded-3xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-5 text-left transition hover:border-[#00BF63] hover:bg-[#00BF63]/15"
           >
@@ -1901,7 +2136,7 @@ function NutritionCoachScreen() {
               Build My Target
             </span>
             <span className="mt-2 block text-sm leading-6 text-white/65">
-              Calculate daily calories, protein, carbs, and fats from body weight, goal, and training frequency.
+              Calculate calories and macros using age, height, gender/formula factor, body weight, activity, and goal.
             </span>
           </button>
 
@@ -1911,6 +2146,7 @@ function NutritionCoachScreen() {
             onClick={() => {
               setNutritionMode("meal");
               setMealResult(null);
+              setNutritionSaveStatus("");
             }}
             className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 text-left transition hover:border-[#00BF63]/60 hover:bg-white/[0.06]"
           >
@@ -1918,7 +2154,7 @@ function NutritionCoachScreen() {
               Check What I Ate
             </span>
             <span className="mt-2 block text-sm leading-6 text-white/65">
-              Estimate calories and macros from a meal, then get a simple coach tip.
+              Match foods against a local nutrition database and save the estimate.
             </span>
           </button>
         </div>
@@ -1940,10 +2176,8 @@ function NutritionCoachScreen() {
 
           <h3 className="text-xl font-black uppercase text-white">Macro Target Calculator</h3>
           <p className="mt-2 text-sm leading-6 text-white/65">
-            Start with a practical estimate, then adjust based on weekly progress, adherence, and training performance.
+            Uses a BMR-based starting point, then adjusts for activity and goal. Review and adjust from real progress.
           </p>
-
-          
 
           <div
             data-testid="featured-nutrition-goal-selector"
@@ -1988,7 +2222,52 @@ function NutritionCoachScreen() {
               />
             </label>
 
-            
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/50">Height Feet</span>
+              <input
+                aria-label="Height Feet"
+                value={heightFeet}
+                onChange={(event) => setHeightFeet(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                placeholder="5"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/50">Height Inches</span>
+              <input
+                aria-label="Height Inches"
+                value={heightInches}
+                onChange={(event) => setHeightInches(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                placeholder="10"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/50">Age</span>
+              <input
+                aria-label="Age"
+                value={age}
+                onChange={(event) => setAge(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                placeholder="30"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/50">Gender / Formula</span>
+              <select
+                aria-label="Gender Formula"
+                value={genderFormula}
+                onChange={(event) => setGenderFormula(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              >
+                <option value="male">Male Formula</option>
+                <option value="female">Female Formula</option>
+                <option value="average">Average Formula</option>
+              </select>
+            </label>
 
             <label className="space-y-2">
               <span className="text-xs font-black uppercase text-white/50">Training Days</span>
@@ -2001,7 +2280,7 @@ function NutritionCoachScreen() {
               />
             </label>
 
-            <label className="space-y-2">
+            <label className="space-y-2 md:col-span-2">
               <span className="text-xs font-black uppercase text-white/50">Activity</span>
               <select
                 aria-label="Activity Level"
@@ -2009,9 +2288,9 @@ function NutritionCoachScreen() {
                 onChange={(event) => setActivityLevel(event.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
               >
-                <option value="low">Low</option>
-                <option value="moderate">Moderate</option>
-                <option value="high">High</option>
+                <option value="low">Low Activity</option>
+                <option value="moderate">Moderate Activity</option>
+                <option value="high">High Activity</option>
               </select>
             </label>
           </div>
@@ -2029,11 +2308,23 @@ function NutritionCoachScreen() {
               className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"
             >
               <h4 className="text-lg font-black uppercase text-white">Daily Nutrition Targets</h4>
-              <div className="mt-4 grid gap-3 md:grid-cols-4">
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">BMR Estimate</p>
+                  <p className="mt-1 text-2xl font-black text-white">{targetResult.bmr}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Maintenance</p>
+                  <p className="mt-1 text-2xl font-black text-white">{targetResult.maintenanceCalories}</p>
+                </div>
                 <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
                   <p className="text-xs font-black uppercase text-[#00BF63]">Daily Calories</p>
                   <p className="mt-1 text-2xl font-black text-white">{targetResult.dailyCalories}</p>
                 </div>
+              </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-4">
                 <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
                   <p className="text-xs font-black uppercase text-[#00BF63]">Protein Goal</p>
                   <p className="mt-1 text-2xl font-black text-white">{targetResult.protein}g</p>
@@ -2046,10 +2337,23 @@ function NutritionCoachScreen() {
                   <p className="text-xs font-black uppercase text-[#00BF63]">Fats</p>
                   <p className="mt-1 text-2xl font-black text-white">{targetResult.fat}g</p>
                 </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Weekly Trend</p>
+                  <p className="mt-1 text-2xl font-black text-white">{targetResult.estimatedWeeklyChange} lb</p>
+                </div>
               </div>
+
               <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
                 Coach Tip: {targetResult.coachNote}
               </p>
+
+              <button
+                type="button"
+                onClick={saveTargetResult}
+                className="mt-4 rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+              >
+                Save Macro Target
+              </button>
             </div>
           )}
         </form>
@@ -2071,7 +2375,7 @@ function NutritionCoachScreen() {
 
           <h3 className="text-xl font-black uppercase text-white">Meal Check</h3>
           <p className="mt-2 text-sm leading-6 text-white/65">
-            Enter meal items, portion sizes, sauces, drinks, and cooking method. This gives a practical estimate for coaching conversations.
+            Enter foods and portions. Example: 2 eggs, 1 cup rice, chicken breast, avocado, salsa, and 1 tbsp olive oil.
           </p>
 
           <label className="mt-5 block space-y-2">
@@ -2081,7 +2385,7 @@ function NutritionCoachScreen() {
               value={mealText}
               onChange={(event) => setMealText(event.target.value)}
               className="min-h-32 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-              placeholder="Example: chicken bowl with rice, cheese, salsa, and avocado"
+              placeholder="Example: 2 eggs, 1 cup rice, chicken breast, avocado, salsa, and 1 tbsp olive oil"
             />
           </label>
 
@@ -2097,7 +2401,18 @@ function NutritionCoachScreen() {
               data-testid="meal-check-result"
               className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"
             >
-              <h4 className="text-lg font-black uppercase text-white">{mealResult.title}</h4>
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <h4 className="text-lg font-black uppercase text-white">{mealResult.title}</h4>
+                  <p className="mt-1 text-sm font-bold text-white/55">
+                    Estimate Confidence: {mealResult.confidence}
+                  </p>
+                </div>
+                <span className="w-fit rounded-full border border-white/10 bg-black/40 px-3 py-2 text-xs font-black uppercase text-white/55">
+                  Local food database
+                </span>
+              </div>
+
               <div className="mt-4 grid gap-3 md:grid-cols-4">
                 <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
                   <p className="text-xs font-black uppercase text-[#00BF63]">Calories</p>
@@ -2116,12 +2431,107 @@ function NutritionCoachScreen() {
                   <p className="mt-1 text-2xl font-black text-white">{mealResult.fat}g</p>
                 </div>
               </div>
+
+              {mealResult.matches.length > 0 && (
+                <div className="mt-5 rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-white/45">
+                    Matched Foods
+                  </p>
+                  <div className="mt-3 grid gap-2">
+                    {mealResult.matches.map((item) => (
+                      <div
+                        key={item.name}
+                        className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm text-white/70"
+                      >
+                        <span className="font-black text-white">{item.name}</span>
+                        <span className="text-white/45"> — {item.multiplier} serving(s), base: {item.serving}</span>
+                        <span className="block text-xs font-bold uppercase text-[#00BF63]">
+                          {item.calories} cal | {item.protein}g protein | {item.carbs}g carbs | {item.fat}g fat
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
                 Coach Tip: {mealResult.coachTip}
               </p>
+
+              <button
+                type="button"
+                onClick={saveMealResult}
+                className="mt-4 rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+              >
+                Save Meal Estimate
+              </button>
             </div>
           )}
         </form>
+      )}
+
+      {nutritionSaveStatus && (
+        <p
+          data-testid="nutrition-save-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {nutritionSaveStatus}
+        </p>
+      )}
+
+      {(nutritionHistory.targets.length > 0 || nutritionHistory.meals.length > 0) && (
+        <section
+          data-testid="nutrition-history-panel"
+          className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-white/45">
+            Saved Nutrition History
+          </p>
+          <h3 className="mt-2 text-xl font-black uppercase text-white">
+            Recent Targets And Meals
+          </h3>
+
+          {nutritionHistory.targets.length > 0 && (
+            <div className="mt-4 grid gap-3">
+              {nutritionHistory.targets.slice(0, 3).map((item) => (
+                <div
+                  key={item.id}
+                  data-testid="saved-nutrition-target"
+                  className="rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-4"
+                >
+                  <p className="text-sm font-black text-white">
+                    {item.goalLabel} — {item.dailyCalories} calories
+                  </p>
+                  <p className="mt-1 text-xs font-bold uppercase text-white/55">
+                    {item.protein}g protein | {item.carbs}g carbs | {item.fat}g fats | saved {item.savedAt}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {nutritionHistory.meals.length > 0 && (
+            <div className="mt-4 grid gap-3">
+              {nutritionHistory.meals.slice(0, 3).map((item) => (
+                <div
+                  key={item.id}
+                  data-testid="saved-meal-estimate"
+                  className="rounded-2xl border border-white/10 bg-black/40 p-4"
+                >
+                  <p className="text-sm font-black text-white">
+                    {item.title} — {item.calories} calories
+                  </p>
+                  <p className="mt-1 text-xs font-bold uppercase text-white/55">
+                    {item.protein}g protein | {item.carbs}g carbs | {item.fat}g fats | confidence {item.confidence}
+                  </p>
+                  {item.mealText && (
+                    <p className="mt-2 text-sm text-white/50">{item.mealText}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       )}
     </section>
   );

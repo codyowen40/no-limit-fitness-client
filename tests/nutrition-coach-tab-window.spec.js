@@ -6,10 +6,10 @@ test("Nutrition Coach top tab opens the working Nutrition Coach window", async (
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   await page
-      .getByRole("navigation", { name: /Main navigation/i })
-      .first()
-      .getByRole("button", { name: "Nutrition Coach", exact: true })
-      .click();
+    .getByRole("navigation", { name: /Main navigation/i })
+    .first()
+    .getByRole("button", { name: "Nutrition Coach", exact: true })
+    .click();
 
   const nutritionCoachWindow = page.getByTestId("nutrition-coach-window").last();
 
@@ -18,7 +18,7 @@ test("Nutrition Coach top tab opens the working Nutrition Coach window", async (
   await expect(nutritionCoachWindow.getByRole("button", { name: /Check What I Ate/i })).toBeVisible();
 });
 
-test("Nutrition Coach calculates macro targets and meal estimates", async ({ page }) => {
+test("Nutrition Coach calculates and saves macro targets with age height and gender formula", async ({ page }) => {
   await page.goto("/?testUnlock=true&portalMode=client");
 
   await page
@@ -30,28 +30,66 @@ test("Nutrition Coach calculates macro targets and meal estimates", async ({ pag
   const nutritionCoachWindow = page.getByTestId("nutrition-coach-window").last();
 
   await nutritionCoachWindow.getByRole("button", { name: /Build My Target/i }).click();
+
+  await expect(page.getByTestId("featured-nutrition-goal-selector")).toBeVisible();
   await expect(page.getByTestId("macro-target-calculator")).toBeVisible();
 
-  await page.getByLabel("Body Weight").fill("200");
   await page.getByLabel("Nutrition Goal").selectOption("fat-loss");
+  await page.getByLabel("Body Weight").fill("200");
+  await page.getByLabel("Height Feet").fill("5");
+  await page.getByLabel("Height Inches").fill("11");
+  await page.getByLabel("Age").fill("35");
+  await page.getByLabel("Gender Formula").selectOption("male");
   await page.getByLabel("Training Days").fill("5");
   await page.getByLabel("Activity Level").selectOption("high");
   await page.getByRole("button", { name: "Calculate Targets" }).click();
 
   await expect(page.getByTestId("nutrition-target-result")).toBeVisible();
+  await expect(page.getByTestId("nutrition-target-result")).toContainText("BMR Estimate");
+  await expect(page.getByTestId("nutrition-target-result")).toContainText("Maintenance");
   await expect(page.getByTestId("nutrition-target-result")).toContainText("Daily Calories");
   await expect(page.getByTestId("nutrition-target-result")).toContainText("Protein Goal");
-  await expect(page.getByTestId("nutrition-target-result")).toContainText("Coach Tip");
+  await expect(page.getByTestId("nutrition-target-result")).toContainText("Weekly Trend");
 
-  await page.getByRole("button", { name: "Start Over" }).click();
+  await page.getByRole("button", { name: "Save Macro Target" }).click();
+
+  await expect(page.getByTestId("nutrition-save-status")).toContainText("Macro target saved");
+  await expect(page.getByTestId("nutrition-history-panel")).toBeVisible();
+  await expect(page.getByTestId("saved-nutrition-target").first()).toContainText("Weight Loss");
+});
+
+test("Nutrition Coach estimates and saves meals using matched foods and portions", async ({ page }) => {
+  await page.goto("/?testUnlock=true&portalMode=client");
+
+  await page
+    .getByRole("navigation", { name: /Main navigation/i })
+    .first()
+    .getByRole("button", { name: "Nutrition Coach", exact: true })
+    .click();
+
+  const nutritionCoachWindow = page.getByTestId("nutrition-coach-window").last();
+
   await nutritionCoachWindow.getByRole("button", { name: /Check What I Ate/i }).click();
 
   await expect(page.getByTestId("meal-check-estimator")).toBeVisible();
-  await page.getByLabel("Meal Description").fill("Large chicken bowl with rice, cheese, avocado, and sauce");
+
+  await page
+    .getByLabel("Meal Description")
+    .fill("2 eggs, 1 cup rice, chicken breast, avocado, salsa, and 1 tbsp olive oil");
+
   await page.getByRole("button", { name: "Estimate Meal" }).click();
 
   await expect(page.getByTestId("meal-check-result")).toBeVisible();
   await expect(page.getByTestId("meal-check-result")).toContainText("Meal Estimate");
-  await expect(page.getByTestId("meal-check-result")).toContainText("Protein");
-  await expect(page.getByTestId("meal-check-result")).toContainText("Coach Tip");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Estimate Confidence");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Matched Foods");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Chicken Breast");
+  await expect(page.getByTestId("meal-check-result")).toContainText("White Rice");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Egg");
+
+  await page.getByRole("button", { name: "Save Meal Estimate" }).click();
+
+  await expect(page.getByTestId("nutrition-save-status")).toContainText("Meal estimate saved");
+  await expect(page.getByTestId("nutrition-history-panel")).toBeVisible();
+  await expect(page.getByTestId("saved-meal-estimate").first()).toContainText("Meal Estimate");
 });
