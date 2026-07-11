@@ -1750,6 +1750,7 @@ function ClientApprovedWorkoutPlanPanel() {
 
 function NutritionCoachScreen() {
   const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
+  const CUSTOM_FOODS_STORAGE_KEY = "nlf-custom-foods-v1";
 
   function getSavedNutritionHistory() {
     if (typeof window === "undefined") return { targets: [], meals: [] };
@@ -1779,6 +1780,29 @@ function NutritionCoachScreen() {
     }
   }
 
+  function getSavedCustomFoods() {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const raw = window.localStorage.getItem(CUSTOM_FOODS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveCustomFoods(nextFoods) {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.localStorage.setItem(CUSTOM_FOODS_STORAGE_KEY, JSON.stringify(nextFoods));
+    } catch {
+      // Ignore local storage failures in restricted browser modes.
+    }
+  }
+
   const [nutritionMode, setNutritionMode] = useState("");
   const [bodyWeight, setBodyWeight] = useState("180");
   const [heightFeet, setHeightFeet] = useState("5");
@@ -1789,8 +1813,21 @@ function NutritionCoachScreen() {
   const [trainingDays, setTrainingDays] = useState("4");
   const [activityLevel, setActivityLevel] = useState("moderate");
   const [targetResult, setTargetResult] = useState(null);
+
   const [mealText, setMealText] = useState("");
   const [mealResult, setMealResult] = useState(null);
+  const [foodSearch, setFoodSearch] = useState("");
+  const [selectedFoodName, setSelectedFoodName] = useState("");
+  const [selectedQuantity, setSelectedQuantity] = useState("1");
+  const [mealItems, setMealItems] = useState([]);
+  const [manualFoodName, setManualFoodName] = useState("");
+  const [manualServing, setManualServing] = useState("1 serving");
+  const [manualCalories, setManualCalories] = useState("");
+  const [manualProtein, setManualProtein] = useState("");
+  const [manualCarbs, setManualCarbs] = useState("");
+  const [manualFat, setManualFat] = useState("");
+
+  const [customFoods, setCustomFoods] = useState(getSavedCustomFoods);
   const [nutritionHistory, setNutritionHistory] = useState(getSavedNutritionHistory);
   const [nutritionSaveStatus, setNutritionSaveStatus] = useState("");
 
@@ -1798,177 +1835,168 @@ function NutritionCoachScreen() {
     saveNutritionHistory(nutritionHistory);
   }, [nutritionHistory]);
 
-  const foodDatabase = useMemo(
+  useEffect(() => {
+    saveCustomFoods(customFoods);
+  }, [customFoods]);
+
+  const baseFoodDatabase = useMemo(
     () => [
-      // Proteins and normal meal staples
-      { name: "Chicken Breast", keywords: ["chicken breast", "grilled chicken", "chicken"], serving: "4 oz cooked", calories: 185, protein: 35, carbs: 0, fat: 4 },
-      { name: "Chicken Thigh", keywords: ["chicken thigh", "dark meat chicken"], serving: "4 oz cooked", calories: 230, protein: 28, carbs: 0, fat: 12 },
-      { name: "Chicken Nuggets", keywords: ["chicken nuggets", "nuggets"], serving: "6 pieces", calories: 270, protein: 15, carbs: 17, fat: 16 },
-      { name: "Turkey Deli Meat", keywords: ["turkey deli", "deli turkey", "turkey slices"], serving: "3 oz", calories: 90, protein: 18, carbs: 2, fat: 1 },
-      { name: "Lean Ground Beef", keywords: ["lean ground beef", "ground beef", "beef"], serving: "4 oz cooked", calories: 230, protein: 26, carbs: 0, fat: 13 },
-      { name: "Steak", keywords: ["steak"], serving: "4 oz cooked", calories: 260, protein: 29, carbs: 0, fat: 16 },
-      { name: "Pork Chop", keywords: ["pork chop"], serving: "4 oz cooked", calories: 250, protein: 30, carbs: 0, fat: 14 },
-      { name: "Bacon", keywords: ["bacon"], serving: "2 slices", calories: 90, protein: 6, carbs: 0, fat: 7 },
-      { name: "Sausage Patty", keywords: ["sausage patty", "breakfast sausage", "sausage"], serving: "1 patty", calories: 180, protein: 9, carbs: 1, fat: 16 },
-      { name: "Hot Dog", keywords: ["hot dog", "hotdog"], serving: "1 hot dog", calories: 150, protein: 5, carbs: 2, fat: 13 },
-      { name: "Salmon", keywords: ["salmon"], serving: "4 oz cooked", calories: 235, protein: 25, carbs: 0, fat: 14 },
-      { name: "Tuna", keywords: ["tuna"], serving: "1 can", calories: 130, protein: 29, carbs: 0, fat: 1 },
-      { name: "Tilapia", keywords: ["tilapia"], serving: "4 oz cooked", calories: 145, protein: 29, carbs: 0, fat: 3 },
-      { name: "Shrimp", keywords: ["shrimp"], serving: "4 oz cooked", calories: 120, protein: 24, carbs: 1, fat: 2 },
-      { name: "Egg", keywords: ["egg", "eggs"], serving: "1 large egg", calories: 70, protein: 6, carbs: 1, fat: 5 },
-      { name: "Egg Whites", keywords: ["egg whites"], serving: "1/2 cup", calories: 65, protein: 13, carbs: 1, fat: 0 },
-      { name: "Greek Yogurt", keywords: ["greek yogurt", "yogurt"], serving: "1 cup", calories: 130, protein: 20, carbs: 9, fat: 0 },
-      { name: "Cottage Cheese", keywords: ["cottage cheese"], serving: "1 cup", calories: 185, protein: 25, carbs: 8, fat: 5 },
-      { name: "Whey Protein", keywords: ["whey protein", "protein shake", "protein powder"], serving: "1 scoop", calories: 120, protein: 24, carbs: 3, fat: 2 },
+      // Proteins and staples
+      { name: "Chicken Breast", category: "Protein", keywords: ["chicken breast", "grilled chicken", "chicken"], serving: "4 oz cooked", calories: 185, protein: 35, carbs: 0, fat: 4 },
+      { name: "Chicken Thigh", category: "Protein", keywords: ["chicken thigh", "dark meat chicken"], serving: "4 oz cooked", calories: 230, protein: 28, carbs: 0, fat: 12 },
+      { name: "Chicken Nuggets", category: "Convenience", keywords: ["chicken nuggets", "nuggets"], serving: "6 pieces", calories: 270, protein: 15, carbs: 17, fat: 16 },
+      { name: "Turkey Deli Meat", category: "Protein", keywords: ["turkey deli", "deli turkey", "turkey slices"], serving: "3 oz", calories: 90, protein: 18, carbs: 2, fat: 1 },
+      { name: "Lean Ground Beef", category: "Protein", keywords: ["lean ground beef", "ground beef", "beef"], serving: "4 oz cooked", calories: 230, protein: 26, carbs: 0, fat: 13 },
+      { name: "Steak", category: "Protein", keywords: ["steak"], serving: "4 oz cooked", calories: 260, protein: 29, carbs: 0, fat: 16 },
+      { name: "Pork Chop", category: "Protein", keywords: ["pork chop"], serving: "4 oz cooked", calories: 250, protein: 30, carbs: 0, fat: 14 },
+      { name: "Bacon", category: "Protein", keywords: ["bacon"], serving: "2 slices", calories: 90, protein: 6, carbs: 0, fat: 7 },
+      { name: "Sausage Patty", category: "Protein", keywords: ["sausage patty", "breakfast sausage", "sausage"], serving: "1 patty", calories: 180, protein: 9, carbs: 1, fat: 16 },
+      { name: "Hot Dog", category: "Convenience", keywords: ["hot dog", "hotdog"], serving: "1 hot dog", calories: 150, protein: 5, carbs: 2, fat: 13 },
+      { name: "Salmon", category: "Protein", keywords: ["salmon"], serving: "4 oz cooked", calories: 235, protein: 25, carbs: 0, fat: 14 },
+      { name: "Tuna", category: "Protein", keywords: ["tuna"], serving: "1 can", calories: 130, protein: 29, carbs: 0, fat: 1 },
+      { name: "Egg", category: "Protein", keywords: ["egg", "eggs"], serving: "1 large egg", calories: 70, protein: 6, carbs: 1, fat: 5 },
+      { name: "Egg Whites", category: "Protein", keywords: ["egg whites"], serving: "1/2 cup", calories: 65, protein: 13, carbs: 1, fat: 0 },
+      { name: "Greek Yogurt", category: "Protein", keywords: ["greek yogurt", "yogurt"], serving: "1 cup", calories: 130, protein: 20, carbs: 9, fat: 0 },
+      { name: "Cottage Cheese", category: "Protein", keywords: ["cottage cheese"], serving: "1 cup", calories: 185, protein: 25, carbs: 8, fat: 5 },
+      { name: "Whey Protein", category: "Protein", keywords: ["whey protein", "protein shake", "protein powder"], serving: "1 scoop", calories: 120, protein: 24, carbs: 3, fat: 2 },
 
-      // Carbs, grains, canned goods, boxed foods
-      { name: "White Rice", keywords: ["white rice", "rice"], serving: "1 cup cooked", calories: 205, protein: 4, carbs: 45, fat: 0 },
-      { name: "Brown Rice", keywords: ["brown rice"], serving: "1 cup cooked", calories: 215, protein: 5, carbs: 45, fat: 2 },
-      { name: "Spanish Rice", keywords: ["spanish rice", "mexican rice"], serving: "1 cup", calories: 230, protein: 5, carbs: 44, fat: 5 },
-      { name: "Fried Rice", keywords: ["fried rice"], serving: "1 cup", calories: 330, protein: 12, carbs: 45, fat: 12 },
-      { name: "Pasta", keywords: ["pasta", "spaghetti", "noodles"], serving: "1 cup cooked", calories: 220, protein: 8, carbs: 43, fat: 1 },
-      { name: "Mac and Cheese", keywords: ["mac and cheese", "macaroni and cheese", "boxed mac"], serving: "1 cup prepared", calories: 350, protein: 10, carbs: 47, fat: 14 },
-      { name: "Ramen Noodles", keywords: ["ramen", "ramen noodles", "instant noodles"], serving: "1 package", calories: 380, protein: 8, carbs: 52, fat: 14 },
-      { name: "Canned Ravioli", keywords: ["ravioli", "beef ravioli", "canned ravioli"], serving: "1 cup", calories: 250, protein: 9, carbs: 36, fat: 8 },
-      { name: "SpaghettiOs", keywords: ["spaghettios", "canned spaghetti"], serving: "1 cup", calories: 170, protein: 6, carbs: 32, fat: 2 },
-      { name: "Canned Soup", keywords: ["canned soup", "chicken noodle soup", "soup"], serving: "1 cup", calories: 120, protein: 7, carbs: 15, fat: 4 },
-      { name: "Chili", keywords: ["chili", "canned chili"], serving: "1 cup", calories: 300, protein: 18, carbs: 30, fat: 12 },
-      { name: "Oats", keywords: ["oats", "oatmeal"], serving: "1 cup cooked", calories: 155, protein: 6, carbs: 27, fat: 3 },
-      { name: "Instant Oatmeal Packet", keywords: ["instant oatmeal", "oatmeal packet"], serving: "1 packet", calories: 160, protein: 4, carbs: 32, fat: 2 },
-      { name: "Bread", keywords: ["bread", "toast"], serving: "1 slice", calories: 80, protein: 3, carbs: 15, fat: 1 },
-      { name: "White Bun", keywords: ["bun", "hamburger bun", "hot dog bun"], serving: "1 bun", calories: 140, protein: 4, carbs: 26, fat: 2 },
-      { name: "Tortilla", keywords: ["tortilla", "wrap"], serving: "1 medium tortilla", calories: 140, protein: 4, carbs: 24, fat: 4 },
-      { name: "Bagel", keywords: ["bagel"], serving: "1 plain bagel", calories: 280, protein: 10, carbs: 56, fat: 2 },
-      { name: "Pancake", keywords: ["pancake", "pancakes"], serving: "2 medium pancakes", calories: 230, protein: 6, carbs: 38, fat: 6 },
-      { name: "Waffle", keywords: ["waffle", "waffles"], serving: "2 frozen waffles", calories: 210, protein: 5, carbs: 30, fat: 8 },
-      { name: "Potato", keywords: ["potato", "baked potato"], serving: "1 medium potato", calories: 160, protein: 4, carbs: 37, fat: 0 },
-      { name: "Mashed Potatoes", keywords: ["mashed potatoes"], serving: "1 cup", calories: 240, protein: 4, carbs: 35, fat: 9 },
-      { name: "Sweet Potato", keywords: ["sweet potato"], serving: "1 medium sweet potato", calories: 115, protein: 2, carbs: 27, fat: 0 },
-      { name: "Black Beans", keywords: ["black beans", "beans"], serving: "1/2 cup", calories: 115, protein: 8, carbs: 20, fat: 0 },
-      { name: "Refried Beans", keywords: ["refried beans"], serving: "1/2 cup", calories: 120, protein: 6, carbs: 18, fat: 3 },
+      // Carbs and boxed/canned foods
+      { name: "White Rice", category: "Carb", keywords: ["white rice", "rice"], serving: "1 cup cooked", calories: 205, protein: 4, carbs: 45, fat: 0 },
+      { name: "Brown Rice", category: "Carb", keywords: ["brown rice"], serving: "1 cup cooked", calories: 215, protein: 5, carbs: 45, fat: 2 },
+      { name: "Spanish Rice", category: "Carb", keywords: ["spanish rice", "mexican rice"], serving: "1 cup", calories: 230, protein: 5, carbs: 44, fat: 5 },
+      { name: "Fried Rice", category: "Convenience", keywords: ["fried rice"], serving: "1 cup", calories: 330, protein: 12, carbs: 45, fat: 12 },
+      { name: "Pasta", category: "Carb", keywords: ["pasta", "spaghetti", "noodles"], serving: "1 cup cooked", calories: 220, protein: 8, carbs: 43, fat: 1 },
+      { name: "Mac and Cheese", category: "Convenience", keywords: ["mac and cheese", "macaroni and cheese", "boxed mac"], serving: "1 cup prepared", calories: 350, protein: 10, carbs: 47, fat: 14 },
+      { name: "Ramen Noodles", category: "Convenience", keywords: ["ramen", "ramen noodles", "instant noodles"], serving: "1 package", calories: 380, protein: 8, carbs: 52, fat: 14 },
+      { name: "Canned Ravioli", category: "Convenience", keywords: ["ravioli", "beef ravioli", "canned ravioli"], serving: "1 cup", calories: 250, protein: 9, carbs: 36, fat: 8 },
+      { name: "SpaghettiOs", category: "Convenience", keywords: ["spaghettios", "canned spaghetti"], serving: "1 cup", calories: 170, protein: 6, carbs: 32, fat: 2 },
+      { name: "Canned Soup", category: "Convenience", keywords: ["canned soup", "chicken noodle soup", "soup"], serving: "1 cup", calories: 120, protein: 7, carbs: 15, fat: 4 },
+      { name: "Chili", category: "Convenience", keywords: ["chili", "canned chili"], serving: "1 cup", calories: 300, protein: 18, carbs: 30, fat: 12 },
+      { name: "Oats", category: "Carb", keywords: ["oats", "oatmeal"], serving: "1 cup cooked", calories: 155, protein: 6, carbs: 27, fat: 3 },
+      { name: "Instant Oatmeal Packet", category: "Convenience", keywords: ["instant oatmeal", "oatmeal packet"], serving: "1 packet", calories: 160, protein: 4, carbs: 32, fat: 2 },
+      { name: "Bread", category: "Carb", keywords: ["bread", "toast"], serving: "1 slice", calories: 80, protein: 3, carbs: 15, fat: 1 },
+      { name: "White Bun", category: "Carb", keywords: ["bun", "hamburger bun", "hot dog bun"], serving: "1 bun", calories: 140, protein: 4, carbs: 26, fat: 2 },
+      { name: "Tortilla", category: "Carb", keywords: ["tortilla", "wrap"], serving: "1 medium tortilla", calories: 140, protein: 4, carbs: 24, fat: 4 },
+      { name: "Bagel", category: "Carb", keywords: ["bagel"], serving: "1 plain bagel", calories: 280, protein: 10, carbs: 56, fat: 2 },
+      { name: "Pancake", category: "Carb", keywords: ["pancake", "pancakes"], serving: "2 medium pancakes", calories: 230, protein: 6, carbs: 38, fat: 6 },
+      { name: "Waffle", category: "Carb", keywords: ["waffle", "waffles"], serving: "2 frozen waffles", calories: 210, protein: 5, carbs: 30, fat: 8 },
+      { name: "Potato", category: "Carb", keywords: ["potato", "baked potato"], serving: "1 medium potato", calories: 160, protein: 4, carbs: 37, fat: 0 },
+      { name: "Mashed Potatoes", category: "Carb", keywords: ["mashed potatoes"], serving: "1 cup", calories: 240, protein: 4, carbs: 35, fat: 9 },
+      { name: "Sweet Potato", category: "Carb", keywords: ["sweet potato"], serving: "1 medium sweet potato", calories: 115, protein: 2, carbs: 27, fat: 0 },
+      { name: "Black Beans", category: "Carb", keywords: ["black beans", "beans"], serving: "1/2 cup", calories: 115, protein: 8, carbs: 20, fat: 0 },
+      { name: "Refried Beans", category: "Carb", keywords: ["refried beans"], serving: "1/2 cup", calories: 120, protein: 6, carbs: 18, fat: 3 },
 
-      // Drinks, sweet drinks, convenience-store drinks
-      { name: "Water", keywords: ["water", "bottled water"], serving: "1 bottle", calories: 0, protein: 0, carbs: 0, fat: 0 },
-      { name: "Sweet Tea", keywords: ["sweet tea", "sweet iced tea"], serving: "moderate 16 oz glass", calories: 160, protein: 0, carbs: 40, fat: 0 },
-      { name: "Unsweet Tea", keywords: ["unsweet tea", "unsweetened tea"], serving: "16 oz", calories: 0, protein: 0, carbs: 0, fat: 0 },
-      { name: "Kool-Aid", keywords: ["kool-aid", "koolaid", "cool aid", "coolaid"], serving: "12 oz glass", calories: 150, protein: 0, carbs: 38, fat: 0 },
-      { name: "Lemonade", keywords: ["lemonade"], serving: "12 oz", calories: 150, protein: 0, carbs: 40, fat: 0 },
-      { name: "Regular Soda", keywords: ["soda", "coke", "pepsi", "mountain dew", "sprite", "dr pepper"], serving: "12 oz can", calories: 150, protein: 0, carbs: 39, fat: 0 },
-      { name: "Diet Soda", keywords: ["diet soda", "diet coke", "diet pepsi", "zero sugar soda", "coke zero"], serving: "12 oz can", calories: 0, protein: 0, carbs: 0, fat: 0 },
-      { name: "Sports Drink", keywords: ["gatorade", "powerade", "sports drink"], serving: "20 oz bottle", calories: 140, protein: 0, carbs: 36, fat: 0 },
-      { name: "Energy Drink", keywords: ["monster", "red bull", "energy drink"], serving: "16 oz can", calories: 210, protein: 0, carbs: 54, fat: 0 },
-      { name: "Sugar Free Energy Drink", keywords: ["zero sugar energy drink", "sugar free energy drink", "monster zero", "red bull sugar free"], serving: "16 oz can", calories: 10, protein: 0, carbs: 2, fat: 0 },
+      // Drinks
+      { name: "Water", category: "Drink", keywords: ["water", "bottled water"], serving: "1 bottle", calories: 0, protein: 0, carbs: 0, fat: 0 },
+      { name: "Sweet Tea", category: "Drink", keywords: ["sweet tea", "sweet iced tea"], serving: "moderate 16 oz glass", calories: 160, protein: 0, carbs: 40, fat: 0 },
+      { name: "Unsweet Tea", category: "Drink", keywords: ["unsweet tea", "unsweetened tea"], serving: "16 oz", calories: 0, protein: 0, carbs: 0, fat: 0 },
+      { name: "Kool-Aid", category: "Drink", keywords: ["kool-aid", "koolaid", "cool aid", "coolaid"], serving: "12 oz glass", calories: 150, protein: 0, carbs: 38, fat: 0 },
+      { name: "Lemonade", category: "Drink", keywords: ["lemonade"], serving: "12 oz", calories: 150, protein: 0, carbs: 40, fat: 0 },
+      { name: "Regular Soda", category: "Drink", keywords: ["soda", "coke", "pepsi", "mountain dew", "sprite", "dr pepper"], serving: "12 oz can", calories: 150, protein: 0, carbs: 39, fat: 0 },
+      { name: "Diet Soda", category: "Drink", keywords: ["diet soda", "diet coke", "diet pepsi", "zero sugar soda", "coke zero"], serving: "12 oz can", calories: 0, protein: 0, carbs: 0, fat: 0 },
+      { name: "Sports Drink", category: "Drink", keywords: ["gatorade", "powerade", "sports drink"], serving: "20 oz bottle", calories: 140, protein: 0, carbs: 36, fat: 0 },
+      { name: "Energy Drink", category: "Drink", keywords: ["monster", "red bull", "energy drink"], serving: "16 oz can", calories: 210, protein: 0, carbs: 54, fat: 0 },
+      { name: "Sugar Free Energy Drink", category: "Drink", keywords: ["zero sugar energy drink", "sugar free energy drink", "monster zero", "red bull sugar free"], serving: "16 oz can", calories: 10, protein: 0, carbs: 2, fat: 0 },
+      { name: "Orange Juice", category: "Drink", keywords: ["orange juice", "oj"], serving: "8 oz", calories: 110, protein: 2, carbs: 26, fat: 0 },
+      { name: "Apple Juice", category: "Drink", keywords: ["apple juice"], serving: "8 oz", calories: 115, protein: 0, carbs: 28, fat: 0 },
+      { name: "Chocolate Milk", category: "Drink", keywords: ["chocolate milk"], serving: "1 cup", calories: 200, protein: 8, carbs: 30, fat: 5 },
+      { name: "Black Coffee", category: "Drink", keywords: ["black coffee", "coffee"], serving: "12 oz", calories: 5, protein: 0, carbs: 1, fat: 0 },
+      { name: "Coffee With Cream And Sugar", category: "Drink", keywords: ["coffee with cream", "coffee with sugar", "cream and sugar coffee"], serving: "12 oz", calories: 120, protein: 1, carbs: 18, fat: 5 },
+      { name: "Bottled Frappuccino", category: "Drink", keywords: ["frappuccino", "bottled coffee", "iced coffee"], serving: "13.7 oz bottle", calories: 290, protein: 9, carbs: 47, fat: 6 },
 
-      // Alcohol, liquor-store, gas-station, and party drinks
-      { name: "Light Beer", keywords: ["light beer", "lite beer"], serving: "12 oz can or bottle", calories: 105, protein: 1, carbs: 6, fat: 0 },
-      { name: "Regular Beer", keywords: ["beer", "regular beer", "lager"], serving: "12 oz can or bottle", calories: 150, protein: 2, carbs: 13, fat: 0 },
-      { name: "IPA Beer", keywords: ["ipa", "craft beer", "ipa beer"], serving: "12 oz can or bottle", calories: 220, protein: 2, carbs: 18, fat: 0 },
-      { name: "Tallboy Beer", keywords: ["tallboy", "tall boy", "24 oz beer"], serving: "24 oz can", calories: 300, protein: 4, carbs: 26, fat: 0 },
-      { name: "Malt Liquor 40 oz", keywords: ["40 oz", "forty ounce", "malt liquor", "malt beer"], serving: "40 oz bottle", calories: 520, protein: 5, carbs: 48, fat: 0 },
-      { name: "Flavored Malt Beverage", keywords: ["flavored malt beverage", "malt beverage", "hard lemonade", "wine cooler"], serving: "12 oz bottle or can", calories: 220, protein: 0, carbs: 32, fat: 0 },
-      { name: "Hard Seltzer", keywords: ["hard seltzer", "spiked seltzer"], serving: "12 oz can", calories: 100, protein: 0, carbs: 2, fat: 0 },
-      { name: "Canned Cocktail", keywords: ["canned cocktail", "ready to drink cocktail", "rtD cocktail", "premixed cocktail"], serving: "12 oz can", calories: 250, protein: 0, carbs: 28, fat: 0 },
-      { name: "Small Canned Cocktail", keywords: ["buzzball", "buzz ball", "small canned cocktail"], serving: "200 ml container", calories: 290, protein: 0, carbs: 34, fat: 0 },
-      { name: "Red Wine", keywords: ["red wine"], serving: "5 oz glass", calories: 125, protein: 0, carbs: 4, fat: 0 },
-      { name: "White Wine", keywords: ["white wine"], serving: "5 oz glass", calories: 120, protein: 0, carbs: 4, fat: 0 },
-      { name: "Champagne", keywords: ["champagne", "sparkling wine"], serving: "5 oz glass", calories: 95, protein: 0, carbs: 2, fat: 0 },
-      { name: "Vodka Shot", keywords: ["vodka shot", "vodka"], serving: "1.5 oz shot", calories: 100, protein: 0, carbs: 0, fat: 0 },
-      { name: "Whiskey Shot", keywords: ["whiskey shot", "whisky shot", "whiskey", "bourbon"], serving: "1.5 oz shot", calories: 105, protein: 0, carbs: 0, fat: 0 },
-      { name: "Rum Shot", keywords: ["rum shot", "rum"], serving: "1.5 oz shot", calories: 100, protein: 0, carbs: 0, fat: 0 },
-      { name: "Tequila Shot", keywords: ["tequila shot", "tequila"], serving: "1.5 oz shot", calories: 100, protein: 0, carbs: 0, fat: 0 },
-      { name: "Gin Shot", keywords: ["gin shot", "gin"], serving: "1.5 oz shot", calories: 100, protein: 0, carbs: 0, fat: 0 },
-      { name: "Rum And Coke", keywords: ["rum and coke", "rum coke"], serving: "1 mixed drink", calories: 180, protein: 0, carbs: 22, fat: 0 },
-      { name: "Whiskey And Coke", keywords: ["whiskey and coke", "whiskey coke"], serving: "1 mixed drink", calories: 185, protein: 0, carbs: 22, fat: 0 },
-      { name: "Vodka Cranberry", keywords: ["vodka cranberry"], serving: "1 mixed drink", calories: 190, protein: 0, carbs: 24, fat: 0 },
-      { name: "Margarita", keywords: ["margarita"], serving: "1 drink", calories: 250, protein: 0, carbs: 30, fat: 0 },
-      { name: "Pina Colada", keywords: ["pina colada", "piña colada"], serving: "1 drink", calories: 360, protein: 2, carbs: 40, fat: 10 },
-      { name: "Long Island Iced Tea", keywords: ["long island iced tea", "long island"], serving: "1 drink", calories: 280, protein: 0, carbs: 28, fat: 0 },
-      { name: "Jello Shot", keywords: ["jello shot", "jell-o shot"], serving: "1 small shot", calories: 70, protein: 1, carbs: 8, fat: 0 },
-      { name: "Orange Juice", keywords: ["orange juice", "oj"], serving: "8 oz", calories: 110, protein: 2, carbs: 26, fat: 0 },
-      { name: "Apple Juice", keywords: ["apple juice"], serving: "8 oz", calories: 115, protein: 0, carbs: 28, fat: 0 },
-      { name: "Cranberry Juice Cocktail", keywords: ["cranberry juice"], serving: "8 oz", calories: 120, protein: 0, carbs: 30, fat: 0 },
-      { name: "Whole Milk", keywords: ["whole milk"], serving: "1 cup", calories: 150, protein: 8, carbs: 12, fat: 8 },
-      { name: "Two Percent Milk", keywords: ["2% milk", "two percent milk", "milk"], serving: "1 cup", calories: 120, protein: 8, carbs: 12, fat: 5 },
-      { name: "Chocolate Milk", keywords: ["chocolate milk"], serving: "1 cup", calories: 200, protein: 8, carbs: 30, fat: 5 },
-      { name: "Almond Milk", keywords: ["almond milk"], serving: "1 cup", calories: 60, protein: 1, carbs: 8, fat: 3 },
-      { name: "Black Coffee", keywords: ["black coffee", "coffee"], serving: "12 oz", calories: 5, protein: 0, carbs: 1, fat: 0 },
-      { name: "Coffee With Cream And Sugar", keywords: ["coffee with cream", "coffee with sugar", "cream and sugar coffee"], serving: "12 oz", calories: 120, protein: 1, carbs: 18, fat: 5 },
-      { name: "Bottled Frappuccino", keywords: ["frappuccino", "bottled coffee", "iced coffee"], serving: "13.7 oz bottle", calories: 290, protein: 9, carbs: 47, fat: 6 },
+      // Alcohol
+      { name: "Light Beer", category: "Alcohol", keywords: ["light beer", "lite beer"], serving: "12 oz can or bottle", calories: 105, protein: 1, carbs: 6, fat: 0 },
+      { name: "Regular Beer", category: "Alcohol", keywords: ["beer", "regular beer", "lager"], serving: "12 oz can or bottle", calories: 150, protein: 2, carbs: 13, fat: 0 },
+      { name: "IPA Beer", category: "Alcohol", keywords: ["ipa", "craft beer", "ipa beer"], serving: "12 oz can or bottle", calories: 220, protein: 2, carbs: 18, fat: 0 },
+      { name: "Tallboy Beer", category: "Alcohol", keywords: ["tallboy", "tall boy", "24 oz beer"], serving: "24 oz can", calories: 300, protein: 4, carbs: 26, fat: 0 },
+      { name: "Malt Liquor 40 oz", category: "Alcohol", keywords: ["40 oz", "forty ounce", "malt liquor", "malt beer"], serving: "40 oz bottle", calories: 520, protein: 5, carbs: 48, fat: 0 },
+      { name: "Flavored Malt Beverage", category: "Alcohol", keywords: ["flavored malt beverage", "malt beverage", "hard lemonade", "wine cooler"], serving: "12 oz bottle or can", calories: 220, protein: 0, carbs: 32, fat: 0 },
+      { name: "Hard Seltzer", category: "Alcohol", keywords: ["hard seltzer", "spiked seltzer"], serving: "12 oz can", calories: 100, protein: 0, carbs: 2, fat: 0 },
+      { name: "Canned Cocktail", category: "Alcohol", keywords: ["canned cocktail", "ready to drink cocktail", "premixed cocktail"], serving: "12 oz can", calories: 250, protein: 0, carbs: 28, fat: 0 },
+      { name: "Small Canned Cocktail", category: "Alcohol", keywords: ["buzzball", "buzz ball", "small canned cocktail"], serving: "200 ml container", calories: 290, protein: 0, carbs: 34, fat: 0 },
+      { name: "Red Wine", category: "Alcohol", keywords: ["red wine"], serving: "5 oz glass", calories: 125, protein: 0, carbs: 4, fat: 0 },
+      { name: "White Wine", category: "Alcohol", keywords: ["white wine"], serving: "5 oz glass", calories: 120, protein: 0, carbs: 4, fat: 0 },
+      { name: "Vodka Shot", category: "Alcohol", keywords: ["vodka shot", "vodka"], serving: "1.5 oz shot", calories: 100, protein: 0, carbs: 0, fat: 0 },
+      { name: "Whiskey Shot", category: "Alcohol", keywords: ["whiskey shot", "whisky shot", "whiskey", "bourbon"], serving: "1.5 oz shot", calories: 105, protein: 0, carbs: 0, fat: 0 },
+      { name: "Tequila Shot", category: "Alcohol", keywords: ["tequila shot", "tequila"], serving: "1.5 oz shot", calories: 100, protein: 0, carbs: 0, fat: 0 },
+      { name: "Vodka Cranberry", category: "Alcohol", keywords: ["vodka cranberry"], serving: "1 mixed drink", calories: 190, protein: 0, carbs: 24, fat: 0 },
+      { name: "Margarita", category: "Alcohol", keywords: ["margarita"], serving: "1 drink", calories: 250, protein: 0, carbs: 30, fat: 0 },
 
-      // Snacks, sweets, Dollar General / convenience style foods
-      { name: "Potato Chips", keywords: ["potato chips", "chips"], serving: "1 oz bag", calories: 150, protein: 2, carbs: 15, fat: 10 },
-      { name: "Nacho Cheese Chips", keywords: ["doritos", "nacho chips", "nacho cheese chips"], serving: "1 oz bag", calories: 150, protein: 2, carbs: 18, fat: 8 },
-      { name: "Cheetos", keywords: ["cheetos", "cheese puffs"], serving: "1 oz bag", calories: 160, protein: 2, carbs: 15, fat: 10 },
-      { name: "Pretzels", keywords: ["pretzels"], serving: "1 oz", calories: 110, protein: 3, carbs: 23, fat: 1 },
-      { name: "Popcorn", keywords: ["popcorn"], serving: "3 cups popped", calories: 160, protein: 3, carbs: 18, fat: 9 },
-      { name: "Crackers", keywords: ["crackers", "saltines"], serving: "1 serving", calories: 120, protein: 2, carbs: 22, fat: 3 },
-      { name: "Peanut Butter Crackers", keywords: ["peanut butter crackers"], serving: "1 pack", calories: 200, protein: 5, carbs: 22, fat: 10 },
-      { name: "Granola Bar", keywords: ["granola bar"], serving: "1 bar", calories: 140, protein: 3, carbs: 25, fat: 4 },
-      { name: "Protein Bar", keywords: ["protein bar"], serving: "1 bar", calories: 220, protein: 20, carbs: 24, fat: 7 },
-      { name: "Pop Tart", keywords: ["pop tart", "pop-tart"], serving: "1 pastry", calories: 200, protein: 2, carbs: 38, fat: 5 },
-      { name: "Cereal", keywords: ["cereal", "frosted flakes", "fruit loops", "cinnamon toast crunch"], serving: "1 cup", calories: 150, protein: 2, carbs: 33, fat: 2 },
-      { name: "Candy Bar", keywords: ["candy bar", "snickers", "milky way", "reeses", "kit kat", "twix"], serving: "1 bar", calories: 250, protein: 4, carbs: 33, fat: 12 },
-      { name: "Chocolate Candy", keywords: ["m&ms", "m and ms", "chocolate candy"], serving: "1 pack", calories: 240, protein: 3, carbs: 34, fat: 10 },
-      { name: "Gummy Candy", keywords: ["gummies", "gummy worms", "gummy bears", "sour patch"], serving: "1 bag", calories: 200, protein: 2, carbs: 48, fat: 0 },
-      { name: "Cookies", keywords: ["cookies", "oreo", "chocolate chip cookies"], serving: "3 cookies", calories: 160, protein: 2, carbs: 25, fat: 7 },
-      { name: "Donut", keywords: ["donut", "doughnut"], serving: "1 donut", calories: 260, protein: 4, carbs: 31, fat: 14 },
-      { name: "Honey Bun", keywords: ["honey bun"], serving: "1 pastry", calories: 330, protein: 4, carbs: 45, fat: 15 },
-      { name: "Ice Cream", keywords: ["ice cream"], serving: "2/3 cup", calories: 210, protein: 4, carbs: 24, fat: 11 },
-      { name: "Trail Mix", keywords: ["trail mix"], serving: "1/4 cup", calories: 170, protein: 5, carbs: 16, fat: 10 },
-      { name: "Almonds", keywords: ["almonds", "nuts"], serving: "1 oz", calories: 165, protein: 6, carbs: 6, fat: 14 },
-      { name: "Peanuts", keywords: ["peanuts"], serving: "1 oz", calories: 165, protein: 7, carbs: 6, fat: 14 },
-      { name: "Beef Jerky", keywords: ["beef jerky", "jerky"], serving: "1 oz", calories: 90, protein: 11, carbs: 6, fat: 2 },
+      // Snacks and convenience foods
+      { name: "Potato Chips", category: "Snack", keywords: ["potato chips", "chips"], serving: "1 oz bag", calories: 150, protein: 2, carbs: 15, fat: 10 },
+      { name: "Nacho Cheese Chips", category: "Snack", keywords: ["doritos", "nacho chips", "nacho cheese chips"], serving: "1 oz bag", calories: 150, protein: 2, carbs: 18, fat: 8 },
+      { name: "Cheetos", category: "Snack", keywords: ["cheetos", "cheese puffs"], serving: "1 oz bag", calories: 160, protein: 2, carbs: 15, fat: 10 },
+      { name: "Pretzels", category: "Snack", keywords: ["pretzels"], serving: "1 oz", calories: 110, protein: 3, carbs: 23, fat: 1 },
+      { name: "Popcorn", category: "Snack", keywords: ["popcorn"], serving: "3 cups popped", calories: 160, protein: 3, carbs: 18, fat: 9 },
+      { name: "Peanut Butter Crackers", category: "Snack", keywords: ["peanut butter crackers"], serving: "1 pack", calories: 200, protein: 5, carbs: 22, fat: 10 },
+      { name: "Granola Bar", category: "Snack", keywords: ["granola bar"], serving: "1 bar", calories: 140, protein: 3, carbs: 25, fat: 4 },
+      { name: "Protein Bar", category: "Snack", keywords: ["protein bar"], serving: "1 bar", calories: 220, protein: 20, carbs: 24, fat: 7 },
+      { name: "Pop Tart", category: "Snack", keywords: ["pop tart", "pop-tart"], serving: "1 pastry", calories: 200, protein: 2, carbs: 38, fat: 5 },
+      { name: "Cereal", category: "Snack", keywords: ["cereal", "frosted flakes", "fruit loops", "cinnamon toast crunch"], serving: "1 cup", calories: 150, protein: 2, carbs: 33, fat: 2 },
+      { name: "Candy Bar", category: "Snack", keywords: ["candy bar", "snickers", "milky way", "reeses", "kit kat", "twix"], serving: "1 bar", calories: 250, protein: 4, carbs: 33, fat: 12 },
+      { name: "Cookies", category: "Snack", keywords: ["cookies", "oreo", "chocolate chip cookies"], serving: "3 cookies", calories: 160, protein: 2, carbs: 25, fat: 7 },
+      { name: "Donut", category: "Snack", keywords: ["donut", "doughnut"], serving: "1 donut", calories: 260, protein: 4, carbs: 31, fat: 14 },
+      { name: "Honey Bun", category: "Snack", keywords: ["honey bun"], serving: "1 pastry", calories: 330, protein: 4, carbs: 45, fat: 15 },
+      { name: "Beef Jerky", category: "Snack", keywords: ["beef jerky", "jerky"], serving: "1 oz", calories: 90, protein: 11, carbs: 6, fat: 2 },
+      { name: "Frozen Pizza", category: "Convenience", keywords: ["frozen pizza"], serving: "1/3 pizza", calories: 380, protein: 17, carbs: 42, fat: 17 },
+      { name: "Pizza Rolls", category: "Convenience", keywords: ["pizza rolls"], serving: "6 rolls", calories: 220, protein: 7, carbs: 30, fat: 8 },
+      { name: "Corn Dog", category: "Convenience", keywords: ["corn dog"], serving: "1 corn dog", calories: 220, protein: 7, carbs: 24, fat: 10 },
+      { name: "Frozen Burrito", category: "Convenience", keywords: ["frozen burrito", "bean burrito", "beef burrito", "burrito"], serving: "1 burrito", calories: 320, protein: 12, carbs: 45, fat: 10 },
+      { name: "Taquitos", category: "Convenience", keywords: ["taquitos"], serving: "3 taquitos", calories: 270, protein: 9, carbs: 27, fat: 14 },
+      { name: "Chicken Pot Pie", category: "Convenience", keywords: ["chicken pot pie", "pot pie"], serving: "1 small pie", calories: 430, protein: 12, carbs: 42, fat: 24 },
+      { name: "Frozen Dinner", category: "Convenience", keywords: ["frozen dinner", "tv dinner", "microwave meal"], serving: "1 meal", calories: 420, protein: 20, carbs: 50, fat: 15 },
 
-      // Frozen and convenience meals
-      { name: "Frozen Pizza", keywords: ["frozen pizza"], serving: "1/3 pizza", calories: 380, protein: 17, carbs: 42, fat: 17 },
-      { name: "Pizza Rolls", keywords: ["pizza rolls"], serving: "6 rolls", calories: 220, protein: 7, carbs: 30, fat: 8 },
-      { name: "Corn Dog", keywords: ["corn dog"], serving: "1 corn dog", calories: 220, protein: 7, carbs: 24, fat: 10 },
-      { name: "Frozen Burrito", keywords: ["frozen burrito", "bean burrito", "beef burrito", "burrito"], serving: "1 burrito", calories: 320, protein: 12, carbs: 45, fat: 10 },
-      { name: "Taquitos", keywords: ["taquitos"], serving: "3 taquitos", calories: 270, protein: 9, carbs: 27, fat: 14 },
-      { name: "Chicken Pot Pie", keywords: ["chicken pot pie", "pot pie"], serving: "1 small pie", calories: 430, protein: 12, carbs: 42, fat: 24 },
-      { name: "Frozen Dinner", keywords: ["frozen dinner", "tv dinner", "microwave meal"], serving: "1 meal", calories: 420, protein: 20, carbs: 50, fat: 15 },
-      { name: "Instant Mashed Potatoes", keywords: ["instant mashed potatoes"], serving: "1 cup prepared", calories: 210, protein: 4, carbs: 35, fat: 6 },
+      // Fast-food style items
+      { name: "Burger", category: "Fast Food", keywords: ["burger", "cheeseburger", "hamburger"], serving: "1 burger", calories: 540, protein: 28, carbs: 40, fat: 30 },
+      { name: "Double Cheeseburger", category: "Fast Food", keywords: ["double cheeseburger"], serving: "1 sandwich", calories: 700, protein: 40, carbs: 42, fat: 42 },
+      { name: "Chicken Sandwich", category: "Fast Food", keywords: ["chicken sandwich"], serving: "1 sandwich", calories: 520, protein: 28, carbs: 45, fat: 25 },
+      { name: "Fries", category: "Fast Food", keywords: ["fries", "french fries"], serving: "medium order", calories: 365, protein: 4, carbs: 48, fat: 17 },
+      { name: "Pizza", category: "Fast Food", keywords: ["pizza"], serving: "1 slice", calories: 285, protein: 12, carbs: 36, fat: 10 },
+      { name: "Taco", category: "Fast Food", keywords: ["taco"], serving: "1 taco", calories: 180, protein: 9, carbs: 18, fat: 9 },
+      { name: "Nachos", category: "Fast Food", keywords: ["nachos"], serving: "1 order", calories: 550, protein: 18, carbs: 55, fat: 30 },
 
-      // Fast-food style common items
-      { name: "Burger", keywords: ["burger", "cheeseburger", "hamburger"], serving: "1 burger", calories: 540, protein: 28, carbs: 40, fat: 30 },
-      { name: "Double Cheeseburger", keywords: ["double cheeseburger"], serving: "1 sandwich", calories: 700, protein: 40, carbs: 42, fat: 42 },
-      { name: "Chicken Sandwich", keywords: ["chicken sandwich"], serving: "1 sandwich", calories: 520, protein: 28, carbs: 45, fat: 25 },
-      { name: "Fries", keywords: ["fries", "french fries"], serving: "medium order", calories: 365, protein: 4, carbs: 48, fat: 17 },
-      { name: "Pizza", keywords: ["pizza"], serving: "1 slice", calories: 285, protein: 12, carbs: 36, fat: 10 },
-      { name: "Taco", keywords: ["taco"], serving: "1 taco", calories: 180, protein: 9, carbs: 18, fat: 9 },
-      { name: "Quesadilla", keywords: ["quesadilla"], serving: "1 medium quesadilla", calories: 520, protein: 24, carbs: 38, fat: 30 },
-      { name: "Nachos", keywords: ["nachos"], serving: "1 order", calories: 550, protein: 18, carbs: 55, fat: 30 },
-
-      // Fruit, vegetables, and sides
-      { name: "Banana", keywords: ["banana"], serving: "1 medium banana", calories: 105, protein: 1, carbs: 27, fat: 0 },
-      { name: "Apple", keywords: ["apple"], serving: "1 medium apple", calories: 95, protein: 0, carbs: 25, fat: 0 },
-      { name: "Orange", keywords: ["orange"], serving: "1 medium orange", calories: 60, protein: 1, carbs: 15, fat: 0 },
-      { name: "Grapes", keywords: ["grapes"], serving: "1 cup", calories: 105, protein: 1, carbs: 27, fat: 0 },
-      { name: "Strawberries", keywords: ["strawberries"], serving: "1 cup", calories: 50, protein: 1, carbs: 12, fat: 0 },
-      { name: "Avocado", keywords: ["avocado"], serving: "1/2 avocado", calories: 160, protein: 2, carbs: 9, fat: 15 },
-      { name: "Broccoli", keywords: ["broccoli"], serving: "1 cup", calories: 55, protein: 4, carbs: 11, fat: 1 },
-      { name: "Green Beans", keywords: ["green beans"], serving: "1 cup", calories: 45, protein: 2, carbs: 10, fat: 0 },
-      { name: "Corn", keywords: ["corn"], serving: "1 cup", calories: 140, protein: 5, carbs: 31, fat: 2 },
-      { name: "Salad Greens", keywords: ["salad", "lettuce", "greens", "spinach"], serving: "2 cups", calories: 25, protein: 2, carbs: 5, fat: 0 },
-
-      // Sauces, toppings, condiments
-      { name: "Cheese", keywords: ["cheese", "shredded cheese"], serving: "1 oz", calories: 110, protein: 7, carbs: 1, fat: 9 },
-      { name: "Cream Cheese", keywords: ["cream cheese"], serving: "2 tbsp", calories: 100, protein: 2, carbs: 2, fat: 10 },
-      { name: "Sour Cream", keywords: ["sour cream"], serving: "2 tbsp", calories: 60, protein: 1, carbs: 1, fat: 5 },
-      { name: "Olive Oil", keywords: ["olive oil", "oil"], serving: "1 tbsp", calories: 120, protein: 0, carbs: 0, fat: 14 },
-      { name: "Butter", keywords: ["butter"], serving: "1 tbsp", calories: 100, protein: 0, carbs: 0, fat: 11 },
-      { name: "Peanut Butter", keywords: ["peanut butter"], serving: "2 tbsp", calories: 190, protein: 8, carbs: 7, fat: 16 },
-      { name: "Mayo", keywords: ["mayo", "mayonnaise"], serving: "1 tbsp", calories: 95, protein: 0, carbs: 0, fat: 10 },
-      { name: "Ranch", keywords: ["ranch"], serving: "2 tbsp", calories: 130, protein: 1, carbs: 2, fat: 14 },
-      { name: "BBQ Sauce", keywords: ["bbq sauce", "barbecue sauce"], serving: "2 tbsp", calories: 60, protein: 0, carbs: 14, fat: 0 },
-      { name: "Ketchup", keywords: ["ketchup"], serving: "1 tbsp", calories: 20, protein: 0, carbs: 5, fat: 0 },
-      { name: "Mustard", keywords: ["mustard"], serving: "1 tbsp", calories: 10, protein: 0, carbs: 1, fat: 0 },
-      { name: "Salsa", keywords: ["salsa"], serving: "1/4 cup", calories: 20, protein: 1, carbs: 4, fat: 0 },
-      { name: "Honey", keywords: ["honey"], serving: "1 tbsp", calories: 65, protein: 0, carbs: 17, fat: 0 },
-      { name: "Syrup", keywords: ["syrup", "pancake syrup"], serving: "2 tbsp", calories: 110, protein: 0, carbs: 28, fat: 0 },
+      // Produce and toppings
+      { name: "Banana", category: "Produce", keywords: ["banana"], serving: "1 medium banana", calories: 105, protein: 1, carbs: 27, fat: 0 },
+      { name: "Apple", category: "Produce", keywords: ["apple"], serving: "1 medium apple", calories: 95, protein: 0, carbs: 25, fat: 0 },
+      { name: "Avocado", category: "Produce", keywords: ["avocado"], serving: "1/2 avocado", calories: 160, protein: 2, carbs: 9, fat: 15 },
+      { name: "Broccoli", category: "Produce", keywords: ["broccoli"], serving: "1 cup", calories: 55, protein: 4, carbs: 11, fat: 1 },
+      { name: "Salad Greens", category: "Produce", keywords: ["salad", "lettuce", "greens", "spinach"], serving: "2 cups", calories: 25, protein: 2, carbs: 5, fat: 0 },
+      { name: "Cheese", category: "Topping", keywords: ["cheese", "shredded cheese"], serving: "1 oz", calories: 110, protein: 7, carbs: 1, fat: 9 },
+      { name: "Olive Oil", category: "Topping", keywords: ["olive oil", "oil"], serving: "1 tbsp", calories: 120, protein: 0, carbs: 0, fat: 14 },
+      { name: "Butter", category: "Topping", keywords: ["butter"], serving: "1 tbsp", calories: 100, protein: 0, carbs: 0, fat: 11 },
+      { name: "Peanut Butter", category: "Topping", keywords: ["peanut butter"], serving: "2 tbsp", calories: 190, protein: 8, carbs: 7, fat: 16 },
+      { name: "Mayo", category: "Topping", keywords: ["mayo", "mayonnaise"], serving: "1 tbsp", calories: 95, protein: 0, carbs: 0, fat: 10 },
+      { name: "Ranch", category: "Topping", keywords: ["ranch"], serving: "2 tbsp", calories: 130, protein: 1, carbs: 2, fat: 14 },
+      { name: "BBQ Sauce", category: "Topping", keywords: ["bbq sauce", "barbecue sauce"], serving: "2 tbsp", calories: 60, protein: 0, carbs: 14, fat: 0 },
+      { name: "Ketchup", category: "Topping", keywords: ["ketchup"], serving: "1 tbsp", calories: 20, protein: 0, carbs: 5, fat: 0 },
+      { name: "Salsa", category: "Topping", keywords: ["salsa"], serving: "1/4 cup", calories: 20, protein: 1, carbs: 4, fat: 0 },
     ],
     []
   );
+
+  const foodDatabase = useMemo(() => {
+    return [...customFoods, ...baseFoodDatabase];
+  }, [baseFoodDatabase, customFoods]);
+
+  const filteredFoodOptions = useMemo(() => {
+    const query = foodSearch.trim().toLowerCase();
+
+    if (!query) {
+      return foodDatabase.slice(0, 12);
+    }
+
+    return foodDatabase
+      .filter((food) => {
+        const nameMatch = food.name.toLowerCase().includes(query);
+        const categoryMatch = String(food.category || "").toLowerCase().includes(query);
+        const keywordMatch = Array.isArray(food.keywords)
+          ? food.keywords.some((keyword) => keyword.toLowerCase().includes(query))
+          : false;
+
+        return nameMatch || categoryMatch || keywordMatch;
+      })
+      .slice(0, 12);
+  }, [foodDatabase, foodSearch]);
 
   function getGoalLabel(value) {
     if (value === "fat-loss") return "Weight Loss";
@@ -1977,7 +2005,7 @@ function NutritionCoachScreen() {
   }
 
   function escapeRegex(value) {
-    return String(value).replace(/[.*+?^\\$\\{\\}()|[\\]\\\\]/g, "\\$&");
+    return String(value).replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
   }
 
   function readSimpleQuantity(text, keyword) {
@@ -2006,9 +2034,6 @@ function NutritionCoachScreen() {
     const largePattern = new RegExp("\\b(large|big|extra|double|supersize)\\b.{0,24}\\b(?:" + escapedKeyword + ")s?\\b|\\b(?:" + escapedKeyword + ")s?\\b.{0,24}\\b(large|big|extra|double|supersize)\\b", "i");
     if (largePattern.test(text)) return 1.5;
 
-    const moderatePattern = new RegExp("\\b(moderate|medium|regular)\\b.{0,24}\\b(?:" + escapedKeyword + ")s?\\b|\\b(?:" + escapedKeyword + ")s?\\b.{0,24}\\b(moderate|medium|regular)\\b", "i");
-    if (moderatePattern.test(text)) return 1;
-
     const smallPattern = new RegExp("\\b(small|light|half|mini)\\b.{0,24}\\b(?:" + escapedKeyword + ")s?\\b|\\b(?:" + escapedKeyword + ")s?\\b.{0,24}\\b(small|light|half|mini)\\b", "i");
     if (smallPattern.test(text)) return 0.5;
 
@@ -2021,7 +2046,7 @@ function NutritionCoachScreen() {
 
     return foodDatabase
       .map((food) => {
-        const matchedKeyword = [...food.keywords]
+        const matchedKeyword = [...(food.keywords || [food.name])]
           .sort((a, b) => b.length - a.length)
           .find((keyword) => new RegExp("\\b" + escapeRegex(keyword) + "s?\\b", "i").test(lowerText));
 
@@ -2031,17 +2056,75 @@ function NutritionCoachScreen() {
 
         const multiplier = readSimpleQuantity(lowerText, matchedKeyword);
 
-        return {
-          ...food,
-          matchedKeyword,
-          multiplier,
-          calories: Math.round(food.calories * multiplier),
-          protein: Math.round(food.protein * multiplier),
-          carbs: Math.round(food.carbs * multiplier),
-          fat: Math.round(food.fat * multiplier),
-        };
+        return createMealItem(food, multiplier, "Text Match", matchedKeyword);
       })
       .filter(Boolean);
+  }
+
+  function createMealItem(food, quantity = 1, source = "Database", matchedKeyword = food.name) {
+    const safeQuantity = Math.min(Math.max(Number(quantity) || 1, 0.25), 10);
+
+    return {
+      id: makeId("meal-item"),
+      name: food.name,
+      category: food.category || source,
+      serving: food.serving || "1 serving",
+      matchedKeyword,
+      multiplier: safeQuantity,
+      calories: Math.round((Number(food.calories) || 0) * safeQuantity),
+      protein: Math.round((Number(food.protein) || 0) * safeQuantity),
+      carbs: Math.round((Number(food.carbs) || 0) * safeQuantity),
+      fat: Math.round((Number(food.fat) || 0) * safeQuantity),
+      source,
+    };
+  }
+
+  function getMealTotals(items) {
+    return items.reduce(
+      (sum, item) => ({
+        calories: sum.calories + (Number(item.calories) || 0),
+        protein: sum.protein + (Number(item.protein) || 0),
+        carbs: sum.carbs + (Number(item.carbs) || 0),
+        fat: sum.fat + (Number(item.fat) || 0),
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+  }
+
+  function buildCoachTip(matches) {
+    const hasAlcohol = matches.some((item) => item.category === "Alcohol");
+    const hasDrinkCalories = matches.some((item) =>
+      ["Sweet Tea", "Kool-Aid", "Lemonade", "Regular Soda", "Sports Drink", "Energy Drink", "Orange Juice", "Apple Juice", "Chocolate Milk", "Bottled Frappuccino"].includes(item.name)
+    );
+    const hasConvenienceFood = matches.some((item) =>
+      ["Convenience", "Snack", "Fast Food"].includes(item.category)
+    );
+    const hasAddedFat = matches.some((item) =>
+      ["Olive Oil", "Butter", "Peanut Butter", "Mayo", "Ranch", "Avocado", "Cheese"].includes(item.name)
+    );
+    const hasProtein = matches.some((item) => Number(item.protein) >= 20);
+
+    if (hasAlcohol) {
+      return "Alcohol adds calories quickly and can affect recovery, sleep, hydration, and consistency. Track it honestly, check labels when possible, and avoid treating it like a normal carb/protein source.";
+    }
+
+    if (hasDrinkCalories) {
+      return "Liquid calories can add up fast. Sweet tea, Kool-Aid, soda, juice, and energy drinks should be counted like food.";
+    }
+
+    if (hasConvenienceFood) {
+      return "Convenience foods are easy to underestimate. Check the label when possible, especially serving size, sodium, and calories.";
+    }
+
+    if (!hasProtein) {
+      return "Protein looks low from the matched foods. Add a lean protein source if this is a training meal.";
+    }
+
+    if (hasAddedFat) {
+      return "Fats from sauces, oils, cheese, avocado, nuts, and dressings can move calories fast. Measure those when possible.";
+    }
+
+    return "This looks like a usable training meal. Match portions to the goal and workout timing.";
   }
 
   function calculateTargets(event) {
@@ -2117,12 +2200,80 @@ function NutritionCoachScreen() {
     setNutritionSaveStatus("");
   }
 
+  function addSelectedFoodItem(foodOverride = null) {
+    const selectedFood =
+      foodOverride ||
+      foodDatabase.find((food) => food.name === selectedFoodName) ||
+      filteredFoodOptions[0];
+
+    if (!selectedFood) {
+      setNutritionSaveStatus("Search for a food before adding it.");
+      return;
+    }
+
+    const nextItem = createMealItem(selectedFood, selectedQuantity, selectedFood.category || "Database");
+
+    setMealItems((current) => [...current, nextItem]);
+    setSelectedFoodName("");
+    setFoodSearch("");
+    setSelectedQuantity("1");
+    setMealResult(null);
+    setNutritionSaveStatus("Added " + selectedFood.name + " to the meal.");
+  }
+
+  function addManualFoodItem() {
+    const name = manualFoodName.trim();
+
+    if (!name) {
+      setNutritionSaveStatus("Enter a food name from the nutrition label.");
+      return;
+    }
+
+    const manualFood = {
+      id: makeId("custom-food"),
+      name,
+      category: "Custom Label",
+      keywords: [name.toLowerCase()],
+      serving: manualServing.trim() || "1 serving",
+      calories: Math.max(Number(manualCalories) || 0, 0),
+      protein: Math.max(Number(manualProtein) || 0, 0),
+      carbs: Math.max(Number(manualCarbs) || 0, 0),
+      fat: Math.max(Number(manualFat) || 0, 0),
+    };
+
+    setCustomFoods((current) => [manualFood, ...current.filter((food) => food.name.toLowerCase() !== name.toLowerCase())].slice(0, 30));
+    setMealItems((current) => [...current, createMealItem(manualFood, 1, "Custom Label")]);
+    setManualFoodName("");
+    setManualServing("1 serving");
+    setManualCalories("");
+    setManualProtein("");
+    setManualCarbs("");
+    setManualFat("");
+    setMealResult(null);
+    setNutritionSaveStatus("Custom food saved and added to meal.");
+  }
+
+  function removeMealItem(itemId) {
+    setMealItems((current) => current.filter((item) => item.id !== itemId));
+    setMealResult(null);
+  }
+
+  function clearMealBuilder() {
+    setMealItems([]);
+    setMealText("");
+    setMealResult(null);
+    setNutritionSaveStatus("Meal builder cleared.");
+  }
+
   function estimateMeal(event) {
     event.preventDefault();
 
+    const builtMealItems = mealItems.length > 0 ? mealItems : [];
     const text = mealText.trim();
+    const textMatches = builtMealItems.length > 0 ? [] : estimateFoodMatches(text);
+    const matches = builtMealItems.length > 0 ? builtMealItems : textMatches;
 
-    if (!text) {
+    if (!text && matches.length === 0) {
       setMealResult({
         id: makeId("meal-estimate"),
         title: "Add a meal first",
@@ -2132,14 +2283,12 @@ function NutritionCoachScreen() {
         fat: "—",
         confidence: "Low",
         matches: [],
-        coachTip: "Enter the foods, portions, sauces, drinks, and cooking method so the estimate is useful.",
+        coachTip: "Search foods, add label items, or type a meal description so the estimate is useful.",
         savedAt: new Date().toLocaleString(),
       });
       setNutritionSaveStatus("");
       return;
     }
-
-    const matches = estimateFoodMatches(text);
 
     if (matches.length === 0) {
       setMealResult({
@@ -2152,80 +2301,19 @@ function NutritionCoachScreen() {
         fat: 18,
         confidence: "Low",
         matches: [],
-        coachTip: "No specific foods were matched. Add details like sweet tea, Kool-Aid, chicken, ramen, pizza rolls, chips, burger, rice, eggs, oil, cheese, avocado, oats, or potato for a better estimate.",
+        coachTip: "No specific foods were matched. Add label details or search foods like sweet tea, Kool-Aid, chicken, ramen, pizza rolls, chips, beer, burger, rice, eggs, oil, or cheese for a better estimate.",
         savedAt: new Date().toLocaleString(),
       });
       setNutritionSaveStatus("");
       return;
     }
 
-    const totals = matches.reduce(
-      (sum, item) => ({
-        calories: sum.calories + item.calories,
-        protein: sum.protein + item.protein,
-        carbs: sum.carbs + item.carbs,
-        fat: sum.fat + item.fat,
-      }),
-      { calories: 0, protein: 0, carbs: 0, fat: 0 }
-    );
-
-    const hasAlcohol = matches.some((item) =>
-      [
-        "Light Beer",
-        "Regular Beer",
-        "IPA Beer",
-        "Tallboy Beer",
-        "Malt Liquor 40 oz",
-        "Flavored Malt Beverage",
-        "Hard Seltzer",
-        "Canned Cocktail",
-        "Small Canned Cocktail",
-        "Red Wine",
-        "White Wine",
-        "Champagne",
-        "Vodka Shot",
-        "Whiskey Shot",
-        "Rum Shot",
-        "Tequila Shot",
-        "Gin Shot",
-        "Rum And Coke",
-        "Whiskey And Coke",
-        "Vodka Cranberry",
-        "Margarita",
-        "Pina Colada",
-        "Long Island Iced Tea",
-        "Jello Shot",
-      ].includes(item.name)
-    );
-
-    const hasDrinkCalories = matches.some((item) =>
-      ["Sweet Tea", "Kool-Aid", "Lemonade", "Regular Soda", "Sports Drink", "Energy Drink", "Orange Juice", "Apple Juice", "Chocolate Milk", "Bottled Frappuccino"].includes(item.name)
-    );
-    const hasAddedFat = matches.some((item) =>
-      ["Olive Oil", "Butter", "Peanut Butter", "Mayo", "Ranch", "Avocado", "Cheese", "Cream Cheese", "Sour Cream"].includes(item.name)
-    );
-    const hasProtein = matches.some((item) => item.protein >= 20);
-    const hasConvenienceFood = matches.some((item) =>
-      ["Ramen Noodles", "Pizza Rolls", "Frozen Pizza", "Corn Dog", "Frozen Burrito", "Taquitos", "Chicken Pot Pie", "Frozen Dinner", "Canned Ravioli", "SpaghettiOs", "Candy Bar", "Honey Bun"].includes(item.name)
-    );
-
+    const totals = getMealTotals(matches);
     const confidence = matches.length >= 5 ? "High" : matches.length >= 2 ? "Moderate" : "Low";
-
-    const coachTip = hasAlcohol
-      ? "Alcohol adds calories quickly and can affect recovery, sleep, hydration, and consistency. Track it honestly, check labels when possible, and avoid treating it like a normal carb/protein source."
-      : hasDrinkCalories
-        ? "Liquid calories can add up fast. Sweet tea, Kool-Aid, soda, juice, and energy drinks should be counted like food."
-        : hasConvenienceFood
-          ? "Convenience foods are easy to underestimate. Check the label when possible, especially serving size, sodium, and calories."
-          : !hasProtein
-            ? "Protein looks low from the matched foods. Add a lean protein source if this is a training meal."
-            : hasAddedFat
-              ? "Fats from sauces, oils, cheese, avocado, nuts, and dressings can move calories fast. Measure those when possible."
-              : "This looks like a usable training meal. Match portions to the goal and workout timing.";
 
     setMealResult({
       id: makeId("meal-estimate"),
-      title: "Meal Estimate",
+      title: builtMealItems.length > 0 ? "Meal Builder Estimate" : "Meal Estimate",
       mealText: text,
       calories: totals.calories,
       protein: totals.protein,
@@ -2233,7 +2321,7 @@ function NutritionCoachScreen() {
       fat: totals.fat,
       confidence,
       matches,
-      coachTip,
+      coachTip: buildCoachTip(matches),
       savedAt: new Date().toLocaleString(),
     });
 
@@ -2269,6 +2357,8 @@ function NutritionCoachScreen() {
     setNutritionSaveStatus("");
   }
 
+  const mealBuilderTotals = getMealTotals(mealItems);
+
   return (
     <section
       data-testid="nutrition-coach-window"
@@ -2283,7 +2373,7 @@ function NutritionCoachScreen() {
           Build your target. Check your meals. Stay consistent.
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
-          A practical nutrition tool using age, height, gender/formula factor, activity, goal, and a larger real-world food database.
+          A practical nutrition tool with a searchable food database, manual label entry, custom foods, meal totals, and saved history.
         </p>
       </div>
 
@@ -2321,7 +2411,7 @@ function NutritionCoachScreen() {
               Check What I Ate
             </span>
             <span className="mt-2 block text-sm leading-6 text-white/65">
-              Match meals, drinks, snacks, and convenience foods against the local database.
+              Search foods, add label items, build a meal, and save the estimate.
             </span>
           </button>
         </div>
@@ -2380,56 +2470,27 @@ function NutritionCoachScreen() {
           <div className="mt-6 grid gap-3 md:grid-cols-4">
             <label className="space-y-2">
               <span className="text-xs font-black uppercase text-white/50">Body Weight</span>
-              <input
-                aria-label="Body Weight"
-                value={bodyWeight}
-                onChange={(event) => setBodyWeight(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-                placeholder="180"
-              />
+              <input aria-label="Body Weight" value={bodyWeight} onChange={(event) => setBodyWeight(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="180" />
             </label>
 
             <label className="space-y-2">
               <span className="text-xs font-black uppercase text-white/50">Height Feet</span>
-              <input
-                aria-label="Height Feet"
-                value={heightFeet}
-                onChange={(event) => setHeightFeet(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-                placeholder="5"
-              />
+              <input aria-label="Height Feet" value={heightFeet} onChange={(event) => setHeightFeet(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="5" />
             </label>
 
             <label className="space-y-2">
               <span className="text-xs font-black uppercase text-white/50">Height Inches</span>
-              <input
-                aria-label="Height Inches"
-                value={heightInches}
-                onChange={(event) => setHeightInches(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-                placeholder="10"
-              />
+              <input aria-label="Height Inches" value={heightInches} onChange={(event) => setHeightInches(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="10" />
             </label>
 
             <label className="space-y-2">
               <span className="text-xs font-black uppercase text-white/50">Age</span>
-              <input
-                aria-label="Age"
-                value={age}
-                onChange={(event) => setAge(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-                placeholder="30"
-              />
+              <input aria-label="Age" value={age} onChange={(event) => setAge(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="30" />
             </label>
 
             <label className="space-y-2">
               <span className="text-xs font-black uppercase text-white/50">Gender / Formula</span>
-              <select
-                aria-label="Gender Formula"
-                value={genderFormula}
-                onChange={(event) => setGenderFormula(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-              >
+              <select aria-label="Gender Formula" value={genderFormula} onChange={(event) => setGenderFormula(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]">
                 <option value="male">Male Formula</option>
                 <option value="female">Female Formula</option>
                 <option value="average">Average Formula</option>
@@ -2438,23 +2499,12 @@ function NutritionCoachScreen() {
 
             <label className="space-y-2">
               <span className="text-xs font-black uppercase text-white/50">Training Days</span>
-              <input
-                aria-label="Training Days"
-                value={trainingDays}
-                onChange={(event) => setTrainingDays(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-                placeholder="4"
-              />
+              <input aria-label="Training Days" value={trainingDays} onChange={(event) => setTrainingDays(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="4" />
             </label>
 
             <label className="space-y-2 md:col-span-2">
               <span className="text-xs font-black uppercase text-white/50">Activity</span>
-              <select
-                aria-label="Activity Level"
-                value={activityLevel}
-                onChange={(event) => setActivityLevel(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-              >
+              <select aria-label="Activity Level" value={activityLevel} onChange={(event) => setActivityLevel(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]">
                 <option value="low">Low Activity</option>
                 <option value="moderate">Moderate Activity</option>
                 <option value="high">High Activity</option>
@@ -2462,18 +2512,12 @@ function NutritionCoachScreen() {
             </label>
           </div>
 
-          <button
-            type="submit"
-            className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
-          >
+          <button type="submit" className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white">
             Calculate Targets
           </button>
 
           {targetResult && (
-            <div
-              data-testid="nutrition-target-result"
-              className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"
-            >
+            <div data-testid="nutrition-target-result" className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5">
               <h4 className="text-lg font-black uppercase text-white">Daily Nutrition Targets</h4>
 
               <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -2514,11 +2558,7 @@ function NutritionCoachScreen() {
                 Coach Tip: {targetResult.coachNote}
               </p>
 
-              <button
-                type="button"
-                onClick={saveTargetResult}
-                className="mt-4 rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
-              >
+              <button type="button" onClick={saveTargetResult} className="mt-4 rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black">
                 Save Macro Target
               </button>
             </div>
@@ -2527,50 +2567,196 @@ function NutritionCoachScreen() {
       )}
 
       {nutritionMode === "meal" && (
-        <form
-          data-testid="meal-check-estimator"
-          onSubmit={estimateMeal}
-          className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5"
-        >
-          <button
-            type="button"
-            onClick={resetNutritionMode}
-            className="mb-4 rounded-full border border-white/10 px-4 py-2 text-xs font-black uppercase text-white/70"
-          >
+        <form data-testid="meal-check-estimator" onSubmit={estimateMeal} className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+          <button type="button" onClick={resetNutritionMode} className="mb-4 rounded-full border border-white/10 px-4 py-2 text-xs font-black uppercase text-white/70">
             Start Over
           </button>
 
-          <h3 className="text-xl font-black uppercase text-white">Meal Check</h3>
+          <h3 className="text-xl font-black uppercase text-white">Advanced Meal Logger</h3>
           <p className="mt-2 text-sm leading-6 text-white/65">
-            Enter real foods, drinks, snacks, sauces, alcohol, and portions. Example: moderate glass of sweet tea, 2 beers, ramen, chips, and 2 hot dogs.
-          </p>
-          <p className="mt-2 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-xs font-bold leading-5 text-yellow-100/80">
-            Alcohol estimates are for nutrition tracking only. Calories vary by brand, proof, mixer, serving size, and container size.
+            Search common foods, add exact nutrition-label values, build a meal total, or use the text estimator as a fallback.
           </p>
 
+          <section data-testid="food-search-builder" className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-4">
+            <div className="grid gap-3 md:grid-cols-[1.4fr_0.5fr]">
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase text-white/50">Search Food Database</span>
+                <input
+                  aria-label="Search Food Database"
+                  value={foodSearch}
+                  onChange={(event) => {
+                    setFoodSearch(event.target.value);
+                    setSelectedFoodName("");
+                  }}
+                  className="w-full rounded-2xl border border-[#00BF63]/30 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                  placeholder="Search sweet tea, Kool-Aid, beer, ramen, chicken, chips..."
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase text-white/50">Quantity</span>
+                <input
+                  aria-label="Food Quantity"
+                  value={selectedQuantity}
+                  onChange={(event) => setSelectedQuantity(event.target.value)}
+                  className="w-full rounded-2xl border border-[#00BF63]/30 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                  placeholder="1"
+                />
+              </label>
+            </div>
+
+            <div className="mt-4 grid gap-2 md:grid-cols-2">
+              {filteredFoodOptions.map((food) => (
+                <button
+                  key={food.name}
+                  type="button"
+                  onClick={() => {
+                    setSelectedFoodName(food.name);
+                    addSelectedFoodItem(food);
+                  }}
+                  className="rounded-2xl border border-white/10 bg-black/40 p-3 text-left transition hover:border-[#00BF63]"
+                >
+                  <span className="block text-sm font-black text-white">Add {food.name}</span>
+                  <span className="block text-xs font-bold uppercase text-[#00BF63]">
+                    {food.category} | {food.serving}
+                  </span>
+                  <span className="mt-1 block text-xs text-white/50">
+                    {food.calories} cal | {food.protein}g protein | {food.carbs}g carbs | {food.fat}g fat
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section data-testid="manual-label-entry" className="mt-5 rounded-3xl border border-white/10 bg-black/40 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Manual Label Entry
+            </p>
+            <h4 className="mt-2 text-lg font-black uppercase text-white">
+              Add Exact Package Or Restaurant Macros
+            </h4>
+            <p className="mt-2 text-sm leading-6 text-white/55">
+              Use this when the item is not in the database or the label is more accurate than the estimate.
+            </p>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-6">
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-xs font-black uppercase text-white/50">Food Name</span>
+                <input aria-label="Manual Food Name" value={manualFoodName} onChange={(event) => setManualFoodName(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="Dollar General frozen meal" />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase text-white/50">Serving</span>
+                <input aria-label="Manual Serving" value={manualServing} onChange={(event) => setManualServing(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="1 tray" />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase text-white/50">Calories</span>
+                <input aria-label="Manual Calories" value={manualCalories} onChange={(event) => setManualCalories(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="420" />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase text-white/50">Protein</span>
+                <input aria-label="Manual Protein" value={manualProtein} onChange={(event) => setManualProtein(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="22" />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase text-white/50">Carbs</span>
+                <input aria-label="Manual Carbs" value={manualCarbs} onChange={(event) => setManualCarbs(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="45" />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase text-white/50">Fat</span>
+                <input aria-label="Manual Fat" value={manualFat} onChange={(event) => setManualFat(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]" placeholder="14" />
+              </label>
+            </div>
+
+            <button type="button" onClick={addManualFoodItem} className="mt-4 rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black">
+              Add Manual Label Food
+            </button>
+          </section>
+
+          <section data-testid="meal-builder-total" className="mt-5 rounded-3xl border border-white/10 bg-black/50 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+                  Meal Builder
+                </p>
+                <h4 className="mt-2 text-lg font-black uppercase text-white">
+                  Current Meal Total
+                </h4>
+              </div>
+              <button type="button" onClick={clearMealBuilder} className="w-fit rounded-full border border-white/10 px-4 py-2 text-xs font-black uppercase text-white/55 transition hover:border-red-400 hover:text-red-300">
+                Clear Meal
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs font-black uppercase text-[#00BF63]">Calories</p>
+                <p className="mt-1 text-2xl font-black text-white">{mealBuilderTotals.calories}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs font-black uppercase text-[#00BF63]">Protein</p>
+                <p className="mt-1 text-2xl font-black text-white">{mealBuilderTotals.protein}g</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs font-black uppercase text-[#00BF63]">Carbs</p>
+                <p className="mt-1 text-2xl font-black text-white">{mealBuilderTotals.carbs}g</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs font-black uppercase text-[#00BF63]">Fat</p>
+                <p className="mt-1 text-2xl font-black text-white">{mealBuilderTotals.fat}g</p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-2">
+              {mealItems.length > 0 ? (
+                mealItems.map((item) => (
+                  <div key={item.id} data-testid="meal-builder-item" className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-sm font-black text-white">{item.name}</p>
+                      <p className="text-xs font-bold uppercase text-[#00BF63]">
+                        {item.multiplier} serving(s) | {item.serving} | {item.category}
+                      </p>
+                      <p className="text-xs text-white/45">
+                        {item.calories} cal | {item.protein}g protein | {item.carbs}g carbs | {item.fat}g fat
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => removeMealItem(item.id)} className="w-fit rounded-full border border-red-400/40 px-3 py-2 text-xs font-black uppercase text-red-300">
+                      Remove
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/45">
+                  No meal items added yet. Search foods or enter a label above.
+                </p>
+              )}
+            </div>
+          </section>
+
           <label className="mt-5 block space-y-2">
-            <span className="text-xs font-black uppercase text-white/50">Meal Description</span>
+            <span className="text-xs font-black uppercase text-white/50">Fallback Meal Description</span>
             <textarea
               aria-label="Meal Description"
               value={mealText}
               onChange={(event) => setMealText(event.target.value)}
-              className="min-h-32 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-              placeholder="Example: moderate sweet tea, 2 beers, 1 vodka cranberry, ramen, chips, and 2 hot dogs"
+              className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="Example: moderate sweet tea, 2 beers, ramen, chips, and 2 hot dogs"
             />
           </label>
 
-          <button
-            type="submit"
-            className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
-          >
+          <p className="mt-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-xs font-bold leading-5 text-yellow-100/80">
+            Food and alcohol estimates are for nutrition tracking only. Labels vary by brand, serving size, container size, proof, and preparation.
+          </p>
+
+          <button type="submit" className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white">
             Estimate Meal
           </button>
 
           {mealResult && (
-            <div
-              data-testid="meal-check-result"
-              className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"
-            >
+            <div data-testid="meal-check-result" className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5">
               <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                 <div>
                   <h4 className="text-lg font-black uppercase text-white">{mealResult.title}</h4>
@@ -2579,7 +2765,7 @@ function NutritionCoachScreen() {
                   </p>
                 </div>
                 <span className="w-fit rounded-full border border-white/10 bg-black/40 px-3 py-2 text-xs font-black uppercase text-white/55">
-                  Expanded local database
+                  Advanced logger
                 </span>
               </div>
 
@@ -2609,10 +2795,7 @@ function NutritionCoachScreen() {
                   </p>
                   <div className="mt-3 grid gap-2">
                     {mealResult.matches.map((item) => (
-                      <div
-                        key={item.name}
-                        className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm text-white/70"
-                      >
+                      <div key={item.id || item.name} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm text-white/70">
                         <span className="font-black text-white">{item.name}</span>
                         <span className="text-white/45"> — {item.multiplier} serving(s), base: {item.serving}</span>
                         <span className="block text-xs font-bold uppercase text-[#00BF63]">
@@ -2628,11 +2811,7 @@ function NutritionCoachScreen() {
                 Coach Tip: {mealResult.coachTip}
               </p>
 
-              <button
-                type="button"
-                onClick={saveMealResult}
-                className="mt-4 rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
-              >
+              <button type="button" onClick={saveMealResult} className="mt-4 rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black">
                 Save Meal Estimate
               </button>
             </div>
@@ -2641,19 +2820,13 @@ function NutritionCoachScreen() {
       )}
 
       {nutritionSaveStatus && (
-        <p
-          data-testid="nutrition-save-status"
-          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
-        >
+        <p data-testid="nutrition-save-status" className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]">
           {nutritionSaveStatus}
         </p>
       )}
 
       {(nutritionHistory.targets.length > 0 || nutritionHistory.meals.length > 0) && (
-        <section
-          data-testid="nutrition-history-panel"
-          className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5"
-        >
+        <section data-testid="nutrition-history-panel" className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
           <p className="text-xs font-black uppercase tracking-[0.25em] text-white/45">
             Saved Nutrition History
           </p>
@@ -2664,11 +2837,7 @@ function NutritionCoachScreen() {
           {nutritionHistory.targets.length > 0 && (
             <div className="mt-4 grid gap-3">
               {nutritionHistory.targets.slice(0, 3).map((item) => (
-                <div
-                  key={item.id}
-                  data-testid="saved-nutrition-target"
-                  className="rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-4"
-                >
+                <div key={item.id} data-testid="saved-nutrition-target" className="rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-4">
                   <p className="text-sm font-black text-white">
                     {item.goalLabel} — {item.dailyCalories} calories
                   </p>
@@ -2683,11 +2852,7 @@ function NutritionCoachScreen() {
           {nutritionHistory.meals.length > 0 && (
             <div className="mt-4 grid gap-3">
               {nutritionHistory.meals.slice(0, 3).map((item) => (
-                <div
-                  key={item.id}
-                  data-testid="saved-meal-estimate"
-                  className="rounded-2xl border border-white/10 bg-black/40 p-4"
-                >
+                <div key={item.id} data-testid="saved-meal-estimate" className="rounded-2xl border border-white/10 bg-black/40 p-4">
                   <p className="text-sm font-black text-white">
                     {item.title} — {item.calories} calories
                   </p>
