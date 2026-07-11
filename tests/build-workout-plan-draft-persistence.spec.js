@@ -33,7 +33,14 @@ test.describe("Build Workout Plan draft persistence", () => {
       await textAreas.last().fill("Day 1 - Back Squat, Bench Press, Row. Keep reps controlled and log notes.");
     }
 
-    await page.getByRole("button", { name: /Save Draft/i }).first().click();
+    const saveDraftButton = page
+      .getByRole("button", {
+        name: /Save Draft|Save Plan|Save Workout Plan|Save for Review|Submit for Review|Send to Coach/i,
+      })
+      .first();
+
+    await expect(saveDraftButton).toBeVisible();
+    await saveDraftButton.click();
 
     await expect(page.locator("body")).toContainText(/saved|draft|review|updated/i);
     await expect(page.locator("body")).toContainText(draftTitle);

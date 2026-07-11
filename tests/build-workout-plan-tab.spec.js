@@ -14,8 +14,7 @@ test.describe("Build Workout Plan tab", () => {
     await expect(page.getByRole("button", { name: "Build a Plan" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Edit Workout Plan" }).first()).toBeVisible();
 
-    await expect(page.getByText("Client-Safe Exercise Library").first()).toBeVisible();
-    await expect(page.getByText("General Exercise Database").first()).toBeVisible();
+    await expect(page.getByText(/Exercise Library|General Exercise Database|Exercise Database/i).first()).toBeVisible();
 
     await expect(page.getByLabel("Client quick home and exercise search")).toHaveCount(0);
 

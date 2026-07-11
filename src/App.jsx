@@ -3894,6 +3894,24 @@ const isLoggedIn =
     setMessageNotice("Conversation archived from your active inbox.");
   }
 
+  function restoreConversation(clientId) {
+    const archiveKey = nlfGetMessagingArchiveKey(nlfResolveMessageSenderRole(normalizedPortalMode));
+
+    setConversations((current) =>
+      current.map((conversation) => {
+        if (conversation.clientId !== clientId) return conversation;
+
+        return {
+          ...conversation,
+          archivedFor: nlfNormalizeArchivedFor(conversation).filter((key) => key !== archiveKey),
+        };
+      })
+    );
+
+    setSelectedConversationId(clientId);
+    setMessageNotice("Conversation restored to your active inbox.");
+  }
+
   function sendMessage() {
     const text = messageDraft.trim();
     if (!text) return setMessageNotice("Type a message before sending.");
@@ -4676,6 +4694,7 @@ function handlePortalLogout() {
               markCoachMessagesRead={markCoachMessagesRead}
               markClientMessagesRead={markClientMessagesRead}
               archiveConversation={archiveConversation}
+              restoreConversation={restoreConversation}
               messageNotice={messageNotice}
               unreadCoachCount={unreadCoachCount}
               unreadClientCount={unreadClientCount}
@@ -6350,11 +6369,13 @@ function MessagesScreen({
   markCoachMessagesRead,
   markClientMessagesRead,
   archiveConversation,
+  restoreConversation,
   messageNotice,
   unreadCoachCount,
   unreadClientCount,
 }) {
   const [messageSearch, setMessageSearch] = useState("");
+  const [conversationView, setConversationView] = useState("active");
 
   const normalizedMessageSearch = messageSearch.trim().toLowerCase();
 
@@ -6399,30 +6420,45 @@ function MessagesScreen({
   const activeScopedConversations = scopedConversations.filter(
     (conversation) => !nlfIsConversationArchivedFor(conversation, archiveKey)
   );
+  const archivedScopedConversations = scopedConversations.filter((conversation) =>
+    nlfIsConversationArchivedFor(conversation, archiveKey)
+  );
+  const conversationsForCurrentView =
+    conversationView === "archived" ? archivedScopedConversations : activeScopedConversations;
   const scopedCoachUnreadCount = nlfCountScopedUnreadMessages(activeScopedConversations, "unreadForCoach");
   const scopedClientUnreadCount = nlfCountScopedUnreadMessages(activeScopedConversations, "unreadForClient");
 
-  const filteredConversations = activeScopedConversations.filter(conversationMatchesSearch);
+  const filteredConversations = conversationsForCurrentView.filter(conversationMatchesSearch);
 
   const selectedConversation =
-    activeScopedConversations.find((conversation) => conversation.clientId === selectedConversationId) ||
+    conversationsForCurrentView.find((conversation) => conversation.clientId === selectedConversationId) ||
     filteredConversations[0] ||
-    activeScopedConversations[0];
+    conversationsForCurrentView[0];
 
   const selectedClient = clients.find((client) => client.id === selectedConversation?.clientId);
 
-  const emptyConversationText =
+  const activeEmptyText =
     scopedConversations.length === 0
       ? assignmentEmptyText
       : activeScopedConversations.length === 0
         ? "No active conversations."
         : "No conversations match that search.";
+  const archivedEmptyText =
+    scopedConversations.length === 0
+      ? assignmentEmptyText
+      : archivedScopedConversations.length === 0
+        ? "No archived conversations."
+        : "No conversations match that search.";
+  const emptyConversationText =
+    conversationView === "archived" ? archivedEmptyText : activeEmptyText;
 
   const selectedEmptyText =
     scopedConversations.length === 0
       ? assignmentEmptyText
-      : activeScopedConversations.length === 0
-        ? "No active conversations."
+      : conversationsForCurrentView.length === 0
+        ? conversationView === "archived"
+          ? "No archived conversations."
+          : "No active conversations."
         : "Select a conversation to start messaging.";
 
   const visibleMessages = selectedConversation
@@ -6462,9 +6498,36 @@ function MessagesScreen({
       )}
 
       <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <StatCard label="Conversations" value={activeScopedConversations.length} />
+        <StatCard label="Conversations" value={conversationsForCurrentView.length} />
         <StatCard label="Coach Unread" value={scopedCoachUnreadCount} />
         <StatCard label="Client Unread" value={scopedClientUnreadCount} />
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-3">
+        <button
+          type="button"
+          aria-pressed={conversationView === "active"}
+          onClick={() => setConversationView("active")}
+          className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.16em] transition ${
+            conversationView === "active"
+              ? "bg-[#00BF63] text-black"
+              : "border border-white/15 bg-white/5 text-white/70 hover:border-[#00BF63] hover:text-[#00BF63]"
+          }`}
+        >
+          Active Conversations
+        </button>
+        <button
+          type="button"
+          aria-pressed={conversationView === "archived"}
+          onClick={() => setConversationView("archived")}
+          className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.16em] transition ${
+            conversationView === "archived"
+              ? "bg-[#00BF63] text-black"
+              : "border border-white/15 bg-white/5 text-white/70 hover:border-[#00BF63] hover:text-[#00BF63]"
+          }`}
+        >
+          Archived Conversations
+        </button>
       </div>
 
       <div className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
@@ -6561,13 +6624,23 @@ function MessagesScreen({
                   >
                     Mark Client Read
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => archiveConversation(selectedConversation.clientId)}
-                    className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
-                  >
-                    Archive Conversation
-                  </button>
+                  {conversationView === "archived" ? (
+                    <button
+                      type="button"
+                      onClick={() => restoreConversation(selectedConversation.clientId)}
+                      className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                    >
+                      Restore Conversation
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => archiveConversation(selectedConversation.clientId)}
+                      className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                    >
+                      Archive Conversation
+                    </button>
+                  )}
                 </div>
               </div>
 

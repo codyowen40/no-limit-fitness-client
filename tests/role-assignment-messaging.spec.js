@@ -152,4 +152,52 @@ test.describe("Role and assignment messaging", () => {
     await expect(page.getByTestId("message-notice")).toContainText("Conversation archived from your active inbox.");
     await expect(page.locator("main")).not.toContainText("Send As");
   });
+  test("client can view archived coach conversation and restore it", async ({ page }) => {
+    await openMessages(page, "client");
+
+    await page.getByRole("button", { name: "Archive Conversation" }).click();
+
+    await expect(page.locator('[data-testid="message-conversation-list"]')).toContainText("No active conversations.");
+
+    await page.getByRole("button", { name: "Archived Conversations" }).click();
+
+    await expect(page.locator('[data-testid="message-conversation-list"]')).toContainText("Assigned Client");
+    await expect(page.locator("main")).toContainText("Assigned client thread only.");
+    await expect(page.locator("main")).not.toContainText("Unassigned Client");
+
+    await page.getByRole("button", { name: "Restore Conversation" }).click();
+
+    await expect(page.getByTestId("message-notice")).toContainText("Conversation restored to your active inbox.");
+
+    await page.getByRole("button", { name: "Active Conversations" }).click();
+
+    await expect(page.locator('[data-testid="message-conversation-list"]')).toContainText("Assigned Client");
+    await expect(page.locator("main")).toContainText("Assigned client thread only.");
+    await expect(page.locator("main")).not.toContainText("Send As");
+  });
+
+  test("coach can view archived client conversation and restore it", async ({ page }) => {
+    await openMessages(page, "coach");
+
+    await page.getByRole("button", { name: "Archive Conversation" }).click();
+
+    await expect(page.locator('[data-testid="message-conversation-list"]')).toContainText("No active conversations.");
+
+    await page.getByRole("button", { name: "Archived Conversations" }).click();
+
+    await expect(page.locator('[data-testid="message-conversation-list"]')).toContainText("Assigned Client");
+    await expect(page.locator("main")).toContainText("Assigned client thread only.");
+    await expect(page.locator("main")).not.toContainText("Unassigned Client");
+
+    await page.getByRole("button", { name: "Restore Conversation" }).click();
+
+    await expect(page.getByTestId("message-notice")).toContainText("Conversation restored to your active inbox.");
+
+    await page.getByRole("button", { name: "Active Conversations" }).click();
+
+    await expect(page.locator('[data-testid="message-conversation-list"]')).toContainText("Assigned Client");
+    await expect(page.locator("main")).toContainText("Assigned client thread only.");
+    await expect(page.locator("main")).not.toContainText("Send As");
+  });
+
 });
