@@ -1943,7 +1943,40 @@ function NutritionCoachScreen() {
             Start with a practical estimate, then adjust based on weekly progress, adherence, and training performance.
           </p>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-4">
+          
+
+          <div
+            data-testid="featured-nutrition-goal-selector"
+            className="mx-auto mt-6 max-w-2xl rounded-[2rem] border-2 border-[#00BF63] bg-[#00BF63]/15 p-5 text-center shadow-2xl shadow-[#00BF63]/20"
+          >
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+              Primary Goal
+            </p>
+            <h4 className="mt-2 text-2xl font-black uppercase text-white">
+              Choose The Main Outcome First
+            </h4>
+            <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-6 text-white/65">
+              This drives the calorie adjustment, macro split, weekly trend estimate, and coach recommendation.
+            </p>
+
+            <label className="mx-auto mt-5 block max-w-md space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-white/60">
+                Goal
+              </span>
+              <select
+                aria-label="Nutrition Goal"
+                value={goal}
+                onChange={(event) => setGoal(event.target.value)}
+                className="w-full rounded-3xl border-2 border-[#00BF63] bg-black px-5 py-4 text-center text-base font-black uppercase tracking-[0.12em] text-white shadow-xl shadow-[#00BF63]/20 outline-none transition focus:border-white focus:ring-4 focus:ring-[#00BF63]/25"
+              >
+                <option value="fat-loss">Weight Loss</option>
+                <option value="maintain">Maintain</option>
+                <option value="muscle-gain">Muscle Gain</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-4">
             <label className="space-y-2">
               <span className="text-xs font-black uppercase text-white/50">Body Weight</span>
               <input
@@ -1955,19 +1988,7 @@ function NutritionCoachScreen() {
               />
             </label>
 
-            <label className="space-y-2">
-              <span className="text-xs font-black uppercase text-white/50">Goal</span>
-              <select
-                aria-label="Nutrition Goal"
-                value={goal}
-                onChange={(event) => setGoal(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-              >
-                <option value="fat-loss">Fat Loss</option>
-                <option value="maintain">Maintain</option>
-                <option value="muscle-gain">Muscle Gain</option>
-              </select>
-            </label>
+            
 
             <label className="space-y-2">
               <span className="text-xs font-black uppercase text-white/50">Training Days</span>
