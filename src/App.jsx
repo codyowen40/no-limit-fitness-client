@@ -2739,7 +2739,7 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
 function NoLimitFitnessAppShell() {
   const [initialState] = useState(loadInitialState);
   const [activeTab, setActiveTab] = useState(() => {
-    if (hasCurrentTestUnlockUrl()) return "Client";
+    if (hasCurrentTestUnlockUrl()) return getInitialTabForPortalMode(getRequestedTestUnlockPortalMode());
     if (getNoLimitPublicAccountAccess()) return "Client";
 
     const mode = getInitialPortalMode();
@@ -2776,14 +2776,31 @@ function NoLimitFitnessAppShell() {
       return;
     }
 
-    if (portalMode !== PUBLIC_PORTAL_MODE) {
-      setPortalMode(PUBLIC_PORTAL_MODE);
+    const requestedMode = getRequestedTestUnlockPortalMode();
+    const requestedTabs = PORTAL_VISIBLE_TABS_BY_MODE[requestedMode] || PORTAL_VISIBLE_TABS_BY_MODE.client || ["Client"];
+    const requestedLandingTab = getInitialTabForPortalMode(requestedMode);
+
+    try {
+      window.localStorage.setItem(TEST_UNLOCK_STORAGE_KEY, "true");
+      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, requestedMode);
+
+      if (requestedMode === "coach") {
+        window.localStorage.setItem(COACH_SESSION_LOCK_STORAGE_KEY, "true");
+      } else {
+        window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
+      }
+
+      document.body.dataset.portalMode = requestedMode;
+    } catch {
+      // Ignore storage failures in restricted browser modes.
     }
 
-    const allowedClientTabs = PORTAL_VISIBLE_TABS_BY_MODE.client || ["Client"];
+    if (portalMode !== requestedMode) {
+      setPortalMode(requestedMode);
+    }
 
-    if (!allowedClientTabs.includes(activeTab)) {
-      setActiveTab("Client");
+    if (!requestedTabs.includes(activeTab)) {
+      setActiveTab(requestedLandingTab);
     }
   }, [activeTab, portalMode]);
 
@@ -4495,9 +4512,11 @@ function handlePortalLogout() {
 
           {activeTab === "Coach" && (
             <CoachScreen
+              clients={clients}
               notifications={coachNotifications}
               savedPlans={savedPlans}
               workoutLogs={workoutLogs}
+              conversations={conversations}
               selectedWorkoutLogId={selectedWorkoutLogId}
               setSelectedWorkoutLogId={setSelectedWorkoutLogId}
               deleteWorkoutLog={deleteWorkoutLog}
@@ -4507,6 +4526,9 @@ function handlePortalLogout() {
               setActivityFilter={setActivityFilter}
               markActivityRead={markActivityRead}
               markAllActivityRead={markAllActivityRead}
+              openTrackerForClient={openTrackerForClient}
+              openMessagesForClient={openMessagesForClient}
+              openPlansForClient={openPlansForClient}
             />
           )}
 
@@ -5273,79 +5295,503 @@ function ClientDashboardScreen({
 }
 
 
-function CoachScreen({ notifications, savedPlans, workoutLogs, selectedWorkoutLogId, setSelectedWorkoutLogId, deleteWorkoutLog, unreadCoachCount, unreadActivityCount, activityFilter, setActivityFilter, markActivityRead, markAllActivityRead }) {
+function CoachScreen({
+  clients = [],
+  notifications = [],
+  savedPlans = [],
+  workoutLogs = [],
+  conversations = [],
+  selectedWorkoutLogId,
+  setSelectedWorkoutLogId,
+  deleteWorkoutLog,
+  unreadCoachCount = 0,
+  unreadActivityCount = 0,
+  activityFilter,
+  setActivityFilter,
+  markActivityRead,
+  markAllActivityRead,
+  openTrackerForClient = () => {},
+  openMessagesForClient = () => {},
+  openPlansForClient = () => {},
+}) {
+  const [selectedCoachClientId, setSelectedCoachClientId] = useState("");
+
+  const safeClients = Array.isArray(clients) ? clients : [];
+  const safePlans = Array.isArray(savedPlans) ? savedPlans : [];
+  const safeLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
+  const safeConversations = Array.isArray(conversations) ? conversations : [];
+  const safeNotifications = Array.isArray(notifications) ? notifications : [];
+
+  const { queue } = useNlfCoachReviewSnapshot();
+  const pendingDrafts = Array.isArray(queue)
+    ? queue.filter((item) => item.status !== "approved")
+    : [];
+
   const filters = ["All", "Unread", "Workouts", "Substitutions", "Notes", "Plans", "Messages", "Email"];
-  const filteredNotifications = notifications.filter((notification) => {
+  const filteredNotifications = safeNotifications.filter((notification) => {
     if (activityFilter === "All") return true;
     if (activityFilter === "Unread") return !notification.isRead;
     return notification.type === activityFilter;
   });
-  const selectedWorkoutLog = workoutLogs.find((log) => log.id === selectedWorkoutLogId) || workoutLogs[0] || null;
+
+  const activeClients = safeClients.filter((client) => {
+    const status = String(client?.coachingStatus || client?.status || "").toLowerCase();
+
+    return status !== "archived" && status !== "unassigned";
+  });
+
+  function itemMatchesClient(item, client) {
+    if (!item || !client) return false;
+
+    const clientId = String(client.id || "");
+    const clientName = String(client.name || "").toLowerCase();
+    const itemClientId = String(item.clientId || item.client_id || "");
+    const itemClientName = String(item.clientName || item.client || item.name || "").toLowerCase();
+
+    return Boolean(
+      (clientId && itemClientId === clientId) ||
+        (clientName && itemClientName.includes(clientName))
+    );
+  }
+
+  function getClientConversation(client) {
+    return (
+      safeConversations.find((conversation) => itemMatchesClient(conversation, client)) ||
+      safeConversations.find((conversation) => conversation.clientId === client?.id) ||
+      null
+    );
+  }
+
+  function getClientPlans(client) {
+    return safePlans.filter((plan) => itemMatchesClient(plan, client));
+  }
+
+  function getClientLogs(client) {
+    return safeLogs.filter((log) => itemMatchesClient(log, client));
+  }
+
+  function getClientUnreadMessages(client) {
+    const conversation = getClientConversation(client);
+    const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+    const messageUnreadCount = messages.filter((message) => message.unreadForCoach).length;
+    const conversationUnreadCount = Number(conversation?.coachUnread || conversation?.unreadForCoach || 0);
+
+    return Math.max(messageUnreadCount, conversationUnreadCount);
+  }
+
+  function getClientPendingDrafts(client) {
+    return pendingDrafts.filter((draft) => itemMatchesClient(draft, client));
+  }
+
+  function getClientAttentionReasons(client) {
+    const reasons = [];
+    const unreadMessages = getClientUnreadMessages(client);
+    const clientDrafts = getClientPendingDrafts(client);
+    const clientPlans = getClientPlans(client);
+    const clientLogs = getClientLogs(client);
+
+    if (unreadMessages > 0) reasons.push(unreadMessages + " unread message" + (unreadMessages === 1 ? "" : "s"));
+    if (clientDrafts.length > 0) reasons.push(clientDrafts.length + " plan awaiting review");
+    if (clientPlans.length === 0) reasons.push("no assigned plan");
+    if (clientLogs.length === 0) reasons.push("no workout logs yet");
+
+    return reasons;
+  }
+
+  const clientsNeedingAttention = activeClients
+    .map((client) => ({
+      client,
+      reasons: getClientAttentionReasons(client),
+    }))
+    .filter((item) => item.reasons.length > 0);
+
+  const selectedClient =
+    activeClients.find((client) => client.id === selectedCoachClientId) ||
+    activeClients[0] ||
+    safeClients[0] ||
+    null;
+
+  const selectedClientPlans = selectedClient ? getClientPlans(selectedClient) : [];
+  const selectedClientLogs = selectedClient ? getClientLogs(selectedClient) : [];
+  const selectedClientConversation = selectedClient ? getClientConversation(selectedClient) : null;
+  const selectedClientMessages = Array.isArray(selectedClientConversation?.messages)
+    ? selectedClientConversation.messages.slice(-3).reverse()
+    : [];
+  const selectedClientUnreadCount = selectedClient ? getClientUnreadMessages(selectedClient) : 0;
+  const selectedClientPendingDraftCount = selectedClient ? getClientPendingDrafts(selectedClient).length : 0;
+
+  const selectedWorkoutLog =
+    safeLogs.find((log) => log.id === selectedWorkoutLogId) ||
+    safeLogs[0] ||
+    null;
+
+  const recentWorkoutLogs = safeLogs
+    .slice()
+    .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
+    .slice(0, 4);
+
+  const recentMessages = safeConversations
+    .flatMap((conversation) =>
+      (Array.isArray(conversation.messages) ? conversation.messages : []).map((message) => ({
+        ...message,
+        clientName: conversation.clientName,
+        clientId: conversation.clientId,
+      }))
+    )
+    .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
+    .slice(0, 4);
+
+  const recentActivityItems = [
+    ...pendingDrafts.slice(0, 3).map((draft) => ({
+      id: "draft-" + (draft.id || draft.title || draft.planName),
+      label: "Plan Review",
+      title: draft.title || draft.planName || "Client workout draft",
+      detail: draft.clientName || "Client plan awaiting review",
+    })),
+    ...recentWorkoutLogs.map((log) => ({
+      id: "log-" + (log.id || log.timestamp || log.dayName),
+      label: "Workout Log",
+      title: log.dayName || log.planName || "Workout logged",
+      detail: log.clientName || log.status || "Client activity recorded",
+    })),
+    ...recentMessages.map((message) => ({
+      id: "message-" + (message.id || message.timestamp || message.body),
+      label: "Message",
+      title: message.clientName || "Client message",
+      detail: message.body || "Message activity",
+    })),
+  ].slice(0, 8);
 
   return (
     <div>
-      <SectionHeader eyebrow="Coach Dashboard" title="Command Center" description="A structured coach activity center for workout completions, skipped workouts, changed values, substitutions, client notes, assigned plans, messages, and workout log details." />
-      <div className="grid gap-4 md:grid-cols-5">
-        <StatCard label="Assigned Plans" value={savedPlans.length} />
-        <StatCard label="Workout Logs" value={workoutLogs.length} />
-        <StatCard label="Completed" value={workoutLogs.filter((log) => log.status === "completed").length} />
-        <StatCard label="Unread Messages" value={unreadCoachCount} />
-        <StatCard label="Unread Activity" value={unreadActivityCount} />
+      <SectionHeader
+        eyebrow="Coach Dashboard"
+        title="Coach Command Center"
+        description="Manage assigned clients, plan reviews, workout logs, messages, and progress from one production-facing workspace."
+      />
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard label="Active Clients" value={activeClients.length} />
+        <StatCard label="Plans Awaiting Review" value={pendingDrafts.length} />
+        <StatCard label="Recent Workout Logs" value={recentWorkoutLogs.length} />
+        <StatCard label="Unread Client Messages" value={unreadCoachCount} />
       </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <section
+          data-testid="coach-clients-needing-attention"
+          className="rounded-[1.5rem] border border-[#00BF63]/25 bg-white/[0.04] p-5"
+        >
+          <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+                Coach workflow
+              </p>
+              <h3 className="mt-2 text-2xl font-black uppercase text-white">
+                Clients Needing Attention
+              </h3>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
+                Prioritize clients with unread messages, plan reviews, missing plans, or missing workout history.
+              </p>
+            </div>
+            <span className="rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs font-black uppercase text-white/60">
+              {clientsNeedingAttention.length} flagged
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {clientsNeedingAttention.slice(0, 6).map(({ client, reasons }) => (
+              <div
+                key={client.id || client.name}
+                className="rounded-2xl border border-white/10 bg-black/40 p-4"
+              >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <h4 className="text-lg font-black text-white">{client.name || "Client"}</h4>
+                    <p className="mt-1 text-sm text-white/55">{client.email || "No email on file"}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {reasons.map((reason) => (
+                        <span
+                          key={reason}
+                          className="rounded-full border border-[#00BF63]/25 bg-[#00BF63]/10 px-3 py-1 text-xs font-bold text-[#00BF63]"
+                        >
+                          {reason}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCoachClientId(client.id)}
+                      className="rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                    >
+                      View Client
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openMessagesForClient(client.id)}
+                      className="rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                    >
+                      Message
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openPlansForClient(client.id)}
+                      className="rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                    >
+                      Review Plan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {clientsNeedingAttention.length === 0 && (
+              <EmptyState text="No clients need attention right now." />
+            )}
+          </div>
+        </section>
+
+        <section
+          data-testid="coach-client-profile-hub"
+          className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5"
+        >
+          <div className="mb-5">
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+              Client management
+            </p>
+            <h3 className="mt-2 text-2xl font-black uppercase text-white">
+              Client Profile Hub
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-white/60">
+              Review a client’s plan, logs, messages, and progress snapshot from one coach view.
+            </p>
+          </div>
+
+          {selectedClient ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-4">
+                <h4 className="text-xl font-black text-white">{selectedClient.name || "Client"}</h4>
+                <p className="mt-1 text-sm text-white/65">{selectedClient.email || "No email on file"}</p>
+                <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-[#00BF63]">
+                  {selectedClient.coachName || "No Limit Coach"} · {getClientStatusLabel(getClientCoachingStatus(selectedClient))}
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Assigned Plan Summary</p>
+                  <p className="mt-2 text-2xl font-black text-white">{selectedClientPlans.length}</p>
+                  <p className="mt-1 text-sm text-white/55">
+                    {selectedClientPlans[0]?.title || selectedClientPlans[0]?.planName || "No assigned plan yet"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Progress Snapshot</p>
+                  <p className="mt-2 text-2xl font-black text-white">{selectedClientLogs.length}</p>
+                  <p className="mt-1 text-sm text-white/55">Workout logs saved</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Unread Messages</p>
+                  <p className="mt-2 text-2xl font-black text-white">{selectedClientUnreadCount}</p>
+                  <p className="mt-1 text-sm text-white/55">Client messages waiting</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Plan Reviews</p>
+                  <p className="mt-2 text-2xl font-black text-white">{selectedClientPendingDraftCount}</p>
+                  <p className="mt-1 text-sm text-white/55">Drafts awaiting coach review</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                <p className="text-xs font-black uppercase text-[#00BF63]">Recent Messages</p>
+                <div className="mt-3 space-y-2">
+                  {selectedClientMessages.map((message) => (
+                    <p key={message.id || message.timestamp || message.body} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-white/65">
+                      <span className="font-bold text-white">{message.sender || "Message"}:</span> {message.body}
+                    </p>
+                  ))}
+                  {selectedClientMessages.length === 0 && (
+                    <p className="text-sm text-white/45">No recent messages yet.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                <p className="text-xs font-black uppercase text-[#00BF63]">Coach Notes</p>
+                <p className="mt-2 text-sm leading-6 text-white/60">
+                  Coach-only notes can be connected to saved client records in the next database-backed phase.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => openMessagesForClient(selectedClient.id)}
+                  className="rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black"
+                >
+                  Message
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openPlansForClient(selectedClient.id)}
+                  className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                >
+                  Review Plans
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openTrackerForClient(selectedClient.id)}
+                  className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                >
+                  View Progress
+                </button>
+              </div>
+            </div>
+          ) : (
+            <EmptyState text="Add or assign a client to open the client profile hub." />
+          )}
+        </section>
+      </div>
+
+      <section
+        data-testid="coach-recent-activity"
+        className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5"
+      >
+        <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#00BF63]">
+              Coach timeline
+            </p>
+            <h3 className="mt-2 text-2xl font-black uppercase text-white">Recent Activity</h3>
+            <p className="mt-2 text-sm leading-6 text-white/60">
+              Recent plan reviews, workout logs, and client messages across your assigned roster.
+            </p>
+          </div>
+          <span className="rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs font-black uppercase text-white/60">
+            {recentActivityItems.length} updates
+          </span>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          {recentActivityItems.map((item) => (
+            <div key={item.id} className="rounded-2xl border border-white/10 bg-black/40 p-4">
+              <p className="text-xs font-black uppercase text-[#00BF63]">{item.label}</p>
+              <h4 className="mt-2 font-black text-white">{item.title}</h4>
+              <p className="mt-1 line-clamp-2 text-sm text-white/55">{item.detail}</p>
+            </div>
+          ))}
+          {recentActivityItems.length === 0 && (
+            <EmptyState text="Recent activity will show after clients send messages, submit plans, or log workouts." />
+          )}
+        </div>
+      </section>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="space-y-6">
           <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-            <div className="mb-4 flex items-center gap-3"><Bell className="text-[#00BF63]" /><h3 className="text-xl font-black uppercase">Notification Types</h3></div>
+            <div className="mb-4 flex items-center gap-3">
+              <Bell className="text-[#00BF63]" />
+              <h3 className="text-xl font-black uppercase">Notification Types</h3>
+            </div>
             <div className="space-y-3">
-              {["Client completed workout", "Client skipped workout", "Client changed assigned exercise", "Client changed sets, reps, weight, time, or rest", "Client left workout note", "Coach assigned new plan", "Coach sent message", "Client sent message"].map((item) => (
-                <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-white/75"><CheckCircle size={18} className="text-[#00BF63]" />{item}</div>
+              {[
+                "Client completed workout",
+                "Client skipped workout",
+                "Client changed assigned exercise",
+                "Client changed sets, reps, weight, time, or rest",
+                "Client left workout note",
+                "Coach assigned new plan",
+                "Coach sent message",
+                "Client sent message",
+              ].map((item) => (
+                <div
+                  key={item}
+                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-white/75"
+                >
+                  <CheckCircle size={18} className="text-[#00BF63]" />
+                  {item}
+                </div>
               ))}
             </div>
-          </div>
-          <div className="rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/10 p-5">
-            <div className="flex items-start gap-3"><Inbox className="mt-1 text-[#00BF63]" /><div><h3 className="font-black uppercase">Email Later</h3><p className="mt-1 text-sm leading-6 text-white/65">Personal email notifications should still be added later through a secure notification service. No email is sent from this frontend file.</p></div></div>
           </div>
         </div>
 
         <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3"><Activity className="text-[#00BF63]" /><h3 className="text-xl font-black uppercase">Activity Center</h3></div>
-            <button type="button" onClick={markAllActivityRead} className="rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-4 py-2 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black">Mark All Read</button>
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-3">
+              <Inbox className="text-[#00BF63]" />
+              <h3 className="text-xl font-black uppercase">Activity Inbox</h3>
+            </div>
+            <button
+              type="button"
+              onClick={markAllActivityRead}
+              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+            >
+              Mark All Read
+            </button>
           </div>
+
           <div className="mb-4 flex flex-wrap gap-2">
             {filters.map((filter) => (
-              <button key={filter} type="button" onClick={() => setActivityFilter(filter)} className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-black uppercase transition ${activityFilter === filter ? "border-[#00BF63] bg-[#00BF63] text-black" : "border-white/10 bg-black/40 text-white hover:border-[#00BF63]"}`}>
-                <Filter size={13} />{filter}
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setActivityFilter(filter)}
+                className={
+                  activityFilter === filter
+                    ? "rounded-full bg-[#00BF63] px-3 py-2 text-xs font-black uppercase text-black"
+                    : "rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white/70 transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                }
+              >
+                {filter}
               </button>
             ))}
           </div>
-          <div className="max-h-[720px] space-y-3 overflow-y-auto pr-1">
+
+          <div className="space-y-3">
             {filteredNotifications.map((notification) => (
-              <div key={notification.id} className={`rounded-2xl border p-4 ${notification.isRead ? "border-white/10 bg-black/40" : "border-[#00BF63]/50 bg-[#00BF63]/10"}`}>
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div
+                key={notification.id}
+                className="rounded-2xl border border-white/10 bg-black/40 p-4"
+              >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <div className="mb-2 flex flex-wrap gap-2"><ActivityPill label={notification.type} /><ActivityPill label={notification.priority} />{!notification.isRead && <UnreadPill label="Unread Activity" />}</div>
-                    <p className="font-black text-white">{notification.title}</p>
-                    <p className="mt-1 text-sm text-white/60">{notification.detail}</p>
-                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-[#00BF63]">{notification.time}</p>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#00BF63]">
+                      {notification.type || "Activity"}
+                    </p>
+                    <h4 className="mt-1 font-black text-white">{notification.title}</h4>
+                    <p className="mt-1 text-sm leading-6 text-white/55">{notification.message}</p>
                   </div>
                   {!notification.isRead && (
-                    <button type="button" onClick={() => markActivityRead(notification.id)} className="flex shrink-0 items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"><Eye size={14} />Read</button>
+                    <button
+                      type="button"
+                      onClick={() => markActivityRead(notification.id)}
+                      className="rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
+                    >
+                      Mark Read
+                    </button>
                   )}
                 </div>
               </div>
             ))}
+
             {filteredNotifications.length === 0 && <EmptyState text="No activity matches this filter." />}
           </div>
         </div>
       </div>
 
       <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-        <div className="mb-5 flex items-center gap-3"><ClipboardList className="text-[#00BF63]" /><h3 className="text-xl font-black uppercase">Workout Log Detail View</h3></div>
-        {workoutLogs.length === 0 && <EmptyState text="No completed or skipped workouts yet. Use the Tracker tab to create a client workout log." />}
-        {workoutLogs.length > 0 && (
+        <div className="mb-5 flex items-center gap-3">
+          <ClipboardList className="text-[#00BF63]" />
+          <h3 className="text-xl font-black uppercase">Workout Log Detail View</h3>
+        </div>
+        {safeLogs.length === 0 && <EmptyState text="No completed or skipped workouts yet. Use the Tracker tab to create a client workout log." />}
+        {safeLogs.length > 0 && (
           <div className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
-            <WorkoutLogList logs={workoutLogs} selectedLogId={selectedWorkoutLog?.id} onSelect={setSelectedWorkoutLogId} />
+            <WorkoutLogList logs={safeLogs} selectedLogId={selectedWorkoutLog?.id} onSelect={setSelectedWorkoutLogId} />
             <WorkoutLogDetails log={selectedWorkoutLog} onDelete={deleteWorkoutLog} />
           </div>
         )}

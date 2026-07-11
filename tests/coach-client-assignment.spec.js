@@ -235,4 +235,43 @@ test.describe("Coach/client assignment data coverage", () => {
     expect(routedClient.coachId).toBe("coach-no-limit-primary");
     expect(routedClient.coachName).toBe("No Limit Coach");
   });
+  test("coach operating system dashboard stays coach-only", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=coach");
+
+    const fixture = await installAssignedClientFixture(page);
+
+    await page.reload();
+
+    const coachNavButton = page
+      .getByRole("navigation", { name: /Main navigation/i })
+      .first()
+      .getByRole("button", { name: "Coach", exact: true });
+
+    if (await coachNavButton.isVisible().catch(() => false)) {
+      await coachNavButton.click();
+    }
+
+    const main = page.locator("main");
+
+    await expect(main).toContainText("Coach Command Center");
+    await expect(main).toContainText("Active Clients");
+    await expect(main).toContainText("Plans Awaiting Review");
+    await expect(main).toContainText("Recent Workout Logs");
+    await expect(main).toContainText("Unread Client Messages");
+    await expect(main).toContainText("Clients Needing Attention");
+    await expect(main).toContainText("Client Profile Hub");
+    await expect(main).toContainText("Progress Snapshot");
+    await expect(main).toContainText("Recent Activity");
+    await expect(main).toContainText(fixture.clientName);
+    await expect(main).not.toContainText("Send As");
+
+    await page.goto("/?testUnlock=true&portalMode=client");
+
+    const clientMain = page.locator("main");
+
+    await expect(clientMain).not.toContainText("Clients Needing Attention");
+    await expect(clientMain).not.toContainText("Client Profile Hub");
+    await expect(clientMain).not.toContainText("Coach Command Center");
+  });
+
 });
