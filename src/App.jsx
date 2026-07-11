@@ -1858,6 +1858,32 @@ function NutritionCoachScreen() {
       { name: "Sports Drink", keywords: ["gatorade", "powerade", "sports drink"], serving: "20 oz bottle", calories: 140, protein: 0, carbs: 36, fat: 0 },
       { name: "Energy Drink", keywords: ["monster", "red bull", "energy drink"], serving: "16 oz can", calories: 210, protein: 0, carbs: 54, fat: 0 },
       { name: "Sugar Free Energy Drink", keywords: ["zero sugar energy drink", "sugar free energy drink", "monster zero", "red bull sugar free"], serving: "16 oz can", calories: 10, protein: 0, carbs: 2, fat: 0 },
+
+      // Alcohol, liquor-store, gas-station, and party drinks
+      { name: "Light Beer", keywords: ["light beer", "lite beer"], serving: "12 oz can or bottle", calories: 105, protein: 1, carbs: 6, fat: 0 },
+      { name: "Regular Beer", keywords: ["beer", "regular beer", "lager"], serving: "12 oz can or bottle", calories: 150, protein: 2, carbs: 13, fat: 0 },
+      { name: "IPA Beer", keywords: ["ipa", "craft beer", "ipa beer"], serving: "12 oz can or bottle", calories: 220, protein: 2, carbs: 18, fat: 0 },
+      { name: "Tallboy Beer", keywords: ["tallboy", "tall boy", "24 oz beer"], serving: "24 oz can", calories: 300, protein: 4, carbs: 26, fat: 0 },
+      { name: "Malt Liquor 40 oz", keywords: ["40 oz", "forty ounce", "malt liquor", "malt beer"], serving: "40 oz bottle", calories: 520, protein: 5, carbs: 48, fat: 0 },
+      { name: "Flavored Malt Beverage", keywords: ["flavored malt beverage", "malt beverage", "hard lemonade", "wine cooler"], serving: "12 oz bottle or can", calories: 220, protein: 0, carbs: 32, fat: 0 },
+      { name: "Hard Seltzer", keywords: ["hard seltzer", "spiked seltzer"], serving: "12 oz can", calories: 100, protein: 0, carbs: 2, fat: 0 },
+      { name: "Canned Cocktail", keywords: ["canned cocktail", "ready to drink cocktail", "rtD cocktail", "premixed cocktail"], serving: "12 oz can", calories: 250, protein: 0, carbs: 28, fat: 0 },
+      { name: "Small Canned Cocktail", keywords: ["buzzball", "buzz ball", "small canned cocktail"], serving: "200 ml container", calories: 290, protein: 0, carbs: 34, fat: 0 },
+      { name: "Red Wine", keywords: ["red wine"], serving: "5 oz glass", calories: 125, protein: 0, carbs: 4, fat: 0 },
+      { name: "White Wine", keywords: ["white wine"], serving: "5 oz glass", calories: 120, protein: 0, carbs: 4, fat: 0 },
+      { name: "Champagne", keywords: ["champagne", "sparkling wine"], serving: "5 oz glass", calories: 95, protein: 0, carbs: 2, fat: 0 },
+      { name: "Vodka Shot", keywords: ["vodka shot", "vodka"], serving: "1.5 oz shot", calories: 100, protein: 0, carbs: 0, fat: 0 },
+      { name: "Whiskey Shot", keywords: ["whiskey shot", "whisky shot", "whiskey", "bourbon"], serving: "1.5 oz shot", calories: 105, protein: 0, carbs: 0, fat: 0 },
+      { name: "Rum Shot", keywords: ["rum shot", "rum"], serving: "1.5 oz shot", calories: 100, protein: 0, carbs: 0, fat: 0 },
+      { name: "Tequila Shot", keywords: ["tequila shot", "tequila"], serving: "1.5 oz shot", calories: 100, protein: 0, carbs: 0, fat: 0 },
+      { name: "Gin Shot", keywords: ["gin shot", "gin"], serving: "1.5 oz shot", calories: 100, protein: 0, carbs: 0, fat: 0 },
+      { name: "Rum And Coke", keywords: ["rum and coke", "rum coke"], serving: "1 mixed drink", calories: 180, protein: 0, carbs: 22, fat: 0 },
+      { name: "Whiskey And Coke", keywords: ["whiskey and coke", "whiskey coke"], serving: "1 mixed drink", calories: 185, protein: 0, carbs: 22, fat: 0 },
+      { name: "Vodka Cranberry", keywords: ["vodka cranberry"], serving: "1 mixed drink", calories: 190, protein: 0, carbs: 24, fat: 0 },
+      { name: "Margarita", keywords: ["margarita"], serving: "1 drink", calories: 250, protein: 0, carbs: 30, fat: 0 },
+      { name: "Pina Colada", keywords: ["pina colada", "piña colada"], serving: "1 drink", calories: 360, protein: 2, carbs: 40, fat: 10 },
+      { name: "Long Island Iced Tea", keywords: ["long island iced tea", "long island"], serving: "1 drink", calories: 280, protein: 0, carbs: 28, fat: 0 },
+      { name: "Jello Shot", keywords: ["jello shot", "jell-o shot"], serving: "1 small shot", calories: 70, protein: 1, carbs: 8, fat: 0 },
       { name: "Orange Juice", keywords: ["orange juice", "oj"], serving: "8 oz", calories: 110, protein: 2, carbs: 26, fat: 0 },
       { name: "Apple Juice", keywords: ["apple juice"], serving: "8 oz", calories: 115, protein: 0, carbs: 28, fat: 0 },
       { name: "Cranberry Juice Cocktail", keywords: ["cranberry juice"], serving: "8 oz", calories: 120, protein: 0, carbs: 30, fat: 0 },
@@ -2143,6 +2169,35 @@ function NutritionCoachScreen() {
       { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );
 
+    const hasAlcohol = matches.some((item) =>
+      [
+        "Light Beer",
+        "Regular Beer",
+        "IPA Beer",
+        "Tallboy Beer",
+        "Malt Liquor 40 oz",
+        "Flavored Malt Beverage",
+        "Hard Seltzer",
+        "Canned Cocktail",
+        "Small Canned Cocktail",
+        "Red Wine",
+        "White Wine",
+        "Champagne",
+        "Vodka Shot",
+        "Whiskey Shot",
+        "Rum Shot",
+        "Tequila Shot",
+        "Gin Shot",
+        "Rum And Coke",
+        "Whiskey And Coke",
+        "Vodka Cranberry",
+        "Margarita",
+        "Pina Colada",
+        "Long Island Iced Tea",
+        "Jello Shot",
+      ].includes(item.name)
+    );
+
     const hasDrinkCalories = matches.some((item) =>
       ["Sweet Tea", "Kool-Aid", "Lemonade", "Regular Soda", "Sports Drink", "Energy Drink", "Orange Juice", "Apple Juice", "Chocolate Milk", "Bottled Frappuccino"].includes(item.name)
     );
@@ -2156,15 +2211,17 @@ function NutritionCoachScreen() {
 
     const confidence = matches.length >= 5 ? "High" : matches.length >= 2 ? "Moderate" : "Low";
 
-    const coachTip = hasDrinkCalories
-      ? "Liquid calories can add up fast. Sweet tea, Kool-Aid, soda, juice, and energy drinks should be counted like food."
-      : hasConvenienceFood
-        ? "Convenience foods are easy to underestimate. Check the label when possible, especially serving size, sodium, and calories."
-        : !hasProtein
-          ? "Protein looks low from the matched foods. Add a lean protein source if this is a training meal."
-          : hasAddedFat
-            ? "Fats from sauces, oils, cheese, avocado, nuts, and dressings can move calories fast. Measure those when possible."
-            : "This looks like a usable training meal. Match portions to the goal and workout timing.";
+    const coachTip = hasAlcohol
+      ? "Alcohol adds calories quickly and can affect recovery, sleep, hydration, and consistency. Track it honestly, check labels when possible, and avoid treating it like a normal carb/protein source."
+      : hasDrinkCalories
+        ? "Liquid calories can add up fast. Sweet tea, Kool-Aid, soda, juice, and energy drinks should be counted like food."
+        : hasConvenienceFood
+          ? "Convenience foods are easy to underestimate. Check the label when possible, especially serving size, sodium, and calories."
+          : !hasProtein
+            ? "Protein looks low from the matched foods. Add a lean protein source if this is a training meal."
+            : hasAddedFat
+              ? "Fats from sauces, oils, cheese, avocado, nuts, and dressings can move calories fast. Measure those when possible."
+              : "This looks like a usable training meal. Match portions to the goal and workout timing.";
 
     setMealResult({
       id: makeId("meal-estimate"),
@@ -2485,7 +2542,10 @@ function NutritionCoachScreen() {
 
           <h3 className="text-xl font-black uppercase text-white">Meal Check</h3>
           <p className="mt-2 text-sm leading-6 text-white/65">
-            Enter real foods, drinks, snacks, sauces, and portions. Example: moderate glass of sweet tea, ramen, chips, and 2 hot dogs.
+            Enter real foods, drinks, snacks, sauces, alcohol, and portions. Example: moderate glass of sweet tea, 2 beers, ramen, chips, and 2 hot dogs.
+          </p>
+          <p className="mt-2 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-xs font-bold leading-5 text-yellow-100/80">
+            Alcohol estimates are for nutrition tracking only. Calories vary by brand, proof, mixer, serving size, and container size.
           </p>
 
           <label className="mt-5 block space-y-2">
@@ -2495,7 +2555,7 @@ function NutritionCoachScreen() {
               value={mealText}
               onChange={(event) => setMealText(event.target.value)}
               className="min-h-32 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
-              placeholder="Example: moderate glass of sweet tea, ramen, chips, and 2 hot dogs"
+              placeholder="Example: moderate sweet tea, 2 beers, 1 vodka cranberry, ramen, chips, and 2 hot dogs"
             />
           </label>
 

@@ -95,3 +95,34 @@ test("Nutrition Coach estimates and saves real world convenience foods and drink
   await expect(page.getByTestId("nutrition-history-panel")).toBeVisible();
   await expect(page.getByTestId("saved-meal-estimate").first()).toContainText("Meal Estimate");
 });
+
+test("Nutrition Coach estimates alcohol drinks from liquor stores and gas stations", async ({ page }) => {
+  await page.goto("/?testUnlock=true&portalMode=client");
+
+  await page
+    .getByRole("navigation", { name: /Main navigation/i })
+    .first()
+    .getByRole("button", { name: "Nutrition Coach", exact: true })
+    .click();
+
+  const nutritionCoachWindow = page.getByTestId("nutrition-coach-window").last();
+
+  await nutritionCoachWindow.getByRole("button", { name: /Check What I Ate/i }).click();
+
+  await expect(page.getByTestId("meal-check-estimator")).toBeVisible();
+
+  await page
+    .getByLabel("Meal Description")
+    .fill("2 light beers, 1 tallboy, 40 oz malt liquor, vodka cranberry, and hard seltzer");
+
+  await page.getByRole("button", { name: "Estimate Meal" }).click();
+
+  await expect(page.getByTestId("meal-check-result")).toBeVisible();
+  await expect(page.getByTestId("meal-check-result")).toContainText("Light Beer");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Tallboy Beer");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Malt Liquor 40 oz");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Vodka Cranberry");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Hard Seltzer");
+  await expect(page.getByTestId("meal-check-result")).toContainText("Alcohol adds calories quickly");
+});
+
