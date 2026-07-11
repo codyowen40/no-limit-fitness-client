@@ -2872,6 +2872,293 @@ function NutritionCoachScreen() {
   );
 }
 
+
+function CoachNutritionReviewPanel() {
+  const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
+  const COACH_NUTRITION_NOTES_STORAGE_KEY = "nlf-coach-nutrition-review-notes-v1";
+
+  function readNutritionHistory() {
+    if (typeof window === "undefined") return { targets: [], meals: [] };
+
+    try {
+      const raw = window.localStorage.getItem(NUTRITION_HISTORY_STORAGE_KEY);
+      if (!raw) return { targets: [], meals: [] };
+
+      const parsed = JSON.parse(raw);
+
+      return {
+        targets: Array.isArray(parsed.targets) ? parsed.targets : [],
+        meals: Array.isArray(parsed.meals) ? parsed.meals : [],
+      };
+    } catch {
+      return { targets: [], meals: [] };
+    }
+  }
+
+  function readCoachNutritionNotes() {
+    if (typeof window === "undefined") return "";
+
+    try {
+      return window.localStorage.getItem(COACH_NUTRITION_NOTES_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  const [nutritionHistory, setNutritionHistory] = useState(readNutritionHistory);
+  const [coachNutritionNotes, setCoachNutritionNotes] = useState(readCoachNutritionNotes);
+  const [reviewStatus, setReviewStatus] = useState("");
+
+  const savedTargets = Array.isArray(nutritionHistory.targets) ? nutritionHistory.targets : [];
+  const savedMeals = Array.isArray(nutritionHistory.meals) ? nutritionHistory.meals : [];
+
+  const latestTarget = savedTargets[0] || null;
+  const latestMeal = savedMeals[0] || null;
+
+  const alcoholMeals = savedMeals.filter((meal) =>
+    Array.isArray(meal.matches) &&
+    meal.matches.some((item) =>
+      String(item.category || "").toLowerCase() === "alcohol" ||
+      /beer|vodka|whiskey|tequila|malt liquor|seltzer|wine|cocktail|margarita/i.test(String(item.name || ""))
+    )
+  );
+
+  const liquidCalorieMeals = savedMeals.filter((meal) =>
+    Array.isArray(meal.matches) &&
+    meal.matches.some((item) =>
+      /sweet tea|kool-aid|koolaid|soda|juice|lemonade|energy drink|frappuccino|chocolate milk/i.test(String(item.name || ""))
+    )
+  );
+
+  const convenienceMeals = savedMeals.filter((meal) =>
+    Array.isArray(meal.matches) &&
+    meal.matches.some((item) =>
+      /Convenience|Snack|Fast Food/i.test(String(item.category || ""))
+    )
+  );
+
+  const highCalorieMeals = savedMeals.filter((meal) => Number(meal.calories) >= 800);
+
+  function refreshNutritionReview() {
+    setNutritionHistory(readNutritionHistory());
+    setReviewStatus("Nutrition review refreshed.");
+  }
+
+  function saveCoachNutritionNotes() {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(COACH_NUTRITION_NOTES_STORAGE_KEY, coachNutritionNotes);
+      } catch {
+        // Ignore local storage failures in restricted browser modes.
+      }
+    }
+
+    setReviewStatus("Coach nutrition notes saved.");
+  }
+
+  return (
+    <section
+      data-testid="coach-nutrition-review-panel"
+      aria-label="Coach nutrition review"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-black/60 p-5 shadow-xl shadow-black/30"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Nutrition Review
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Client Nutrition Activity
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/60">
+            Review saved macro targets, meals, alcohol/liquid-calorie flags, convenience-food patterns, and coach notes.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={refreshNutritionReview}
+          className="w-fit rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+        >
+          Refresh Nutrition Review
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-5">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Saved Targets</p>
+          <p className="mt-1 text-3xl font-black text-white">{savedTargets.length}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Saved Meals</p>
+          <p className="mt-1 text-3xl font-black text-white">{savedMeals.length}</p>
+        </div>
+        <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4">
+          <p className="text-xs font-black uppercase text-yellow-100/70">Liquid Calories</p>
+          <p className="mt-1 text-3xl font-black text-white">{liquidCalorieMeals.length}</p>
+        </div>
+        <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4">
+          <p className="text-xs font-black uppercase text-red-100/70">Alcohol Logs</p>
+          <p className="mt-1 text-3xl font-black text-white">{alcoholMeals.length}</p>
+        </div>
+        <div className="rounded-2xl border border-orange-400/20 bg-orange-400/10 p-4">
+          <p className="text-xs font-black uppercase text-orange-100/70">High-Cal Meals</p>
+          <p className="mt-1 text-3xl font-black text-white">{highCalorieMeals.length}</p>
+        </div>
+      </div>
+
+      {latestTarget ? (
+        <div
+          data-testid="coach-latest-nutrition-target"
+          className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Latest Macro Target
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">
+            {latestTarget.goalLabel || "Nutrition Target"} — {latestTarget.dailyCalories} calories
+          </h4>
+          <div className="mt-3 grid gap-3 md:grid-cols-4">
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Protein: {latestTarget.protein}g
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Carbs: {latestTarget.carbs}g
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Fats: {latestTarget.fat}g
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Maintenance: {latestTarget.maintenanceCalories || "—"}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm font-bold text-white/45">
+          No saved macro targets yet. Ask the client to use Nutrition Coach and save a target.
+        </p>
+      )}
+
+      {latestMeal ? (
+        <div
+          data-testid="coach-latest-meal-review"
+          className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+            Latest Meal Estimate
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">
+            {latestMeal.title || "Meal Estimate"} — {latestMeal.calories} calories
+          </h4>
+          <div className="mt-3 grid gap-3 md:grid-cols-4">
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Protein: {latestMeal.protein}g
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Carbs: {latestMeal.carbs}g
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Fats: {latestMeal.fat}g
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Confidence: {latestMeal.confidence || "—"}
+            </p>
+          </div>
+
+          {Array.isArray(latestMeal.matches) && latestMeal.matches.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/45">
+                Matched Items
+              </p>
+              <div className="mt-3 grid gap-2">
+                {latestMeal.matches.slice(0, 6).map((item, index) => (
+                  <p
+                    key={item.id || item.name || index}
+                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm font-bold text-white/65"
+                  >
+                    <span className="text-white">{item.name}</span>
+                    <span className="text-white/40"> — {item.calories} cal | {item.category || "Food"}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm font-bold text-white/45">
+          No saved meal estimates yet. Ask the client to log and save meals.
+        </p>
+      )}
+
+      {(alcoholMeals.length > 0 || liquidCalorieMeals.length > 0 || convenienceMeals.length > 0 || highCalorieMeals.length > 0) && (
+        <div
+          data-testid="coach-nutrition-flags"
+          className="mt-5 rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/70">
+            Coach Review Flags
+          </p>
+          <div className="mt-3 grid gap-2">
+            {alcoholMeals.length > 0 && (
+              <p className="rounded-2xl border border-red-400/20 bg-red-400/10 p-3 text-sm font-bold text-red-100/80">
+                Alcohol appears in {alcoholMeals.length} saved meal log(s). Review sleep, recovery, calories, and consistency.
+              </p>
+            )}
+            {liquidCalorieMeals.length > 0 && (
+              <p className="rounded-2xl border border-yellow-400/20 bg-black/30 p-3 text-sm font-bold text-yellow-100/80">
+                Liquid calories appear in {liquidCalorieMeals.length} saved meal log(s). Review sweet tea, soda, juice, coffee drinks, and energy drinks.
+              </p>
+            )}
+            {convenienceMeals.length > 0 && (
+              <p className="rounded-2xl border border-orange-400/20 bg-black/30 p-3 text-sm font-bold text-orange-100/80">
+                Convenience or snack foods appear in {convenienceMeals.length} saved meal log(s). Check label accuracy and serving sizes.
+              </p>
+            )}
+            {highCalorieMeals.length > 0 && (
+              <p className="rounded-2xl border border-white/10 bg-black/30 p-3 text-sm font-bold text-white/70">
+                {highCalorieMeals.length} meal log(s) are 800+ calories. Review portion size and daily calorie fit.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+        <label className="block space-y-2">
+          <span className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+            Coach Nutrition Notes
+          </span>
+          <textarea
+            aria-label="Coach Nutrition Notes"
+            value={coachNutritionNotes}
+            onChange={(event) => setCoachNutritionNotes(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Example: Reduce sweet drinks to weekends only. Keep protein at each meal. Review alcohol logs before next check-in."
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={saveCoachNutritionNotes}
+          className="mt-4 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+        >
+          Save Coach Nutrition Notes
+        </button>
+      </div>
+
+      {reviewStatus && (
+        <p
+          data-testid="coach-nutrition-review-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {reviewStatus}
+        </p>
+      )}
+    </section>
+  );
+}
+
+
 function ClientPortalMyPlanPanel({
   clients,
   savedPlans,
@@ -6671,6 +6958,8 @@ function CoachScreen({
             )}
           </div>
         </section>
+
+      <CoachNutritionReviewPanel />
 
         <section
           data-testid="coach-client-profile-hub"

@@ -314,3 +314,60 @@ test.describe("Coach/client assignment data coverage", () => {
   });
 
 });
+
+test("coach can review saved nutrition targets meals and notes", async ({ page }) => {
+  await page.goto("/?testUnlock=true&portalMode=client");
+
+  await page
+    .getByRole("navigation", { name: /Main navigation/i })
+    .first()
+    .getByRole("button", { name: "Nutrition Coach", exact: true })
+    .click();
+
+  const nutritionCoachWindow = page.getByTestId("nutrition-coach-window").last();
+
+  await nutritionCoachWindow.getByRole("button", { name: /Build My Target/i }).click();
+
+  await page.getByLabel("Nutrition Goal").selectOption("fat-loss");
+  await page.getByLabel("Body Weight").fill("200");
+  await page.getByLabel("Height Feet").fill("5");
+  await page.getByLabel("Height Inches").fill("11");
+  await page.getByLabel("Age").fill("35");
+  await page.getByLabel("Gender Formula").selectOption("male");
+  await page.getByLabel("Activity Level").selectOption("high");
+  await page.getByRole("button", { name: "Calculate Targets" }).click();
+  await page.getByRole("button", { name: "Save Macro Target" }).click();
+
+  await expect(page.getByTestId("nutrition-save-status")).toContainText("Macro target saved");
+
+  await page.getByRole("button", { name: "Start Over" }).click();
+  await nutritionCoachWindow.getByRole("button", { name: /Check What I Ate/i }).click();
+
+  await page
+    .getByLabel("Meal Description")
+    .fill("moderate sweet tea, 2 beers, ramen noodles, chips, and pizza rolls");
+
+  await page.getByRole("button", { name: "Estimate Meal" }).click();
+  await page.getByRole("button", { name: "Save Meal Estimate" }).click();
+
+  await expect(page.getByTestId("nutrition-save-status")).toContainText("Meal estimate saved");
+
+  await page.goto("/?testUnlock=true&portalMode=coach");
+
+  await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  const reviewPanel = page.getByTestId("coach-nutrition-review-panel");
+
+  await expect(reviewPanel).toBeVisible();
+  await expect(reviewPanel).toContainText("Client Nutrition Activity");
+  await expect(page.getByTestId("coach-latest-nutrition-target")).toContainText("Weight Loss");
+  await expect(page.getByTestId("coach-latest-meal-review")).toContainText("Meal");
+  await expect(page.getByTestId("coach-nutrition-flags")).toContainText("Alcohol appears");
+  await expect(page.getByTestId("coach-nutrition-flags")).toContainText("Liquid calories");
+
+  await page.getByLabel("Coach Nutrition Notes").fill("Review sweet drinks, alcohol logs, and protein consistency next check-in.");
+  await page.getByRole("button", { name: "Save Coach Nutrition Notes" }).click();
+
+  await expect(page.getByTestId("coach-nutrition-review-status")).toContainText("Coach nutrition notes saved");
+});
+
