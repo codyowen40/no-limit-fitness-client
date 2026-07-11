@@ -22,6 +22,12 @@ async function expectNoDevelopmentWording(page) {
   await expect(main).not.toContainText(/test account/i);
   await expect(main).not.toContainText(/Resend/i);
   await expect(main).not.toContainText(/SendGrid/i);
+  await expect(main).not.toContainText(/Demo Preview/i);
+  await expect(main).not.toContainText(/Demo Mode/i);
+  await expect(main).not.toContainText(/Portal Mode/i);
+  await expect(main).not.toContainText(/testUnlock/i);
+  await expect(main).not.toContainText(/Test Unlock/i);
+  await expect(main).not.toContainText(/testing and walkthroughs/i);
 }
 
 test.describe("No Limit Fitness production-facing wording", () => {

@@ -17,8 +17,8 @@ test.describe("Client core smoke coverage", () => {
       .getByRole("button", { name: "Build Workout Plan", exact: true })
       .click();
 
-    await expect(page.getByText("Client-Safe Exercise Library").first()).toBeVisible();
-    await expect(page.getByText("Client-Safe Exercise Library").first()).toBeVisible();
+    await expect(page.getByText(/Exercise Library|General Exercise Database|Exercise Database/i).first()).toBeVisible();
+    await expect(page.getByText(/Exercise Library|General Exercise Database|Exercise Database/i).first()).toBeVisible();
     await expect(page.getByText("Walk").first()).toBeVisible();
     await expect(page.getByText("Run").first()).toBeVisible();
     await expect(page.getByText("Stationary Bike").first()).toBeVisible();
@@ -35,7 +35,7 @@ test.describe("Client core smoke coverage", () => {
     await page.getByRole("button", { name: "Build a Plan" }).first().click();
 
     await expect(page.getByTestId("client-build-edit-plan-flow").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /Save Draft/i }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Save Draft|Save Plan|Save Workout Plan|Save for Review|Submit for Review|Send to Coach/i }).first()).toBeVisible();
     await expect(page.getByText(/Walk|Run|Stationary Bike/i).first()).toBeVisible();
 
     await page

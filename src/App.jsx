@@ -472,7 +472,7 @@ const exerciseLibrary = [
 
 const starterClients = [
   { id: "client-1", name: "Sample Client", email: "client@example.com", status: "Active", coachId: "coach-primary", coachName: "No Limit Coach", coachingStatus: "assigned" },
-  { id: "client-2", name: "Athlete Demo", email: "athlete@example.com", status: "Active", coachId: "coach-primary", coachName: "No Limit Coach", coachingStatus: "assigned" },
+  { id: "client-2", name: "Athlete Client", email: "athlete@example.com", status: "Active", coachId: "coach-primary", coachName: "No Limit Coach", coachingStatus: "assigned" },
 ];
 
 const starterConversations = [
@@ -502,7 +502,7 @@ const starterConversations = [
   },
   {
     clientId: "client-2",
-    clientName: "Athlete Demo",
+    clientName: "Athlete Client",
     messages: [
       {
         id: "msg-3",
@@ -821,20 +821,7 @@ function hasCurrentTestUnlockUrl() {
 }
 
 const PORTAL_VISIBLE_TABS_BY_MODE = {
-  demo: [
-    "Home",
-    "Client",
-    "Coach",
-    "Clients",
-    "Plans",
-    "Tracker",
-    "Messages",
-    "Exercises",
-    "Progress",
-    "Login",
-  ],
-  coach: ["Client", 
-    "Home",
+  coach: [
     "Coach",
     "Clients",
     "Plans",
@@ -848,7 +835,6 @@ const PORTAL_VISIBLE_TABS_BY_MODE = {
 };
 
 const PORTAL_LANDING_TAB_BY_MODE = {
-  demo: "Home",
   coach: "Coach",
   client: "Client",
 };
@@ -856,7 +842,7 @@ const PORTAL_LANDING_TAB_BY_MODE = {
 function getRequestedTestUnlockPortalMode() {
   if (typeof window === "undefined") return PUBLIC_PORTAL_MODE;
 
-  const validModes = ["demo", "coach", "client"];
+  const validModes = ["coach", "client"];
 
   try {
     const params = new URLSearchParams(window.location.search);
@@ -880,7 +866,6 @@ function getRequestedTestUnlockPortalMode() {
 
 function getInitialTabForPortalMode(mode) {
   if (mode === "coach") return "Coach";
-  if (mode === "demo") return "Home";
   return "Client";
 }
 
@@ -958,7 +943,7 @@ function getInitialPortalMode() {
       window.localStorage.getItem(PORTAL_MODE_STORAGE_KEY) || ""
     ).toLowerCase();
 
-    const validModes = ["demo", "coach", "client"];
+    const validModes = ["coach", "client"];
 
     if (validModes.includes(requestedMode)) return requestedMode;
     if (validModes.includes(savedMode)) return savedMode;
@@ -975,82 +960,13 @@ function getInitialPortalMode() {
 
 
 
-function PortalModeControls({ portalMode, setPortalMode, setActiveTab }) {
-  const modeLabel =
-    portalMode === "coach"
-      ? "Coach Portal"
-      : portalMode === "client"
-        ? "Client Portal"
-        : "Demo Preview";
-
-  const description =
-    portalMode === "coach"
-      ? "Coach view focuses on clients, plans, logs, messages, progress, and server tools."
-      : portalMode === "client"
-        ? "Client view focuses on assigned workouts, tracking, messages, and personal progress."
-        : "Demo preview keeps every tab visible for testing and walkthroughs.";
-
-  const options = [
-    { id: "demo", label: "Demo Preview" },
-    { id: "coach", label: "Coach Portal" },
-    { id: "client", label: "Client Portal" },
-  ];
-
-  function selectPortalMode(nextMode) {
-    try {
-      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, nextMode);
-    } catch {
-      // LocalStorage can fail in restricted browser modes.
-    }
-
-    setPortalMode(nextMode);
-    setActiveTab(PORTAL_LANDING_TAB_BY_MODE[nextMode] || "Home");
-  }
-
-  return (
-    <section
-      aria-label="Portal mode controls"
-      className="mx-auto mt-4 max-w-7xl rounded-2xl border border-[#00BF63]/30 bg-black/70 p-4 shadow-2xl shadow-black/40 backdrop-blur"
-    >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
-            Portal Mode
-          </p>
-          <h2 className="mt-1 text-xl font-black text-white">
-            {modeLabel} Active
-          </h2>
-          <p className="mt-1 max-w-3xl text-sm text-zinc-300">{description}</p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {options.map((option) => {
-            const isActive = portalMode === option.id;
-
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => selectPortalMode(option.id)}
-                className={
-                  isActive
-                    ? "rounded-full bg-[#00BF63] px-4 py-2 text-sm font-black uppercase text-black"
-                    : "rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
-                }
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
+function PortalModeControls() {
+  return null;
 }
 
 // NLF_COACH_ASSIGNMENT_HELPERS_START
 const NLF_COACH_ASSIGNMENT = {
-  coachId: "coach-demo",
+  coachId: "coach-primary",
   coachName: "Coach",
 };
 
