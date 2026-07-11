@@ -1750,6 +1750,123 @@ function ClientApprovedWorkoutPlanPanel() {
 
 function NutritionCoachScreen() {
   const [nutritionMode, setNutritionMode] = useState("");
+  const [bodyWeight, setBodyWeight] = useState("180");
+  const [goal, setGoal] = useState("maintain");
+  const [trainingDays, setTrainingDays] = useState("4");
+  const [activityLevel, setActivityLevel] = useState("moderate");
+  const [targetResult, setTargetResult] = useState(null);
+  const [mealText, setMealText] = useState("");
+  const [mealResult, setMealResult] = useState(null);
+
+  function calculateTargets(event) {
+    event.preventDefault();
+
+    const weight = Math.max(Number(bodyWeight) || 0, 1);
+    const days = Math.max(Number(trainingDays) || 0, 0);
+
+    const activityMultiplier =
+      activityLevel === "high" ? 16 : activityLevel === "low" ? 12 : 14;
+
+    const goalAdjustment =
+      goal === "fat-loss" ? -350 : goal === "muscle-gain" ? 250 : 0;
+
+    const dailyCalories = Math.round(weight * activityMultiplier + goalAdjustment);
+    const protein = Math.round(weight * (goal === "muscle-gain" ? 1 : 0.85));
+    const fat = Math.round(weight * 0.35);
+    const carbs = Math.max(
+      Math.round((dailyCalories - protein * 4 - fat * 9) / 4),
+      0
+    );
+
+    const coachNote =
+      goal === "fat-loss"
+        ? "Start with a small deficit, keep protein high, and adjust after 2 weeks of weigh-ins."
+        : goal === "muscle-gain"
+          ? "Start with a controlled surplus and track strength, body weight, and recovery."
+          : "Start near maintenance and adjust from weekly progress, energy, and workout performance.";
+
+    setTargetResult({
+      dailyCalories,
+      protein,
+      carbs,
+      fat,
+      trainingDays: days,
+      coachNote,
+    });
+  }
+
+  function estimateMeal(event) {
+    event.preventDefault();
+
+    const text = mealText.trim();
+    const lowerText = text.toLowerCase();
+
+    if (!text) {
+      setMealResult({
+        title: "Add a meal first",
+        calories: "—",
+        protein: "—",
+        carbs: "—",
+        fat: "—",
+        coachTip: "Enter the foods, portions, sauces, and drinks so the estimate is useful.",
+      });
+      return;
+    }
+
+    let calories = 350;
+    let protein = 20;
+    let carbs = 35;
+    let fat = 12;
+
+    if (/chicken|turkey|fish|tuna|salmon|steak|beef|eggs|egg|protein|greek yogurt|yogurt/i.test(text)) {
+      protein += 25;
+      calories += 160;
+    }
+
+    if (/rice|pasta|bread|potato|tortilla|oats|cereal|fries|chips|beans|fruit/i.test(text)) {
+      carbs += 35;
+      calories += 180;
+    }
+
+    if (/cheese|oil|butter|mayo|avocado|nuts|peanut|sauce|ranch|cream/i.test(text)) {
+      fat += 14;
+      calories += 170;
+    }
+
+    if (/large|double|extra|big|bowl|plate/i.test(text)) {
+      calories += 200;
+      protein += 8;
+      carbs += 18;
+      fat += 6;
+    }
+
+    if (/salad|vegetable|veggies|broccoli|spinach|greens/i.test(text)) {
+      carbs += 8;
+      calories += 60;
+    }
+
+    const coachTip =
+      lowerText.includes("sauce") || lowerText.includes("oil") || lowerText.includes("mayo")
+        ? "Sauces and oils can change the total fast. Log them separately when possible."
+        : protein < 35
+          ? "This meal may need more protein if it is meant to support training recovery."
+          : "This looks like a solid training meal. Match portions to the client’s goal.";
+
+    setMealResult({
+      title: "Meal Estimate",
+      calories,
+      protein,
+      carbs,
+      fat,
+      coachTip,
+    });
+  }
+
+  function resetNutritionMode() {
+    setNutritionMode("");
+    setTargetResult(null);
+    setMealResult(null);
+  }
 
   return (
     <section
@@ -1765,7 +1882,7 @@ function NutritionCoachScreen() {
           Build your target. Check your meals. Stay consistent.
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
-          A simple nutrition tool for daily calories, macros, and meal feedback.
+          A simple nutrition tool for daily calories, macros, meal estimates, and coach-friendly feedback.
         </p>
       </div>
 
@@ -1774,77 +1891,216 @@ function NutritionCoachScreen() {
           <button
             type="button"
             aria-label="Build My Target"
-            onClick={() => setNutritionMode("target")}
+            onClick={() => {
+              setNutritionMode("target");
+              setTargetResult(null);
+            }}
             className="rounded-3xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-5 text-left transition hover:border-[#00BF63] hover:bg-[#00BF63]/15"
           >
             <span className="block text-lg font-black uppercase text-white">
               Build My Target
             </span>
             <span className="mt-2 block text-sm leading-6 text-white/65">
-              Calculate your daily calories, protein, carbs, and fats.
+              Calculate daily calories, protein, carbs, and fats from body weight, goal, and training frequency.
             </span>
           </button>
 
           <button
             type="button"
             aria-label="Check What I Ate"
-            onClick={() => setNutritionMode("meal")}
+            onClick={() => {
+              setNutritionMode("meal");
+              setMealResult(null);
+            }}
             className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 text-left transition hover:border-[#00BF63]/60 hover:bg-white/[0.06]"
           >
             <span className="block text-lg font-black uppercase text-white">
               Check What I Ate
             </span>
             <span className="mt-2 block text-sm leading-6 text-white/65">
-              Estimate calories and macros from a meal or snack.
+              Estimate calories and macros from a meal, then get a simple coach tip.
             </span>
           </button>
         </div>
       )}
 
       {nutritionMode === "target" && (
-        <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+        <form
+          data-testid="macro-target-calculator"
+          onSubmit={calculateTargets}
+          className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+        >
           <button
             type="button"
-            onClick={() => setNutritionMode("")}
+            onClick={resetNutritionMode}
             className="mb-4 rounded-full border border-white/10 px-4 py-2 text-xs font-black uppercase text-white/70"
           >
             Start Over
           </button>
-          <h3 className="text-xl font-black uppercase text-white">Macro Target Starter</h3>
+
+          <h3 className="text-xl font-black uppercase text-white">Macro Target Calculator</h3>
           <p className="mt-2 text-sm leading-6 text-white/65">
-            Start with body weight, goal, training days, and consistency. Use this as a coach-reviewed starting point, then adjust from weekly progress.
+            Start with a practical estimate, then adjust based on weekly progress, adherence, and training performance.
           </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 p-4">
-              <p className="text-xs font-black uppercase text-[#00BF63]">Protein</p>
-              <p className="mt-1 text-sm text-white/70">0.7 - 1.0g per lb of goal body weight</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 p-4">
-              <p className="text-xs font-black uppercase text-[#00BF63]">Carbs</p>
-              <p className="mt-1 text-sm text-white/70">Higher around training, lower on rest days if needed</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 p-4">
-              <p className="text-xs font-black uppercase text-[#00BF63]">Fats</p>
-              <p className="mt-1 text-sm text-white/70">Keep steady for hormones, recovery, and adherence</p>
-            </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-4">
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/50">Body Weight</span>
+              <input
+                aria-label="Body Weight"
+                value={bodyWeight}
+                onChange={(event) => setBodyWeight(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                placeholder="180"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/50">Goal</span>
+              <select
+                aria-label="Nutrition Goal"
+                value={goal}
+                onChange={(event) => setGoal(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              >
+                <option value="fat-loss">Fat Loss</option>
+                <option value="maintain">Maintain</option>
+                <option value="muscle-gain">Muscle Gain</option>
+              </select>
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/50">Training Days</span>
+              <input
+                aria-label="Training Days"
+                value={trainingDays}
+                onChange={(event) => setTrainingDays(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                placeholder="4"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-black uppercase text-white/50">Activity</span>
+              <select
+                aria-label="Activity Level"
+                value={activityLevel}
+                onChange={(event) => setActivityLevel(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              >
+                <option value="low">Low</option>
+                <option value="moderate">Moderate</option>
+                <option value="high">High</option>
+              </select>
+            </label>
           </div>
-        </div>
+
+          <button
+            type="submit"
+            className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+          >
+            Calculate Targets
+          </button>
+
+          {targetResult && (
+            <div
+              data-testid="nutrition-target-result"
+              className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"
+            >
+              <h4 className="text-lg font-black uppercase text-white">Daily Nutrition Targets</h4>
+              <div className="mt-4 grid gap-3 md:grid-cols-4">
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Daily Calories</p>
+                  <p className="mt-1 text-2xl font-black text-white">{targetResult.dailyCalories}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Protein Goal</p>
+                  <p className="mt-1 text-2xl font-black text-white">{targetResult.protein}g</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Carbs</p>
+                  <p className="mt-1 text-2xl font-black text-white">{targetResult.carbs}g</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Fats</p>
+                  <p className="mt-1 text-2xl font-black text-white">{targetResult.fat}g</p>
+                </div>
+              </div>
+              <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+                Coach Tip: {targetResult.coachNote}
+              </p>
+            </div>
+          )}
+        </form>
       )}
 
       {nutritionMode === "meal" && (
-        <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+        <form
+          data-testid="meal-check-estimator"
+          onSubmit={estimateMeal}
+          className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+        >
           <button
             type="button"
-            onClick={() => setNutritionMode("")}
+            onClick={resetNutritionMode}
             className="mb-4 rounded-full border border-white/10 px-4 py-2 text-xs font-black uppercase text-white/70"
           >
             Start Over
           </button>
+
           <h3 className="text-xl font-black uppercase text-white">Meal Check</h3>
           <p className="mt-2 text-sm leading-6 text-white/65">
-            Enter the meal items, portion sizes, sauces, drinks, and cooking method. Keep it simple and close enough to support consistency.
+            Enter meal items, portion sizes, sauces, drinks, and cooking method. This gives a practical estimate for coaching conversations.
           </p>
-        </div>
+
+          <label className="mt-5 block space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Meal Description</span>
+            <textarea
+              aria-label="Meal Description"
+              value={mealText}
+              onChange={(event) => setMealText(event.target.value)}
+              className="min-h-32 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="Example: chicken bowl with rice, cheese, salsa, and avocado"
+            />
+          </label>
+
+          <button
+            type="submit"
+            className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+          >
+            Estimate Meal
+          </button>
+
+          {mealResult && (
+            <div
+              data-testid="meal-check-result"
+              className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"
+            >
+              <h4 className="text-lg font-black uppercase text-white">{mealResult.title}</h4>
+              <div className="mt-4 grid gap-3 md:grid-cols-4">
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Calories</p>
+                  <p className="mt-1 text-2xl font-black text-white">{mealResult.calories}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Protein</p>
+                  <p className="mt-1 text-2xl font-black text-white">{mealResult.protein}g</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Carbs</p>
+                  <p className="mt-1 text-2xl font-black text-white">{mealResult.carbs}g</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <p className="text-xs font-black uppercase text-[#00BF63]">Fats</p>
+                  <p className="mt-1 text-2xl font-black text-white">{mealResult.fat}g</p>
+                </div>
+              </div>
+              <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+                Coach Tip: {mealResult.coachTip}
+              </p>
+            </div>
+          )}
+        </form>
       )}
     </section>
   );
