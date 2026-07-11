@@ -462,3 +462,97 @@ test("coach can save weekly nutrition check-in report", async ({ page }) => {
 
   await expect(page.getByTestId("weekly-nutrition-checkin-status")).toContainText("Weekly nutrition check-in saved");
 });
+﻿
+test("client weekly check-in appears in coach nutrition review", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!window.location.search.includes("portalMode=coach")) {
+      window.localStorage.removeItem("nlf-client-weekly-checkins-v1");
+      window.localStorage.removeItem("nlf-coach-client-checkin-notes-v1");
+    }
+  });
+
+  await page.goto("/?testUnlock=true&portalMode=client");
+
+  await page
+    .getByRole("navigation", { name: /Main navigation/i })
+    .first()
+    .getByRole("button", { name: "Nutrition Coach", exact: true })
+    .click();
+
+  const clientCheckInForm = page.getByTestId("client-weekly-checkin-form").first();
+
+  await expect(clientCheckInForm).toBeVisible();
+
+  await clientCheckInForm.getByLabel("Client Check-In Weight").fill("198.4");
+  await clientCheckInForm.getByLabel("Client Waist Measurement").fill("34.5");
+  await clientCheckInForm.getByLabel("Weekly Adherence Score").selectOption("75");
+  await clientCheckInForm.getByLabel("Weekly Workouts Completed").fill("4");
+  await clientCheckInForm.getByLabel("Weekly Protein Consistency").selectOption("4");
+  await clientCheckInForm.getByLabel("Weekly Hunger Score").selectOption("4");
+  await clientCheckInForm.getByLabel("Weekly Energy Score").selectOption("2");
+  await clientCheckInForm.getByLabel("Weekly Sleep Score").selectOption("2");
+  await clientCheckInForm.getByLabel("Weekly Stress Score").selectOption("4");
+  await clientCheckInForm.getByLabel("Weekly Recovery Score").selectOption("2");
+  await clientCheckInForm.getByLabel("Front Progress Photo Note").fill("Front photo uploaded and waist looks tighter.");
+  await clientCheckInForm.getByLabel("Side Progress Photo Note").fill("Side photo uploaded.");
+  await clientCheckInForm.getByLabel("Back Progress Photo Note").fill("Back photo uploaded.");
+  await clientCheckInForm
+    .getByRole("textbox", { name: "Client Weekly Check-In Notes", exact: true })
+    .fill("Energy was low, hunger was high, and sleep was rough this week.");
+
+  await clientCheckInForm.getByRole("button", { name: "Save Weekly Client Check-In" }).click();
+
+  await expect(page.getByTestId("client-weekly-checkin-status").first()).toContainText("Weekly client check-in saved");
+  await expect(page.getByTestId("client-latest-weekly-checkin").first()).toContainText("198.4");
+
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      "nlf-client-weekly-checkins-v1",
+      JSON.stringify([
+        {
+          id: "client-weekly-checkin-test",
+          checkInDate: "2026-07-11",
+          checkInWeight: "198.4",
+          waistMeasurement: "34.5",
+          adherenceScore: "75",
+          workoutsCompleted: "4",
+          proteinConsistency: "4",
+          hungerScore: "4",
+          energyScore: "2",
+          sleepScore: "2",
+          stressScore: "4",
+          digestionScore: "3",
+          recoveryScore: "2",
+          clientCheckInNotes: "Energy was low, hunger was high, and sleep was rough this week.",
+          frontPhotoNote: "Front photo uploaded and waist looks tighter.",
+          sidePhotoNote: "Side photo uploaded.",
+          backPhotoNote: "Back photo uploaded.",
+          savedAt: "Test check-in"
+        }
+      ])
+    );
+  });
+
+  await page.goto("/?testUnlock=true&portalMode=coach");
+
+  await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+
+  const coachCheckInPanel = page.getByTestId("coach-client-weekly-checkin-panel").first();
+
+  await expect(coachCheckInPanel).toBeVisible();
+  await expect(coachCheckInPanel).toContainText("Weekly Client Feedback");
+  await expect(coachCheckInPanel).toContainText("198.4");
+  await expect(coachCheckInPanel).toContainText("Front photo uploaded");
+  await expect(coachCheckInPanel).toContainText("Hunger is high");
+  await expect(coachCheckInPanel).toContainText("Energy is low");
+  await expect(coachCheckInPanel).toContainText("Sleep score is poor");
+  await expect(coachCheckInPanel).toContainText("Progress photo notes were logged");
+
+  await coachCheckInPanel
+    .getByRole("textbox", { name: "Coach Client Check-In Notes", exact: true })
+    .fill("Keep calories steady this week and fix sleep before adjusting macros.");
+
+  await coachCheckInPanel.getByRole("button", { name: "Save Coach Check-In Notes" }).click();
+
+  await expect(page.getByTestId("coach-client-checkin-status").first()).toContainText("Coach check-in notes saved");
+});

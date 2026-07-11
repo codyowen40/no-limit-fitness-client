@@ -1748,6 +1748,341 @@ function ClientApprovedWorkoutPlanPanel() {
   );
 }
 
+﻿function ClientWeeklyNutritionCheckInForm() {
+  const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
+
+  function readClientCheckIns() {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const raw = window.localStorage.getItem(CLIENT_WEEKLY_CHECKINS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function getTodayDate() {
+    try {
+      return new Date().toISOString().slice(0, 10);
+    } catch {
+      return "";
+    }
+  }
+
+  const [checkIns, setCheckIns] = useState(readClientCheckIns);
+  const [checkInDate, setCheckInDate] = useState(getTodayDate);
+  const [checkInWeight, setCheckInWeight] = useState("");
+  const [waistMeasurement, setWaistMeasurement] = useState("");
+  const [adherenceScore, setAdherenceScore] = useState("80");
+  const [workoutsCompleted, setWorkoutsCompleted] = useState("3");
+  const [proteinConsistency, setProteinConsistency] = useState("3");
+  const [hungerScore, setHungerScore] = useState("3");
+  const [energyScore, setEnergyScore] = useState("3");
+  const [sleepScore, setSleepScore] = useState("3");
+  const [stressScore, setStressScore] = useState("3");
+  const [digestionScore, setDigestionScore] = useState("3");
+  const [recoveryScore, setRecoveryScore] = useState("3");
+  const [clientCheckInNotes, setClientCheckInNotes] = useState("");
+  const [frontPhotoNote, setFrontPhotoNote] = useState("");
+  const [sidePhotoNote, setSidePhotoNote] = useState("");
+  const [backPhotoNote, setBackPhotoNote] = useState("");
+  const [checkInStatus, setCheckInStatus] = useState("");
+
+  function saveClientCheckIns(nextCheckIns) {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.localStorage.setItem(CLIENT_WEEKLY_CHECKINS_STORAGE_KEY, JSON.stringify(nextCheckIns));
+    } catch {
+      // Ignore local storage failures in restricted browser modes.
+    }
+  }
+
+  function saveClientWeeklyCheckIn(event) {
+    event.preventDefault();
+
+    const nextCheckIn = {
+      id: makeId("client-weekly-checkin"),
+      checkInDate,
+      checkInWeight,
+      waistMeasurement,
+      adherenceScore,
+      workoutsCompleted,
+      proteinConsistency,
+      hungerScore,
+      energyScore,
+      sleepScore,
+      stressScore,
+      digestionScore,
+      recoveryScore,
+      clientCheckInNotes,
+      frontPhotoNote,
+      sidePhotoNote,
+      backPhotoNote,
+      savedAt: new Date().toLocaleString(),
+    };
+
+    const nextCheckIns = [nextCheckIn, ...checkIns].slice(0, 12);
+
+    setCheckIns(nextCheckIns);
+    saveClientCheckIns(nextCheckIns);
+    setCheckInStatus("Weekly client check-in saved for coach review.");
+  }
+
+  const latestCheckIn = checkIns[0] || null;
+
+  return (
+    <section
+      data-testid="client-weekly-checkin-form"
+      aria-label="Client weekly nutrition check-in"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Weekly Client Check-In
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Weight, Habits, Recovery, And Photo Notes
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Save a weekly update so the coach can compare scale trend, adherence, hunger, sleep, recovery, and progress-photo notes.
+          </p>
+        </div>
+
+        <span className="w-fit rounded-full border border-white/10 bg-black/40 px-4 py-2 text-xs font-black uppercase text-white/55">
+          {checkIns.length} saved
+        </span>
+      </div>
+
+      <form onSubmit={saveClientWeeklyCheckIn} className="mt-5">
+        <div className="grid gap-3 md:grid-cols-4">
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Date</span>
+            <input
+              aria-label="Client Check-In Date"
+              value={checkInDate}
+              onChange={(event) => setCheckInDate(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="2026-07-11"
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Current Weight</span>
+            <input
+              aria-label="Client Check-In Weight"
+              value={checkInWeight}
+              onChange={(event) => setCheckInWeight(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="198.5"
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Waist</span>
+            <input
+              aria-label="Client Waist Measurement"
+              value={waistMeasurement}
+              onChange={(event) => setWaistMeasurement(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="34.5"
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Adherence</span>
+            <select
+              aria-label="Weekly Adherence Score"
+              value={adherenceScore}
+              onChange={(event) => setAdherenceScore(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            >
+              <option value="100">100%</option>
+              <option value="90">90%</option>
+              <option value="80">80%</option>
+              <option value="75">75%</option>
+              <option value="60">60%</option>
+              <option value="50">50%</option>
+              <option value="25">25%</option>
+            </select>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Workouts Done</span>
+            <input
+              aria-label="Weekly Workouts Completed"
+              value={workoutsCompleted}
+              onChange={(event) => setWorkoutsCompleted(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="3"
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Protein</span>
+            <select aria-label="Weekly Protein Consistency" value={proteinConsistency} onChange={(event) => setProteinConsistency(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]">
+              <option value="5">5 - excellent</option>
+              <option value="4">4 - good</option>
+              <option value="3">3 - okay</option>
+              <option value="2">2 - low</option>
+              <option value="1">1 - poor</option>
+            </select>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Hunger</span>
+            <select aria-label="Weekly Hunger Score" value={hungerScore} onChange={(event) => setHungerScore(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]">
+              <option value="1">1 - very low</option>
+              <option value="2">2 - low</option>
+              <option value="3">3 - normal</option>
+              <option value="4">4 - high</option>
+              <option value="5">5 - very high</option>
+            </select>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Energy</span>
+            <select aria-label="Weekly Energy Score" value={energyScore} onChange={(event) => setEnergyScore(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]">
+              <option value="5">5 - excellent</option>
+              <option value="4">4 - good</option>
+              <option value="3">3 - okay</option>
+              <option value="2">2 - low</option>
+              <option value="1">1 - very low</option>
+            </select>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Sleep</span>
+            <select aria-label="Weekly Sleep Score" value={sleepScore} onChange={(event) => setSleepScore(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]">
+              <option value="5">5 - excellent</option>
+              <option value="4">4 - good</option>
+              <option value="3">3 - okay</option>
+              <option value="2">2 - poor</option>
+              <option value="1">1 - very poor</option>
+            </select>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Stress</span>
+            <select aria-label="Weekly Stress Score" value={stressScore} onChange={(event) => setStressScore(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]">
+              <option value="1">1 - very low</option>
+              <option value="2">2 - low</option>
+              <option value="3">3 - normal</option>
+              <option value="4">4 - high</option>
+              <option value="5">5 - very high</option>
+            </select>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Digestion</span>
+            <select aria-label="Weekly Digestion Score" value={digestionScore} onChange={(event) => setDigestionScore(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]">
+              <option value="5">5 - excellent</option>
+              <option value="4">4 - good</option>
+              <option value="3">3 - okay</option>
+              <option value="2">2 - off</option>
+              <option value="1">1 - poor</option>
+            </select>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Recovery</span>
+            <select aria-label="Weekly Recovery Score" value={recoveryScore} onChange={(event) => setRecoveryScore(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]">
+              <option value="5">5 - excellent</option>
+              <option value="4">4 - good</option>
+              <option value="3">3 - okay</option>
+              <option value="2">2 - low</option>
+              <option value="1">1 - poor</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Front Photo Note</span>
+            <input
+              aria-label="Front Progress Photo Note"
+              value={frontPhotoNote}
+              onChange={(event) => setFrontPhotoNote(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="Front photo uploaded / looks leaner"
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Side Photo Note</span>
+            <input
+              aria-label="Side Progress Photo Note"
+              value={sidePhotoNote}
+              onChange={(event) => setSidePhotoNote(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="Side photo uploaded"
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase text-white/50">Back Photo Note</span>
+            <input
+              aria-label="Back Progress Photo Note"
+              value={backPhotoNote}
+              onChange={(event) => setBackPhotoNote(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+              placeholder="Back photo uploaded"
+            />
+          </label>
+        </div>
+
+        <label className="mt-5 block space-y-2">
+          <span className="text-xs font-black uppercase text-white/50">Client Notes</span>
+          <textarea
+            aria-label="Client Weekly Check-In Notes"
+            value={clientCheckInNotes}
+            onChange={(event) => setClientCheckInNotes(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="How did the week go? Any missed meals, hunger, alcohol, events, cravings, sleep issues, or schedule problems?"
+          />
+        </label>
+
+        <button
+          type="submit"
+          className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+        >
+          Save Weekly Client Check-In
+        </button>
+      </form>
+
+      {checkInStatus && (
+        <p
+          data-testid="client-weekly-checkin-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-black/40 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {checkInStatus}
+        </p>
+      )}
+
+      {latestCheckIn && (
+        <div
+          data-testid="client-latest-weekly-checkin"
+          className="mt-5 rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+            Latest Saved Check-In
+          </p>
+          <p className="mt-2 text-lg font-black text-white">
+            {latestCheckIn.checkInWeight || "—"} lb | {latestCheckIn.adherenceScore}% adherence | saved {latestCheckIn.savedAt}
+          </p>
+          <p className="mt-2 text-sm font-bold text-white/55">
+            Energy {latestCheckIn.energyScore}/5 | Sleep {latestCheckIn.sleepScore}/5 | Hunger {latestCheckIn.hungerScore}/5 | Recovery {latestCheckIn.recoveryScore}/5
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function NutritionCoachScreen() {
   const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
   const CUSTOM_FOODS_STORAGE_KEY = "nlf-custom-foods-v1";
@@ -2376,6 +2711,8 @@ function NutritionCoachScreen() {
           A practical nutrition tool with a searchable food database, manual label entry, custom foods, meal totals, and saved history.
         </p>
       </div>
+
+      <ClientWeeklyNutritionCheckInForm />
 
       {!nutritionMode && (
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -3176,6 +3513,276 @@ function NutritionCoachScreen() {
   );
 }
 
+﻿function CoachClientWeeklyCheckInPanel() {
+  const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
+  const COACH_CLIENT_CHECKIN_NOTES_STORAGE_KEY = "nlf-coach-client-checkin-notes-v1";
+
+  function readClientCheckIns() {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const raw = window.localStorage.getItem(CLIENT_WEEKLY_CHECKINS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function readCoachNotes() {
+    if (typeof window === "undefined") return "";
+
+    try {
+      return window.localStorage.getItem(COACH_CLIENT_CHECKIN_NOTES_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  const [clientCheckIns, setClientCheckIns] = useState(readClientCheckIns);
+  const [coachCheckInNotes, setCoachCheckInNotes] = useState(readCoachNotes);
+  const [coachCheckInStatus, setCoachCheckInStatus] = useState("");
+
+  const latestCheckIn = clientCheckIns[0] || null;
+  const previousCheckIn = clientCheckIns[1] || null;
+
+  const latestWeight = Number(latestCheckIn?.checkInWeight);
+  const previousWeight = Number(previousCheckIn?.checkInWeight);
+  const hasWeightChange = Number.isFinite(latestWeight) && Number.isFinite(previousWeight);
+  const weightChange = hasWeightChange ? Number((latestWeight - previousWeight).toFixed(1)) : 0;
+  const weightChangeLabel = !hasWeightChange
+    ? "Need 2 check-ins"
+    : weightChange < 0
+      ? Math.abs(weightChange).toFixed(1) + " lb down"
+      : weightChange > 0
+        ? weightChange.toFixed(1) + " lb up"
+        : "No change";
+
+  const lowAdherence = Number(latestCheckIn?.adherenceScore) < 75;
+  const highHunger = Number(latestCheckIn?.hungerScore) >= 4;
+  const lowEnergy = Number(latestCheckIn?.energyScore) <= 2;
+  const poorSleep = Number(latestCheckIn?.sleepScore) <= 2;
+  const highStress = Number(latestCheckIn?.stressScore) >= 4;
+  const lowRecovery = Number(latestCheckIn?.recoveryScore) <= 2;
+  const photoNotesLogged = Boolean(
+    latestCheckIn?.frontPhotoNote ||
+      latestCheckIn?.sidePhotoNote ||
+      latestCheckIn?.backPhotoNote
+  );
+
+  function refreshClientCheckIns() {
+    setClientCheckIns(readClientCheckIns());
+    setCoachCheckInStatus("Client weekly check-ins refreshed.");
+  }
+
+  function saveCoachClientCheckInNotes() {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(COACH_CLIENT_CHECKIN_NOTES_STORAGE_KEY, coachCheckInNotes);
+      } catch {
+        // Ignore local storage failures in restricted browser modes.
+      }
+    }
+
+    setCoachCheckInStatus("Coach check-in notes saved.");
+  }
+
+  return (
+    <section
+      data-testid="coach-client-weekly-checkin-panel"
+      aria-label="Coach client weekly check-in review"
+      className="mt-5 rounded-3xl border border-[#00BF63]/25 bg-black/60 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Client Check-In Review
+          </p>
+          <h3 className="mt-2 text-2xl font-black uppercase text-white">
+            Weekly Client Feedback
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/60">
+            Review the client’s weekly weight, adherence, hunger, energy, sleep, stress, recovery, and progress-photo notes.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={refreshClientCheckIns}
+          className="w-fit rounded-full border border-[#00BF63] px-5 py-3 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
+        >
+          Refresh Client Check-Ins
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Saved Check-Ins</p>
+          <p className="mt-1 text-3xl font-black text-white">{clientCheckIns.length}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Latest Weight</p>
+          <p className="mt-1 text-3xl font-black text-white">{latestCheckIn?.checkInWeight || "—"}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Weight Change</p>
+          <p className="mt-1 text-3xl font-black text-white">{weightChangeLabel}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-white/45">Adherence</p>
+          <p className="mt-1 text-3xl font-black text-white">{latestCheckIn?.adherenceScore || "—"}%</p>
+        </div>
+      </div>
+
+      {latestCheckIn ? (
+        <div
+          data-testid="coach-latest-client-checkin"
+          className="mt-5 rounded-3xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">
+            Latest Client Check-In
+          </p>
+          <h4 className="mt-2 text-xl font-black text-white">
+            {latestCheckIn.checkInDate || "Latest Week"} — {latestCheckIn.checkInWeight || "—"} lb
+          </h4>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-6">
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Protein {latestCheckIn.proteinConsistency}/5
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Hunger {latestCheckIn.hungerScore}/5
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Energy {latestCheckIn.energyScore}/5
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Sleep {latestCheckIn.sleepScore}/5
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Stress {latestCheckIn.stressScore}/5
+            </p>
+            <p className="rounded-2xl border border-white/10 bg-black/40 p-3 text-sm font-bold text-white/70">
+              Recovery {latestCheckIn.recoveryScore}/5
+            </p>
+          </div>
+
+          {latestCheckIn.clientCheckInNotes && (
+            <p className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm font-bold leading-6 text-white/70">
+              Client Notes: {latestCheckIn.clientCheckInNotes}
+            </p>
+          )}
+
+          {(latestCheckIn.frontPhotoNote || latestCheckIn.sidePhotoNote || latestCheckIn.backPhotoNote) && (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+                Progress Photo Notes
+              </p>
+              <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm font-bold text-white/60">
+                  Front: {latestCheckIn.frontPhotoNote || "—"}
+                </p>
+                <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm font-bold text-white/60">
+                  Side: {latestCheckIn.sidePhotoNote || "—"}
+                </p>
+                <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm font-bold text-white/60">
+                  Back: {latestCheckIn.backPhotoNote || "—"}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm font-bold text-white/45">
+          No client weekly check-ins saved yet.
+        </p>
+      )}
+
+      {(lowAdherence || highHunger || lowEnergy || poorSleep || highStress || lowRecovery || photoNotesLogged) && (
+        <div
+          data-testid="coach-client-checkin-flags"
+          className="mt-5 rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-5"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/70">
+            Client Check-In Flags
+          </p>
+
+          <div className="mt-3 grid gap-2">
+            {lowAdherence && (
+              <p className="rounded-2xl border border-orange-400/20 bg-black/30 p-3 text-sm font-bold text-orange-100/80">
+                Adherence is below 75%. Review barriers before changing calories.
+              </p>
+            )}
+            {highHunger && (
+              <p className="rounded-2xl border border-yellow-400/20 bg-black/30 p-3 text-sm font-bold text-yellow-100/80">
+                Hunger is high. Review protein, fiber, meal timing, sleep, and deficit size.
+              </p>
+            )}
+            {lowEnergy && (
+              <p className="rounded-2xl border border-red-400/20 bg-black/30 p-3 text-sm font-bold text-red-100/80">
+                Energy is low. Check sleep, recovery, calories, alcohol, and training load.
+              </p>
+            )}
+            {poorSleep && (
+              <p className="rounded-2xl border border-red-400/20 bg-black/30 p-3 text-sm font-bold text-red-100/80">
+                Sleep score is poor. Avoid aggressive adjustments until sleep improves.
+              </p>
+            )}
+            {highStress && (
+              <p className="rounded-2xl border border-yellow-400/20 bg-black/30 p-3 text-sm font-bold text-yellow-100/80">
+                Stress is high. Keep the plan simple and focus on consistency.
+              </p>
+            )}
+            {lowRecovery && (
+              <p className="rounded-2xl border border-orange-400/20 bg-black/30 p-3 text-sm font-bold text-orange-100/80">
+                Recovery is low. Review training volume, sleep, calories, and hydration.
+              </p>
+            )}
+            {photoNotesLogged && (
+              <p className="rounded-2xl border border-[#00BF63]/20 bg-black/30 p-3 text-sm font-bold text-[#00BF63]">
+                Progress photo notes were logged. Compare visual trend with scale and adherence before changing the plan.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+        <label className="block space-y-2">
+          <span className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+            Coach Check-In Notes
+          </span>
+          <textarea
+            aria-label="Coach Client Check-In Notes"
+            value={coachCheckInNotes}
+            onChange={(event) => setCoachCheckInNotes(event.target.value)}
+            className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+            placeholder="Example: Address sleep first, keep calories steady, and compare next progress photos before changing macros."
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={saveCoachClientCheckInNotes}
+          className="mt-4 rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+        >
+          Save Coach Check-In Notes
+        </button>
+      </div>
+
+      {coachCheckInStatus && (
+        <p
+          data-testid="coach-client-checkin-status"
+          className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-sm font-black text-[#00BF63]"
+        >
+          {coachCheckInStatus}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function CoachNutritionReviewPanel() {
   const NUTRITION_HISTORY_STORAGE_KEY = "nlf-nutrition-history-v1";
   const COACH_NUTRITION_NOTES_STORAGE_KEY = "nlf-coach-nutrition-review-notes-v1";
@@ -3311,6 +3918,8 @@ function CoachNutritionReviewPanel() {
       </div>
 
       <WeeklyNutritionCheckInReport nutritionHistory={nutritionHistory} />
+
+      <CoachClientWeeklyCheckInPanel />
 
       {latestTarget ? (
         <div
