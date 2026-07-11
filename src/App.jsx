@@ -3778,6 +3778,69 @@ const isLoggedIn =
     setTrackerMessage(`${log.dayName} workout log deleted locally.`);
   }
 
+  function saveCoachSessionForClient({
+    clientId,
+    exerciseName,
+    setsCompleted,
+    repsCompleted,
+    actualWeight,
+    notes,
+  }) {
+    const client = clients.find((item) => item.id === clientId) || clients[0] || {};
+    const clientPlans = savedPlans.filter(
+      (plan) => plan.clientId === client?.id || plan.clientName === client?.name
+    );
+    const activePlan = clientPlans[0] || null;
+    const now = new Date();
+
+    const cleanExerciseName = String(exerciseName || "").trim() || "Coach Logged Exercise";
+    const cleanSets = String(setsCompleted || "").trim() || "3";
+    const cleanReps = String(repsCompleted || "").trim() || "10";
+    const cleanWeight = String(actualWeight || "").trim();
+    const cleanNotes = String(notes || "").trim();
+
+    const newLog = {
+      id: makeId("coach-session-log"),
+      clientId: client?.id || clientId || "",
+      clientName: client?.name || "Client",
+      planId: activePlan?.id || "",
+      planName: activePlan?.planName || activePlan?.title || "Coach Logged Session",
+      dayId: "coach-session",
+      dayName: "Coach Logged Session",
+      status: "completed",
+      submittedAt: now.toLocaleString(),
+      timestamp: now.getTime(),
+      source: "Coach Session Logger",
+      loggedBy: "Coach",
+      coachLogged: true,
+      skipReason: "",
+      entries: [
+        {
+          exerciseId: "coach-session-exercise",
+          exerciseName: cleanExerciseName,
+          assignedSets: cleanSets,
+          assignedRepsOrTime: cleanReps,
+          assignedWeightGuidance: cleanWeight,
+          assignedRest: "",
+          actualWeight: cleanWeight,
+          setsCompleted: cleanSets,
+          repsCompleted: cleanReps,
+          timeCompleted: "",
+          restUsed: "",
+          substitution: "",
+          notes: cleanNotes || "Logged by coach during session.",
+        },
+      ],
+    };
+
+    setWorkoutLogs((current) => [newLog, ...current]);
+    setSelectedWorkoutLogId(newLog.id);
+    setSelectedClientProfileId(newLog.clientId);
+    setTrackerMessage("Coach session saved for " + newLog.clientName + ".");
+
+    return newLog;
+  }
+
   function selectConversation(clientId) {
     setSelectedConversationId(clientId);
     setMessageNotice("");
@@ -4520,6 +4583,7 @@ function handlePortalLogout() {
               selectedWorkoutLogId={selectedWorkoutLogId}
               setSelectedWorkoutLogId={setSelectedWorkoutLogId}
               deleteWorkoutLog={deleteWorkoutLog}
+              onSaveCoachSessionLog={saveCoachSessionForClient}
               unreadCoachCount={unreadCoachCount}
               unreadActivityCount={unreadActivityCount}
               activityFilter={activityFilter}
@@ -5304,6 +5368,7 @@ function CoachScreen({
   selectedWorkoutLogId,
   setSelectedWorkoutLogId,
   deleteWorkoutLog,
+  onSaveCoachSessionLog = () => {},
   unreadCoachCount = 0,
   unreadActivityCount = 0,
   activityFilter,
@@ -5315,6 +5380,12 @@ function CoachScreen({
   openPlansForClient = () => {},
 }) {
   const [selectedCoachClientId, setSelectedCoachClientId] = useState("");
+  const [coachSessionExercise, setCoachSessionExercise] = useState("Back Squat");
+  const [coachSessionSets, setCoachSessionSets] = useState("3");
+  const [coachSessionReps, setCoachSessionReps] = useState("10");
+  const [coachSessionWeight, setCoachSessionWeight] = useState("");
+  const [coachSessionNotes, setCoachSessionNotes] = useState("");
+  const [coachSessionStatus, setCoachSessionStatus] = useState("");
 
   const safeClients = Array.isArray(clients) ? clients : [];
   const safePlans = Array.isArray(savedPlans) ? savedPlans : [];
@@ -5461,6 +5532,31 @@ function CoachScreen({
       detail: message.body || "Message activity",
     })),
   ].slice(0, 8);
+
+  function handleCoachSessionSubmit(event) {
+    event.preventDefault();
+
+    if (!selectedClient) {
+      setCoachSessionStatus("Select a client before saving a coach session.");
+      return;
+    }
+
+    const savedLog = onSaveCoachSessionLog({
+      clientId: selectedClient.id,
+      exerciseName: coachSessionExercise,
+      setsCompleted: coachSessionSets,
+      repsCompleted: coachSessionReps,
+      actualWeight: coachSessionWeight,
+      notes: coachSessionNotes,
+    });
+
+    setCoachSessionStatus(
+      "Coach session saved for " +
+        (savedLog?.clientName || selectedClient.name || "client") +
+        ". Workout history and progress are updated."
+    );
+    setCoachSessionNotes("");
+  }
 
   return (
     <div>
@@ -5625,6 +5721,102 @@ function CoachScreen({
                   Coach-only notes can be connected to saved client records in the next database-backed phase.
                 </p>
               </div>
+
+              <form
+                data-testid="coach-session-logger"
+                onSubmit={handleCoachSessionSubmit}
+                className="rounded-2xl border border-[#00BF63]/25 bg-black/50 p-4"
+              >
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00BF63]">
+                      Coach Session Logger
+                    </p>
+                    <h4 className="mt-2 text-xl font-black uppercase text-white">
+                      Log Session For Client
+                    </h4>
+                    <p className="mt-2 text-sm leading-6 text-white/60">
+                      Record a coach-led workout, save it to this client’s history, and update their progress snapshot.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white/55">
+                    Coach logged
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <label className="space-y-2 md:col-span-2">
+                    <span className="text-xs font-black uppercase text-white/50">Exercise</span>
+                    <input
+                      aria-label="Coach session exercise"
+                      value={coachSessionExercise}
+                      onChange={(event) => setCoachSessionExercise(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                      placeholder="Back Squat"
+                    />
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-xs font-black uppercase text-white/50">Sets</span>
+                    <input
+                      aria-label="Coach session sets"
+                      value={coachSessionSets}
+                      onChange={(event) => setCoachSessionSets(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                      placeholder="3"
+                    />
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-xs font-black uppercase text-white/50">Reps</span>
+                    <input
+                      aria-label="Coach session reps"
+                      value={coachSessionReps}
+                      onChange={(event) => setCoachSessionReps(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                      placeholder="10"
+                    />
+                  </label>
+
+                  <label className="space-y-2 md:col-span-2">
+                    <span className="text-xs font-black uppercase text-white/50">Weight</span>
+                    <input
+                      aria-label="Coach session weight"
+                      value={coachSessionWeight}
+                      onChange={(event) => setCoachSessionWeight(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                      placeholder="135 lb"
+                    />
+                  </label>
+
+                  <label className="space-y-2 md:col-span-2">
+                    <span className="text-xs font-black uppercase text-white/50">Session Notes</span>
+                    <textarea
+                      aria-label="Coach session notes"
+                      value={coachSessionNotes}
+                      onChange={(event) => setCoachSessionNotes(event.target.value)}
+                      className="min-h-24 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-[#00BF63]"
+                      placeholder="Technique notes, pain flags, substitutions, or next-step adjustments."
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p
+                    data-testid="coach-session-status"
+                    aria-live="polite"
+                    className="text-sm font-bold text-white/65"
+                  >
+                    {coachSessionStatus || "Ready to save this session to the client profile."}
+                  </p>
+                  <button
+                    type="submit"
+                    className="rounded-full bg-[#00BF63] px-5 py-3 text-xs font-black uppercase text-black transition hover:bg-white"
+                  >
+                    Save Coach Session
+                  </button>
+                </div>
+              </form>
 
               <div className="flex flex-wrap gap-2">
                 <button

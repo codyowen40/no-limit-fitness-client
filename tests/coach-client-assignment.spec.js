@@ -274,4 +274,43 @@ test.describe("Coach/client assignment data coverage", () => {
     await expect(clientMain).not.toContainText("Coach Command Center");
   });
 
+  test("coach can log a client session from the client profile hub", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=coach");
+
+    await expect(page.getByText("Coach Command Center").first()).toBeVisible();
+    await expect(page.getByTestId("coach-session-logger")).toBeVisible();
+
+    await page.getByLabel("Coach session exercise").fill("Back Squat");
+    await page.getByLabel("Coach session sets").fill("4");
+    await page.getByLabel("Coach session reps").fill("8");
+    await page.getByLabel("Coach session weight").fill("185 lb");
+    await page.getByLabel("Coach session notes").fill("Coach logged session from the profile hub.");
+
+    await page.getByRole("button", { name: "Save Coach Session" }).click();
+
+    await expect(page.getByTestId("coach-session-status")).toContainText("Coach session saved");
+    await expect(page.locator("main")).toContainText("Coach Logged Session");
+    await expect(page.locator("main")).toContainText("Back Squat");
+
+    await expect
+      .poll(async () => {
+        const payload = await readSavedAppPayload(page);
+        return payload.state.workoutLogs.some(
+          (log) =>
+            log.loggedBy === "Coach" &&
+            log.source === "Coach Session Logger" &&
+            log.dayName === "Coach Logged Session" &&
+            Array.isArray(log.entries) &&
+            log.entries.some(
+              (entry) =>
+                entry.exerciseName === "Back Squat" &&
+                entry.setsCompleted === "4" &&
+                entry.repsCompleted === "8" &&
+                entry.actualWeight === "185 lb"
+            )
+        );
+      })
+      .toBe(true);
+  });
+
 });
