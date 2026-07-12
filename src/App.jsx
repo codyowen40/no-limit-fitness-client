@@ -329,7 +329,7 @@ import {
   X,
 } from "lucide-react";
 import { createClientRecord, createManagedClientAccount, fetchAdminDirectory, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
-import { createBackendPlanFromAppPlan, updateBackendPlanFromAppPlan, updateBackendPlanAssignment, createBackendWorkoutLogFromAppLog, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage } from "./lib/noLimitBackendBridge";
+import { createBackendPlanFromAppPlan, updateBackendPlanFromAppPlan, updateBackendPlanAssignment, deleteBackendWorkoutPlan, createBackendWorkoutLogFromAppLog, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage } from "./lib/noLimitBackendBridge";
 
 const STORAGE_KEY = "no-limit-fitness-app-local-state-v1";
 
@@ -7602,15 +7602,27 @@ const isLoggedIn =
     setBuilderMessage(`Duplicated "${plan.planName}" locally.`);
   }
 
-  function deleteSavedPlan(planId) {
+  async function deleteSavedPlan(planId) {
     const plan = savedPlans.find((item) => item.id === planId);
     if (!plan) return;
-    const remainingPlans = savedPlans.filter((item) => item.id !== planId);
+
+    let remainingPlans = savedPlans.filter((item) => item.id !== planId);
+    if (!isLocalRegressionRuntime()) {
+      try {
+        await deleteBackendWorkoutPlan(planId);
+        const refreshedPlans = await fetchBackendPlans();
+        remainingPlans = refreshedPlans.map((item) => mapServerPlanForApp(item, clients));
+      } catch (error) {
+        setBuilderMessage(error?.message || "Unable to delete this workout plan.");
+        return;
+      }
+    }
+
     setSavedPlans(remainingPlans);
     setSelectedPlanDetailId((current) => (current === planId ? remainingPlans[0]?.id || "" : current));
     setSelectedTrackerPlanId((current) => (current === planId ? "" : current));
     if (editingPlanId === planId) setEditingPlanId("");
-    setBuilderMessage(`Deleted saved plan "${plan.planName}" locally.`);
+    setBuilderMessage(`Deleted workout plan "${plan.planName}". Client portals are synchronized.`);
   }
 
   function toggleNotificationPreference(key) {
@@ -12601,9 +12613,9 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
         <h3 className="mt-2 text-2xl font-black uppercase">All Created Workout Plans</h3>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
           <Select label="Workout Plan" value={selectedPlanDetail?.id || ""} onChange={setSelectedPlanDetailId} options={savedPlans.map((plan) => ({ label: `${plan.planName}${String(plan.status).toLowerCase() === "unassigned" ? " (Unassigned)" : ""}`, value: plan.id }))} />
-          <Select label="Client to Assign" value={assignmentClientId} onChange={setAssignmentClientId} options={[{ label: "Select a client", value: "" }, ...clients.map((client) => ({ label: client.name, value: client.id }))]} />
+          <Select label="Client to Assign" value={assignmentClientId} onChange={setAssignmentClientId} options={[{ label: "None — Unassigned", value: "" }, ...clients.map((client) => ({ label: client.name, value: client.id }))]} />
           <div className="flex flex-wrap items-end gap-2">
-            <button type="button" disabled={!selectedPlanDetail || !assignmentClientId} onClick={() => selectedPlanDetail && updateSavedPlanAssignment(selectedPlanDetail.id, assignmentClientId)} className="rounded-full bg-[#00BF63] px-4 py-3 text-xs font-black uppercase text-black disabled:cursor-not-allowed disabled:opacity-40">Assign Plan</button>
+            <button type="button" disabled={!selectedPlanDetail} onClick={() => selectedPlanDetail && updateSavedPlanAssignment(selectedPlanDetail.id, assignmentClientId)} className="rounded-full bg-[#00BF63] px-4 py-3 text-xs font-black uppercase text-black disabled:cursor-not-allowed disabled:opacity-40">Save Assignment</button>
             <button type="button" disabled={!selectedPlanDetail} onClick={() => selectedPlanDetail && startEditPlan(selectedPlanDetail.id)} className="rounded-full bg-[#00BF63] px-4 py-3 text-xs font-black uppercase text-black disabled:opacity-40">Edit Original</button>
             <button type="button" disabled={!selectedPlanAssignedClientId} onClick={() => selectedPlanDetail && updateSavedPlanAssignment(selectedPlanDetail.id, "")} className="rounded-full border border-white/20 px-4 py-3 text-xs font-black uppercase text-white disabled:opacity-40">Unassign Plan</button>
           </div>

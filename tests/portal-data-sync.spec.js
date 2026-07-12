@@ -160,7 +160,7 @@ test.describe("Portal data synchronization", () => {
     await expect(todayWorkout).toContainText("Bird Dog");
   });
 
-  test("coach plan library can edit safely, unassign, and expose Save As", async ({ page }) => {
+  test("coach plan library can assign, unassign, edit, and mirror deletion to the client", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=coach");
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("nlf-portal-state-synced", { detail: { payload: {
       clients: [
@@ -179,7 +179,21 @@ test.describe("Portal data synchronization", () => {
     await library.getByRole("button", { name: "Unassign Plan", exact: true }).click();
     await expect(library.getByTestId("plan-assignment-status")).toContainText("Unassigned");
     await library.getByLabel("Client to Assign").selectOption("caleb");
-    await library.getByRole("button", { name: "Assign Plan", exact: true }).click();
+    await library.getByRole("button", { name: "Save Assignment", exact: true }).click();
     await expect(library.getByTestId("plan-assignment-status")).toContainText("Caleb");
+    await page.getByRole("button", { name: "Delete Plan", exact: true }).click();
+    await expect(page.getByText("Editable Plan", { exact: true })).toHaveCount(0);
+
+    await page.evaluate(() => window.localStorage.setItem("nlf-public-account-profile-v1", JSON.stringify({
+      id: "caleb-profile",
+      clientId: "caleb",
+      name: "Caleb",
+      email: "caleb@example.com",
+      role: "client",
+    })));
+    await page.goto("/?testUnlock=true&portalMode=client");
+    await page.getByRole("button", { name: "My Plan", exact: true }).click();
+    await expect(page.getByLabel("Client My Plan dashboard")).toContainText("No assigned workout plan is available yet.");
+    await expect(page.locator("main")).not.toContainText("Editable Plan");
   });
 });

@@ -415,6 +415,17 @@ export async function updateBackendPlanAssignment(planId, clientId) {
   return data;
 }
 
+export async function deleteBackendWorkoutPlan(planId) {
+  const { data, error } = await supabase
+    .from("workout_plans")
+    .delete()
+    .eq("id", planId)
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createBackendWorkoutLogFromAppLog({
   clientId,
   planId = null,
