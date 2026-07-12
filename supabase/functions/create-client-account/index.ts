@@ -49,6 +49,7 @@ serve(async (request) => {
   const name = `${firstName} ${lastName}`.trim();
   const email = String(payload.email || "").trim().toLowerCase();
   const password = String(payload.password || "");
+  const accountRole = payload.role === "coach" ? "coach" : "client";
 
   if (!firstName || !lastName || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8) {
     return json({ error: "Valid first name, last name, email, and an 8-character password are required" }, 400);
@@ -61,7 +62,7 @@ serve(async (request) => {
     email,
     password,
     email_confirm: true,
-    user_metadata: { first_name: firstName, last_name: lastName, full_name: name, role: "client" },
+    user_metadata: { first_name: firstName, last_name: lastName, full_name: name, role: accountRole },
   });
   if (createError || !created.user) {
     return json({ error: createError?.message || "Unable to create client account" }, 400);
@@ -72,11 +73,18 @@ serve(async (request) => {
     id: userId,
     email,
     full_name: name,
-    role: "client",
+    role: accountRole,
   });
   if (profileInsertError) {
     await admin.auth.admin.deleteUser(userId);
     return json({ error: "Unable to create client profile" }, 500);
+  }
+
+  if (accountRole === "coach") {
+    return json({
+      success: true,
+      profile: { id: userId, full_name: name, email, role: accountRole },
+    }, 201);
   }
 
   const { data: clientRecord, error: clientError } = await admin
