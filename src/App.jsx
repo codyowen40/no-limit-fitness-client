@@ -328,8 +328,8 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { createClientRecord, createManagedClientAccount, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
-import { createBackendPlanFromAppPlan, createBackendWorkoutLogFromAppLog, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage } from "./lib/noLimitBackendBridge";
+import { createClientRecord, createManagedClientAccount, fetchAdminDirectory, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
+import { createBackendPlanFromAppPlan, updateBackendPlanFromAppPlan, createBackendWorkoutLogFromAppLog, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage } from "./lib/noLimitBackendBridge";
 
 const STORAGE_KEY = "no-limit-fitness-app-local-state-v1";
 
@@ -1327,6 +1327,7 @@ function getFriendlyExerciseName(exercise) {
   if (typeof exercise === "string") return exercise;
 
   return (
+    exercise?.exerciseName ||
     exercise?.exercise ||
     exercise?.name ||
     exercise?.movement ||
@@ -1339,7 +1340,7 @@ function getFriendlyExerciseDose(exercise) {
   if (!exercise || typeof exercise === "string") return "See coach notes";
 
   const sets = exercise.sets || exercise.set || "";
-  const reps = exercise.reps || exercise.repRange || exercise.targetReps || "";
+  const reps = exercise.repsOrTime || exercise.reps || exercise.repRange || exercise.targetReps || "";
   const rest = exercise.rest || exercise.restTime || "";
 
   const pieces = [];
@@ -5519,6 +5520,8 @@ const handleSaveClientPlanDraft = () => {
     clients,
     savedPlans,
   });
+  const [selectedFullPlanDayId, setSelectedFullPlanDayId] = useState("");
+  const selectedFullPlanDay = planDays.find((day) => day.id === selectedFullPlanDayId) || planDays[0] || null;
 
   const recentLogs = Array.isArray(workoutLogs) ? workoutLogs.slice(-3).reverse() : [];
   const todayExercises = getFriendlyDayExercises(todayDay).slice(0, 5);
@@ -5826,6 +5829,29 @@ return (
           <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
             Your full assigned workout plan, training focus, exercise work, and weekly structure appear here.
           </p>
+          {plan ? (
+            <div className="mt-5">
+              <h4 className="text-2xl font-black text-white">{getFriendlyPlanTitle(plan)}</h4>
+              <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="Workout plan days">
+                {planDays.map((day, index) => (
+                  <button key={day.id || index} type="button" role="tab" aria-selected={selectedFullPlanDay === day} onClick={() => setSelectedFullPlanDayId(day.id)} className={selectedFullPlanDay === day ? "rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black" : "rounded-full border border-white/15 bg-black/40 px-4 py-2 text-xs font-black uppercase text-white"}>
+                    {getFriendlyDayTitle(day, index)}
+                  </button>
+                ))}
+              </div>
+              {selectedFullPlanDay && (
+                <div className="mt-4 space-y-3" data-testid="selected-client-plan-day">
+                  {getFriendlyDayExercises(selectedFullPlanDay).map((exercise, index) => (
+                    <div key={exercise.id || index} className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                      <p className="font-black text-white">{index + 1}. {getFriendlyExerciseName(exercise)}</p>
+                      <p className="mt-1 text-sm text-white/60">{getFriendlyExerciseDose(exercise)}</p>
+                      {exercise.notes && <p className="mt-2 text-sm font-bold text-[#00BF63]">{exercise.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : <EmptyState text="No assigned workout plan is available yet." />}
         </section>
         {/* Nutrition Coach is rendered only by the top Nutrition Coach tab. */}
 {/* NLF_BUNDLE_12W_SAVED_CLIENT_PLAN_DRAFT_CARD */}
@@ -6100,9 +6126,14 @@ return (
 
           <div className="mt-4 grid gap-2">
             {planDays.length > 0 ? (
-              planDays.slice(0, 5).map((day, index) => (
-                <div
+              planDays.map((day, index) => (
+                <button
+                  type="button"
                   key={index}
+                  onClick={() => {
+                    setSelectedFullPlanDayId(day.id);
+                    document.querySelector('[data-testid="client-full-assigned-plan"]')?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
                   className="rounded-2xl border border-white/10 bg-black/40 p-3"
                 >
                   <p className="font-black text-white">
@@ -6111,7 +6142,7 @@ return (
                   <p className="mt-1 text-sm text-white/50">
                     {getFriendlyDayExercises(day).length || "Coach-set"} movements
                   </p>
-                </div>
+                </button>
               ))
             ) : (
               <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm font-bold text-white/45">
@@ -6175,7 +6206,9 @@ function getNoLimitPublicAccountAccess() {
 
 
 function saveNoLimitPublicAccountAccess(profile) {
-  const safeRole = String(profile?.role || "client").toLowerCase() === "coach" ? "coach" : "client";
+  const requestedRole = String(profile?.role || "client").toLowerCase();
+  const safeRole = ["coach", "admin"].includes(requestedRole) ? requestedRole : "client";
+  const portalRole = safeRole === "admin" ? "coach" : safeRole;
 
   try {
     window.localStorage.setItem("nlf-public-account-access-v1", "true");
@@ -6186,9 +6219,9 @@ function saveNoLimitPublicAccountAccess(profile) {
         role: safeRole,
       })
     );
-    window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, safeRole);
+    window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, portalRole);
 
-    if (safeRole === "coach") {
+    if (portalRole === "coach") {
       window.localStorage.setItem(COACH_SESSION_LOCK_STORAGE_KEY, "true");
     } else {
       window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
@@ -6264,7 +6297,8 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
         const securedProfile = await getCurrentProfile();
         const securedRole = String(securedProfile?.role || "").toLowerCase();
 
-        if (!securedProfile || securedRole !== accountType) {
+        const roleMatchesAccess = securedRole === accountType || (accountType === "coach" && securedRole === "admin");
+        if (!securedProfile || !roleMatchesAccess) {
           await signOutUser();
           throw new Error(`This account does not have ${accountType} access.`);
         }
@@ -6935,6 +6969,17 @@ const [clients, setClients] = useState(initialState.clients);
     [conversations]
   );
   const normalizedPortalMode = String(portalMode || PUBLIC_PORTAL_MODE).toLowerCase();
+  const portalOwnerFirstName = (() => {
+    try {
+      const profile = JSON.parse(window.localStorage.getItem("nlf-public-account-profile-v1") || "null");
+      return String(profile?.name || "").trim().split(/\s+/)[0] || "";
+    } catch {
+      return "";
+    }
+  })();
+  const personalizedPortalLabel = portalOwnerFirstName
+    ? `${portalOwnerFirstName}’s ${normalizedPortalMode === "client" ? "Client" : "Coaching"} Portal`
+    : normalizedPortalMode === "client" ? "Client Portal" : "Coach Portal";
   const isPortalUnlocked =
     getPortalTestUnlocked() || hasCoachSessionLock() || getNoLimitPublicAccountAccess();
 const isLoggedIn =
@@ -7305,6 +7350,27 @@ const isLoggedIn =
         updatedTimestamp: Date.now(),
         days: planDays,
       };
+
+      if (!isLocalRegressionRuntime()) {
+        try {
+          await updateBackendPlanFromAppPlan({
+            planId: existingPlan.id,
+            clientId: updatedPlan.clientId,
+            planName: updatedPlan.planName,
+            days: updatedPlan.days,
+          });
+          const refreshedPlans = await fetchBackendPlans();
+          const persistedPlans = refreshedPlans.map((plan) => mapServerPlanForApp(plan, clients));
+          setSavedPlans(persistedPlans);
+          setEditingPlanId("");
+          setSelectedPlanDetailId(existingPlan.id);
+          setBuilderMessage("Plan changes saved securely and remain editable in the Workout Plans list.");
+          return;
+        } catch (error) {
+          setBuilderMessage(error?.message || "Unable to save plan changes securely.");
+          return;
+        }
+      }
 
       setSavedPlans((current) => current.map((plan) => (plan.id === editingPlanId ? updatedPlan : plan)));
       setSelectedPlanDetailId(updatedPlan.id);
@@ -7995,7 +8061,7 @@ function handlePortalLogout() {
             <button type="button" onClick={() => setActiveTab("Home")} className="flex items-center gap-3 text-left">
               <img src="/images/logo.png" alt="No Limit Fitness" className="h-14 w-14 rounded-2xl object-contain" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/50">{normalizedPortalMode === "client" ? "Client Portal" : "Coach Portal"}</p>
+                <p data-testid="personalized-portal-label" className="text-xs font-bold uppercase tracking-[0.35em] text-white/50">{personalizedPortalLabel}</p>
                 <h1 className="text-2xl font-black uppercase tracking-wide">
                   No Limit <span className="text-[#00BF63]">Fitness</span>
                 </h1>
@@ -11785,6 +11851,62 @@ function CoachScreen({
   );
 }
 
+function AdminCoachDirectoryPanel() {
+  const [directory, setDirectory] = useState(null);
+  const [assignments, setAssignments] = useState({});
+  const [status, setStatus] = useState("");
+
+  async function loadDirectory() {
+    if (isLocalRegressionRuntime()) return;
+    const profile = await getCurrentProfile();
+    const isAdministrator = profile?.role === "admin" || String(profile?.email || "").toLowerCase() === "codyowen40@gmail.com";
+    if (!isAdministrator) return;
+    const data = await fetchAdminDirectory();
+    setDirectory(data);
+    setAssignments(Object.fromEntries((data.clients || []).map((client) => [client.id, client.coach_id || ""])));
+  }
+
+  useEffect(() => {
+    loadDirectory().catch((error) => setStatus(error?.message || "Unable to load administrator directory."));
+  }, []);
+
+  if (!directory) return status ? <p role="status" className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">{status}</p> : null;
+
+  async function reassign(clientId) {
+    const coachId = assignments[clientId];
+    if (!coachId) return setStatus("Choose a coach before overriding the assignment.");
+    setStatus("Saving assignment...");
+    const data = await fetchAdminDirectory("reassign-client", { clientId, coachId });
+    setDirectory(data);
+    setStatus("Client assignment updated securely.");
+  }
+
+  return (
+    <section data-testid="admin-coach-directory" className="rounded-[1.5rem] border border-yellow-400/35 bg-yellow-400/10 p-5">
+      <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-200">Administrator</p>
+      <h3 className="mt-2 text-xl font-black uppercase">All Coaches & Clients</h3>
+      <p className="mt-2 text-sm text-white/65">View every coach relationship and override client assignments. Assigned workout plans move with the client.</p>
+      {status && <p role="status" className="mt-4 rounded-2xl border border-white/10 bg-black/35 p-3 text-sm font-bold">{status}</p>}
+      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        {(directory.clients || []).map((client) => (
+          <div key={client.id} className="rounded-2xl border border-white/10 bg-black/40 p-4">
+            <p className="font-black">{client.name}</p>
+            <p className="text-sm text-white/55">{client.email}</p>
+            <label className="mt-3 block text-xs font-black uppercase tracking-wide text-white/60">
+              Assigned Coach
+              <select aria-label={`Assigned Coach for ${client.name}`} value={assignments[client.id] || ""} onChange={(event) => setAssignments((current) => ({ ...current, [client.id]: event.target.value }))} className="mt-2 w-full rounded-xl border border-white/10 bg-black px-3 py-3 text-sm text-white">
+                <option value="">Unassigned</option>
+                {(directory.coaches || []).map((coach) => <option key={coach.id} value={coach.id}>{coach.full_name} ({coach.role})</option>)}
+              </select>
+            </label>
+            <button type="button" onClick={() => reassign(client.id).catch((error) => setStatus(error?.message || "Unable to update assignment."))} className="mt-3 rounded-full bg-yellow-300 px-4 py-2 text-xs font-black uppercase text-black">Override Assignment</button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ClientsScreen({
   clients,
   clientForm,
@@ -12027,6 +12149,8 @@ function ClientsScreen({
           {clientActionNotice}
         </p>
       )}
+
+      <AdminCoachDirectoryPanel />
 
       <section data-testid="coach-client-account-admin" className="rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/5 p-5">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">Coach Admin</p>
@@ -14069,7 +14193,7 @@ export default function App() {
 
         if (!active) return;
 
-        if (session && profile && ["coach", "client"].includes(profile.role)) {
+        if (session && profile && ["coach", "admin", "client"].includes(profile.role)) {
           saveNoLimitPublicAccountAccess({
             id: profile.id,
             name: profile.full_name,

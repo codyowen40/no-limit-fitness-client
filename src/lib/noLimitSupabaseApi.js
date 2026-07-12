@@ -627,3 +627,13 @@ export async function createManagedClientAccount({ firstName, lastName, email, p
 
   return data;
 }
+
+export async function fetchAdminDirectory(action = "list", payload = {}) {
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke("admin-directory", {
+    body: { action, ...payload },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}

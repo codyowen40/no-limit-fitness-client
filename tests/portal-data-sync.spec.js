@@ -97,4 +97,29 @@ test.describe("Portal data synchronization", () => {
     await expect(page.locator("main")).not.toContainText("Louise B – 7 Day Strength, Cardio & Confidence Plan");
     await expect(page.getByText("No assigned plan found yet.", { exact: true })).toBeVisible();
   });
+
+  test("client full plan exposes all seven clickable days and saved exercise names", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=client");
+    await page.evaluate(() => {
+      const days = Array.from({ length: 7 }, (_, index) => ({
+        id: `day-${index + 1}`,
+        name: `Day ${index + 1}`,
+        exercises: [{ id: `exercise-${index + 1}`, exerciseName: index === 0 ? "Brisk Walk" : "Bird Dog", sets: "3", repsOrTime: "10 reps" }],
+      }));
+      window.dispatchEvent(new CustomEvent("nlf-portal-state-synced", { detail: { payload: {
+        clients: [{ id: "louise", name: "Louise Boquet", email: "louise@example.com", status: "Active", coachingStatus: "active" }],
+        savedPlans: [{ id: "seven-day-plan", clientId: "louise", clientName: "Louise Boquet", planName: "Seven Day Plan", days }],
+        workoutLogs: [], conversations: [],
+      } } }));
+    });
+
+    await expect(page.getByText("1. Brisk Walk", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "View Full Plan", exact: true }).click();
+    const fullPlan = page.getByTestId("client-full-assigned-plan");
+    for (let day = 1; day <= 7; day += 1) {
+      await expect(fullPlan.getByRole("tab", { name: `Day ${day}`, exact: true })).toBeVisible();
+    }
+    await fullPlan.getByRole("tab", { name: "Day 7", exact: true }).click();
+    await expect(page.getByTestId("selected-client-plan-day")).toContainText("Bird Dog");
+  });
 });

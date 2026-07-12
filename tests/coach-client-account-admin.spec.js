@@ -9,6 +9,7 @@ test.describe("Coach client account administration", () => {
     await page.getByRole("button", { name: "Open Coach Portal", exact: true }).click();
 
     await expect(page.getByText("Coach Command Center", { exact: true })).toBeVisible();
+    await expect(page.getByTestId("personalized-portal-label")).toHaveText("No’s Coaching Portal");
     await expect(page.getByRole("heading", { name: "Account Access" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Create Client Login", exact: true })).toBeVisible();
 

@@ -362,6 +362,44 @@ export async function createBackendPlanFromAppPlan({
   return plan;
 }
 
+export async function updateBackendPlanFromAppPlan({ planId, clientId, planName, days = [] }) {
+  const { error: planError } = await supabase
+    .from("workout_plans")
+    .update({ client_id: clientId, plan_name: planName })
+    .eq("id", planId);
+  if (planError) throw planError;
+
+  const { error: deleteError } = await supabase.from("workout_days").delete().eq("plan_id", planId);
+  if (deleteError) throw deleteError;
+
+  for (let dayIndex = 0; dayIndex < days.length; dayIndex += 1) {
+    const day = days[dayIndex];
+    const { data: workoutDay, error: dayError } = await supabase
+      .from("workout_days")
+      .insert({ plan_id: planId, day_name: day.name || `Day ${dayIndex + 1}`, day_order: dayIndex + 1 })
+      .select()
+      .single();
+    if (dayError) throw dayError;
+    const exercises = day.exercises || [];
+    if (exercises.length > 0) {
+      const { error: exerciseError } = await supabase.from("plan_exercises").insert(
+        exercises.map((exercise, exerciseIndex) => ({
+          workout_day_id: workoutDay.id,
+          exercise_library_id: exercise.exerciseLibraryId || null,
+          exercise_name: exercise.exerciseName,
+          exercise_order: exerciseIndex + 1,
+          sets: exercise.sets || "",
+          reps_or_time: exercise.repsOrTime || "",
+          weight_guidance: exercise.weightGuidance || "",
+          rest_period: exercise.rest || "",
+          coach_notes: exercise.notes || "",
+        }))
+      );
+      if (exerciseError) throw exerciseError;
+    }
+  }
+}
+
 export async function createBackendWorkoutLogFromAppLog({
   clientId,
   planId = null,
