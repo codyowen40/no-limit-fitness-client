@@ -329,7 +329,7 @@ import {
   X,
 } from "lucide-react";
 import { createClientRecord, createManagedClientAccount, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
-import { fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary } from "./lib/noLimitBackendBridge";
+import { createBackendPlanFromAppPlan, createBackendWorkoutLogFromAppLog, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage } from "./lib/noLimitBackendBridge";
 
 const STORAGE_KEY = "no-limit-fitness-app-local-state-v1";
 
@@ -6820,31 +6820,72 @@ const [clients, setClients] = useState(initialState.clients);
   }, [clients, savedPlans, workoutLogs, conversations, readActivityIds, notificationPreferences, serverSettings]);
 
   useEffect(() => {
-    if (isLocalRegressionRuntime() || String(portalMode).toLowerCase() !== "coach") return undefined;
+    if (typeof window === "undefined") return undefined;
+
+    const applySyncedState = (event) => {
+      const payload = event?.detail?.payload;
+      if (!payload || typeof payload !== "object") return;
+
+      if (Array.isArray(payload.clients)) setClients(payload.clients);
+      if (Array.isArray(payload.savedPlans)) setSavedPlans(payload.savedPlans);
+      if (Array.isArray(payload.workoutLogs)) setWorkoutLogs(payload.workoutLogs);
+      if (Array.isArray(payload.conversations)) setConversations(payload.conversations);
+    };
+
+    window.addEventListener("nlf-portal-state-synced", applySyncedState);
+    return () => window.removeEventListener("nlf-portal-state-synced", applySyncedState);
+  }, []);
+
+  useEffect(() => {
+    if (isLocalRegressionRuntime()) return undefined;
 
     let active = true;
 
-    (async () => {
+    const refreshPortalData = async () => {
       try {
         const session = await getCurrentSession();
         if (!session || !active) return;
 
-        const serverClients = await fetchBackendClients();
-        if (!active || !Array.isArray(serverClients)) return;
+        const [serverClients, serverPlans, serverWorkoutLogs, serverMessages] = await Promise.all([
+          fetchBackendClients(),
+          fetchBackendPlans(),
+          fetchBackendWorkoutLogs(),
+          fetchBackendMessages(),
+        ]);
+        if (!active) return;
 
-        const persistedClients = serverClients.map(mapServerClientForApp);
-        setClients((current) => {
-          const persistedKeys = new Set(persistedClients.flatMap((client) => [client.id, client.email.toLowerCase()]));
-          const localOnly = current.filter((client) => !persistedKeys.has(client.id) && !persistedKeys.has(String(client.email || "").toLowerCase()));
-          return [...persistedClients, ...localOnly];
-        });
+        const nextClients = Array.isArray(serverClients) ? serverClients.map(mapServerClientForApp) : [];
+        const nextPlans = Array.isArray(serverPlans)
+          ? serverPlans.map((plan) => mapServerPlanForApp(plan, nextClients))
+          : [];
+        const nextLogs = Array.isArray(serverWorkoutLogs)
+          ? serverWorkoutLogs.map((log) => mapServerWorkoutLogForApp(log, nextClients, nextPlans))
+          : [];
+        const nextConversations = buildServerConversationsForApp(
+          nextClients,
+          Array.isArray(serverMessages) ? serverMessages : []
+        );
+
+        setClients(nextClients);
+        setSavedPlans(nextPlans);
+        setWorkoutLogs(nextLogs);
+        setConversations(nextConversations);
       } catch (error) {
-        console.warn("Could not refresh persisted coach clients:", error);
+        console.warn("Could not refresh shared portal data:", error);
       }
-    })();
+    };
+
+    refreshPortalData();
+    const refreshTimer = window.setInterval(refreshPortalData, 30000);
+    const refreshWhenVisible = () => {
+      if (!document.hidden) refreshPortalData();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
       active = false;
+      window.clearInterval(refreshTimer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [portalMode]);
 
@@ -7217,7 +7258,7 @@ const isLoggedIn =
     setBuilderMessage("Exercise removed from plan.");
   }
 
-  function savePlan() {
+  async function savePlan() {
     const planName = planDraft.planName.trim();
     if (!planName) return setBuilderMessage("Add a plan name before saving.");
     if (!planDraft.clientId) return setBuilderMessage("Select a client before saving.");
@@ -7276,6 +7317,32 @@ const isLoggedIn =
       timestamp: Date.now(),
       days: planDays,
     };
+
+    if (!isLocalRegressionRuntime()) {
+      try {
+        const profile = await getCurrentProfile();
+        await createBackendPlanFromAppPlan({
+          coachId: profile?.id,
+          clientId: newPlan.clientId,
+          planName: newPlan.planName,
+          days: newPlan.days,
+        });
+        const refreshedPlans = await fetchBackendPlans();
+        const persistedPlans = refreshedPlans.map((plan) => mapServerPlanForApp(plan, clients));
+        setSavedPlans(persistedPlans);
+        const persistedPlan = persistedPlans[0];
+        setSelectedPlanDetailId(persistedPlan?.id || "");
+        setTrackerClientId(newPlan.clientId);
+        setSelectedTrackerPlanId(persistedPlan?.id || "");
+        setSelectedTrackerDayId(persistedPlan?.days?.[0]?.id || "");
+        setSelectedClientProfileId(newPlan.clientId);
+        setBuilderMessage("Plan saved securely and mirrored to the client portal.");
+        return;
+      } catch (error) {
+        setBuilderMessage(error?.message || "Unable to save plan securely.");
+        return;
+      }
+    }
 
     setSavedPlans((current) => [newPlan, ...current]);
     setSelectedPlanDetailId(newPlan.id);
@@ -7458,7 +7525,7 @@ const isLoggedIn =
     setTrackingDrafts((current) => ({ ...current, [key]: { ...(current[key] || emptyTrackingEntry), [field]: value } }));
   }
 
-  function markWorkoutStatus(plan, day, status) {
+  async function markWorkoutStatus(plan, day, status) {
     if (!plan || !day) {
       setTrackerMessage("Select a plan and training day first.");
       return;
@@ -7498,6 +7565,32 @@ const isLoggedIn =
       timestamp: Date.now(),
       entries,
     };
+
+    if (!isLocalRegressionRuntime()) {
+      try {
+        await createBackendWorkoutLogFromAppLog({
+          clientId: newLog.clientId,
+          planId: newLog.planId || null,
+          workoutDayId: newLog.dayId || null,
+          planName: newLog.planName,
+          dayName: newLog.dayName,
+          status: newLog.status,
+          skipReason: newLog.skipReason,
+          entries: newLog.entries.map((entry) => ({ ...entry, planExerciseId: entry.exerciseId })),
+        });
+        const refreshedLogs = await fetchBackendWorkoutLogs();
+        const persistedLogs = refreshedLogs.map((log) => mapServerWorkoutLogForApp(log, clients, savedPlans));
+        setWorkoutLogs(persistedLogs);
+        setSelectedWorkoutLogId(persistedLogs[0]?.id || "");
+        setSelectedClientProfileId(plan.clientId);
+        setSkipReason("");
+        setTrackerMessage(`${day.name} ${status}. Coach and client portals are synchronized.`);
+        return;
+      } catch (error) {
+        setTrackerMessage(error?.message || "Unable to save workout status securely.");
+        return;
+      }
+    }
 
     setWorkoutLogs((current) => [newLog, ...current]);
     setSelectedWorkoutLogId(newLog.id);
@@ -7649,7 +7742,7 @@ const isLoggedIn =
     setMessageNotice("Conversation restored to your active inbox.");
   }
 
-  function sendMessage() {
+  async function sendMessage() {
     const text = messageDraft.trim();
     if (!text) return setMessageNotice("Type a message before sending.");
 
@@ -7665,6 +7758,26 @@ const isLoggedIn =
       unreadForCoach: messageSender === "Client",
       unreadForClient: messageSender === "Coach",
     };
+
+    if (!isLocalRegressionRuntime()) {
+      try {
+        const profile = await getCurrentProfile();
+        await sendBackendMessage({
+          clientId: selectedConversationId,
+          senderProfileId: profile?.id || null,
+          senderRole: String(newMessage.sender).toLowerCase(),
+          body: text,
+        });
+        const refreshedMessages = await fetchBackendMessages();
+        setConversations(buildServerConversationsForApp(clients, refreshedMessages));
+        setMessageDraft("");
+        setMessageNotice(`${newMessage.sender} message sent and mirrored across portals.`);
+        return;
+      } catch (error) {
+        setMessageNotice(error?.message || "Unable to send message securely.");
+        return;
+      }
+    }
 
     setConversations((current) =>
       current.map((conversation) =>

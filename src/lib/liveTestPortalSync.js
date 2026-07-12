@@ -1,7 +1,9 @@
 import { supabase } from "./supabaseClient.js";
 
+const IS_LOCAL_RUNTIME =
+  typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
 const LIVE_SYNC_ENABLED =
-  String(import.meta.env.VITE_NLF_LIVE_TEST_SYNC || "").toLowerCase() === "true";
+  IS_LOCAL_RUNTIME && String(import.meta.env.VITE_NLF_LIVE_TEST_SYNC || "").toLowerCase() === "true";
 
 const PORTAL_STATE_STORAGE_KEY = "no-limit-fitness-app-local-state-v1";
 const PORTAL_MODE_STORAGE_KEY = "no-limit-fitness-portal-mode-v1";
@@ -236,9 +238,9 @@ async function pullLatestPortalState({ reloadOnChange = false, reason = "pull" }
       updatedBy: data.updated_by || "unknown",
     });
 
-    if (reloadOnChange && !isUserEditing()) {
-      window.location.reload();
-    }
+    window.dispatchEvent(
+      new CustomEvent("nlf-portal-state-synced", { detail: { payload: data.payload, reason } })
+    );
   } else {
     remoteUpdatedAt = incomingTime || remoteUpdatedAt;
 
@@ -301,7 +303,7 @@ export function installLiveTestPortalStateSync() {
 
   window.setInterval(() => {
     pullLatestPortalState({
-      reloadOnChange: true,
+      reloadOnChange: false,
       reason: "poll",
     });
   }, POLL_INTERVAL_MS);
@@ -309,7 +311,7 @@ export function installLiveTestPortalStateSync() {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       pullLatestPortalState({
-        reloadOnChange: true,
+        reloadOnChange: false,
         reason: "tab-visible",
       });
     }
@@ -318,7 +320,7 @@ export function installLiveTestPortalStateSync() {
   window.nlfLiveTestSync = {
     pull: () =>
       pullLatestPortalState({
-        reloadOnChange: true,
+        reloadOnChange: false,
         reason: "manual-pull",
       }),
     push: () => pushPortalStateString(getLocalStateString(), "manual-push"),
