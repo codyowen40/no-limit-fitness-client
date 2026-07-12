@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test";
 
 
 async function nlfOpenMainNavButton(page, name) {
-  const navName = name === "Build Workout Plan" ? "Workout Plans" : name;
+  const navName =
+    name === "Build Workout Plan" || name === "Plans" ? "Workout Plans" : name;
 
   await page
     .getByRole("navigation", { name: /Main navigation/i })
@@ -232,7 +233,7 @@ test.describe("Coach review queue", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Plans", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await expect(page.getByTestId("coach-client-plan-review-queue").first()).toBeVisible();
@@ -283,7 +284,7 @@ test.describe("Coach review queue", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Plans", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await expect(page.getByTestId("coach-client-plan-review-queue").first()).toBeVisible();

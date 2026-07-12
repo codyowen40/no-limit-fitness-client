@@ -56,10 +56,10 @@ test.describe("Bundle 12U client release lock", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Workout Plans", exact: true })
+      .getByRole("button", { name: "Exercise Library", exact: true })
       .click();
 
-    await expect(page.getByText("Client-Safe Exercise Library").first()).toBeVisible();
+    await expect(page.getByTestId("client-safe-exercise-library")).toBeVisible();
 
     const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
 
