@@ -404,7 +404,7 @@ export async function updateBackendPlanAssignment(planId, clientId) {
   const assigned = Boolean(clientId);
   const changes = assigned
     ? { client_id: clientId, status: "Active" }
-    : { status: "Unassigned" };
+    : { client_id: null, status: "Unassigned" };
   const { data, error } = await supabase
     .from("workout_plans")
     .update(changes)

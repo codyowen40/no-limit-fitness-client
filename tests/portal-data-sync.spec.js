@@ -163,7 +163,10 @@ test.describe("Portal data synchronization", () => {
   test("coach plan library can edit safely, unassign, and expose Save As", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=coach");
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("nlf-portal-state-synced", { detail: { payload: {
-      clients: [{ id: "louise", name: "Louise Boquet", email: "louise@example.com", status: "Active", coachingStatus: "active", coachId: "coach-primary" }],
+      clients: [
+        { id: "louise", name: "Louise Boquet", email: "louise@example.com", status: "Active", coachingStatus: "active", coachId: "coach-primary" },
+        { id: "caleb", name: "Caleb", email: "caleb@example.com", status: "Active", coachingStatus: "active", coachId: "coach-primary" },
+      ],
       savedPlans: [{ id: "editable-plan", clientId: "louise", clientName: "Louise Boquet", planName: "Editable Plan", status: "Active", days: [{ id: "day-1", name: "Day 1", exercises: [{ id: "exercise-1", exerciseName: "Bird Dog", sets: "3", repsOrTime: "10" }] }] }],
       workoutLogs: [], conversations: [],
     } } })));
@@ -173,7 +176,10 @@ test.describe("Portal data synchronization", () => {
     await library.getByRole("button", { name: "Edit Original", exact: true }).click({ force: true });
     await expect(page.getByText("Editing Existing Plan", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Save As New Plan", exact: true })).toBeVisible();
-    await library.getByRole("button", { name: "Unassign", exact: true }).click();
-    await expect(library.getByLabel("Assign to Client")).toHaveValue("");
+    await library.getByRole("button", { name: "Unassign Plan", exact: true }).click();
+    await expect(library.getByTestId("plan-assignment-status")).toContainText("Unassigned");
+    await library.getByLabel("Client to Assign").selectOption("caleb");
+    await library.getByRole("button", { name: "Assign Plan", exact: true }).click();
+    await expect(library.getByTestId("plan-assignment-status")).toContainText("Caleb");
   });
 });
