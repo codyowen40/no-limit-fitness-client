@@ -11,7 +11,9 @@ test("Nutrition Coach top tab opens the working Nutrition Coach window", async (
     .getByRole("button", { name: "Nutrition Coach", exact: true })
     .click();
 
-  const nutritionCoachWindow = page.getByTestId("nutrition-coach-window").last();
+  const nutritionCoachWindows = page.getByTestId("nutrition-coach-window");
+  await expect(nutritionCoachWindows).toHaveCount(1);
+  const nutritionCoachWindow = nutritionCoachWindows.first();
 
   await expect(nutritionCoachWindow).toBeVisible();
   await expect(nutritionCoachWindow.getByRole("button", { name: /Build My Target/i })).toBeVisible();

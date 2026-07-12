@@ -5438,7 +5438,6 @@ function ClientPortalMyPlanPanel({
   onOpenTracker,
   onOpenMessages,
   onOpenProgress,
-  forceNutritionCoachOpen = false,
   forceBuildWorkoutPlanOpen = false,
   onOpenPlans = () => {},
 }) {
@@ -5495,13 +5494,6 @@ const handleSaveClientPlanDraft = () => {
 
   const recentLogs = Array.isArray(workoutLogs) ? workoutLogs.slice(-3).reverse() : [];
   const todayExercises = getFriendlyDayExercises(todayDay).slice(0, 5);
-
-  // NLF_NUTRITION_TOP_TAB_EARLY_RETURN
-  if (forceNutritionCoachOpen) {
-    return (
-      <NutritionCoachScreen />
-    );
-  }
 
   const buildWorkoutExerciseOptions = [
     {
@@ -8171,7 +8163,7 @@ function handlePortalLogout() {
 
         <main className="mx-auto max-w-7xl px-4 py-8 pb-28 md:pb-8">
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_START */}
-        {["Home", "Client", "Nutrition"].includes(activeTab) && normalizedPortalMode === "client" && (
+        {["Home", "Client"].includes(activeTab) && normalizedPortalMode === "client" && (
           <ClientPortalMyPlanPanel
             clients={clients}
             savedPlans={savedPlans}
@@ -8179,8 +8171,7 @@ function handlePortalLogout() {
             onOpenTracker={() => setActiveTab("Tracker")}
             onOpenMessages={() => setActiveTab("Messages")}
             onOpenProgress={() => setActiveTab("Progress")}
-                onOpenPlans={() => setActiveTab("WorkoutPlans")}
-                forceNutritionCoachOpen={activeTab === "Nutrition"}
+            onOpenPlans={() => setActiveTab("WorkoutPlans")}
               />
         )}
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_END */}
