@@ -6486,6 +6486,7 @@ function NoLimitFitnessAppShell() {
 
   // BUNDLE_12M1C_COACH_PORTAL_LOCK
 useEffect(() => {
+  if (!isLocalRegressionRuntime()) return;
   if (getPortalTestUnlocked()) return;
 
   const coachLocked = hasCoachSessionLock();
