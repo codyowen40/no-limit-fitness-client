@@ -328,7 +328,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { createManagedClientAccount, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
+import { createClientRecord, createManagedClientAccount, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
 import { fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary } from "./lib/noLimitBackendBridge";
 
 const STORAGE_KEY = "no-limit-fitness-app-local-state-v1";
@@ -6820,6 +6820,35 @@ const [clients, setClients] = useState(initialState.clients);
   }, [clients, savedPlans, workoutLogs, conversations, readActivityIds, notificationPreferences, serverSettings]);
 
   useEffect(() => {
+    if (isLocalRegressionRuntime() || String(portalMode).toLowerCase() !== "coach") return undefined;
+
+    let active = true;
+
+    (async () => {
+      try {
+        const session = await getCurrentSession();
+        if (!session || !active) return;
+
+        const serverClients = await fetchBackendClients();
+        if (!active || !Array.isArray(serverClients)) return;
+
+        const persistedClients = serverClients.map(mapServerClientForApp);
+        setClients((current) => {
+          const persistedKeys = new Set(persistedClients.flatMap((client) => [client.id, client.email.toLowerCase()]));
+          const localOnly = current.filter((client) => !persistedKeys.has(client.id) && !persistedKeys.has(String(client.email || "").toLowerCase()));
+          return [...persistedClients, ...localOnly];
+        });
+      } catch (error) {
+        console.warn("Could not refresh persisted coach clients:", error);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [portalMode]);
+
+  useEffect(() => {
     if (workoutLogs.length > 0 && !workoutLogs.some((log) => log.id === selectedWorkoutLogId)) {
       setSelectedWorkoutLogId(workoutLogs[0].id);
     }
@@ -7321,12 +7350,23 @@ const isLoggedIn =
     setServerSettings((current) => ({ ...current, [field]: value }));
   }
 
-  function addClient() {
+  async function addClient() {
     const name = clientForm.name.trim();
     const email = clientForm.email.trim();
     if (!name) return;
 
-    const newClient = { id: makeId("client"), name, email: email || "No email added", status: "Active" };
+    let newClient = { id: makeId("client"), name, email: email || "No email added", status: "Active" };
+
+    if (!isLocalRegressionRuntime()) {
+      try {
+        const profile = await getCurrentProfile();
+        const savedClient = await createClientRecord({ coachId: profile?.id, name, email, status: "Active" });
+        newClient = mapServerClientForApp(savedClient);
+      } catch (error) {
+        setClientActionNotice(error?.message || "Unable to save client securely.");
+        return;
+      }
+    }
     setClients((current) => [...current, newClient]);
     setClientForm({ name: "", email: "" });
     setSelectedClientProfileId(newClient.id);
@@ -7334,6 +7374,24 @@ const isLoggedIn =
     if (!planDraft.clientId) setPlanDraft((current) => ({ ...current, clientId: newClient.id }));
     setClientActionNotice(`${newClient.name} added and saved locally.`);
     setLocalSaveNotice(`${newClient.name} added and saved locally.`);
+  }
+
+  function handleManagedClientCreated(clientRecord) {
+    const newClient = mapServerClientForApp(clientRecord);
+
+    setClients((current) => {
+      const withoutDuplicate = current.filter(
+        (client) => client.id !== newClient.id && String(client.email || "").toLowerCase() !== newClient.email.toLowerCase()
+      );
+      return [newClient, ...withoutDuplicate];
+    });
+    setSelectedClientProfileId(newClient.id);
+    setConversations((current) =>
+      current.some((conversation) => conversation.clientId === newClient.id)
+        ? current
+        : [...current, { clientId: newClient.id, clientName: newClient.name, messages: [] }]
+    );
+    setClientActionNotice(`${newClient.name} login and client profile created securely.`);
   }
 
   function updateClientStatus(clientId, status) {
@@ -8291,6 +8349,7 @@ function handlePortalLogout() {
               onViewArchivedClient={viewArchivedClientForCoach}
               onUnassignClient={unassignClientFromCoach}
               fullDeleteArchivedClient={fullDeleteArchivedClient}
+              onClientAccountCreated={handleManagedClientCreated}
             />
           )}
 
@@ -11746,12 +11805,13 @@ function ClientsScreen({
   onViewArchivedClient,
   onUnassignClient,
   fullDeleteArchivedClient,
+  onClientAccountCreated,
 }) {
   const [clientSearch, setClientSearch] = useState("");
   const [showActiveClientList, setShowActiveClientList] = useState(true);
   const [showArchivedClients, setShowArchivedClients] = useState(false);
   const [selectedArchivedClientId, setSelectedArchivedClientId] = useState("");
-  const [accountForm, setAccountForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [accountForm, setAccountForm] = useState({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "" });
   const [accountStatus, setAccountStatus] = useState("");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
@@ -11769,7 +11829,8 @@ function ClientsScreen({
     try {
       const result = await createManagedClientAccount(accountForm);
       setAccountStatus(`Secure login created for ${result.client.email}.`);
-      setAccountForm({ name: "", email: "", password: "", confirmPassword: "" });
+      onClientAccountCreated?.(result.client);
+      setAccountForm({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "" });
     } catch (error) {
       setAccountStatus(error?.message || "Unable to create client login.");
     } finally {
@@ -11976,7 +12037,8 @@ function ClientsScreen({
           Create secured client credentials and link the new account to your coach profile. Share the temporary password privately and ask the client to change it after signing in.
         </p>
         <form onSubmit={handleCreateClientAccount} className="mt-5 grid gap-4 md:grid-cols-2">
-          <Input label="New Client Name" value={accountForm.name} onChange={(value) => setAccountForm((current) => ({ ...current, name: value }))} placeholder="Client name" />
+          <Input label="Client First Name" value={accountForm.firstName} onChange={(value) => setAccountForm((current) => ({ ...current, firstName: value }))} placeholder="First name" />
+          <Input label="Client Last Name" value={accountForm.lastName} onChange={(value) => setAccountForm((current) => ({ ...current, lastName: value }))} placeholder="Last name" />
           <Input label="New Client Email" value={accountForm.email} onChange={(value) => setAccountForm((current) => ({ ...current, email: value }))} placeholder="client@example.com" />
           <label className="block"><span className="mb-2 block text-xs font-black uppercase tracking-[0.25em] text-white/45">Temporary Password</span><input aria-label="Temporary Password" type="password" minLength={8} value={accountForm.password} onChange={(event) => setAccountForm((current) => ({ ...current, password: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]" /></label>
           <label className="block"><span className="mb-2 block text-xs font-black uppercase tracking-[0.25em] text-white/45">Confirm Temporary Password</span><input aria-label="Confirm Temporary Password" type="password" minLength={8} value={accountForm.confirmPassword} onChange={(event) => setAccountForm((current) => ({ ...current, confirmPassword: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]" /></label>

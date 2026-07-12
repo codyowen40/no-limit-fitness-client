@@ -594,14 +594,15 @@ export async function upsertNotificationPreferences(preferences) {
   return data;
 }
 
-export async function createManagedClientAccount({ name, email, password }) {
+export async function createManagedClientAccount({ firstName, lastName, email, password }) {
   const client = requireSupabase();
-  const cleanName = normalizeRequiredText(name);
+  const cleanFirstName = normalizeRequiredText(firstName);
+  const cleanLastName = normalizeRequiredText(lastName);
   const cleanEmail = normalizeRequiredText(email).toLowerCase();
   const cleanPassword = normalizeRequiredText(password);
 
-  if (!cleanName || !cleanEmail || !cleanPassword) {
-    throw new Error("Client name, email, and temporary password are required.");
+  if (!cleanFirstName || !cleanLastName || !cleanEmail || !cleanPassword) {
+    throw new Error("Client first name, last name, email, and temporary password are required.");
   }
 
   if (cleanPassword.length < 8) {
@@ -618,7 +619,7 @@ export async function createManagedClientAccount({ name, email, password }) {
   }
 
   const { data, error } = await client.functions.invoke("create-client-account", {
-    body: { name: cleanName, email: cleanEmail, password: cleanPassword },
+    body: { firstName: cleanFirstName, lastName: cleanLastName, email: cleanEmail, password: cleanPassword },
   });
 
   if (error) throw error;

@@ -15,13 +15,28 @@ test.describe("Coach client account administration", () => {
     await expect(admin.getByRole("heading", { name: "Create Client Login" })).toBeVisible();
     await expect(admin.getByLabel("Temporary Password", { exact: true })).toHaveAttribute("minlength", "8");
 
-    await admin.getByLabel("New Client Name").fill("New Secure Client");
+    await admin.getByLabel("Client First Name").fill("New");
+    await admin.getByLabel("Client Last Name").fill("Secure Client");
     await admin.getByLabel("New Client Email").fill("secure-client@example.com");
     await admin.getByLabel("Temporary Password", { exact: true }).fill("temporary-one");
     await admin.getByLabel("Confirm Temporary Password", { exact: true }).fill("temporary-two");
     await admin.getByRole("button", { name: "Create Secure Client Login" }).click();
 
     await expect(admin.getByRole("status")).toHaveText("Passwords do not match.");
+  });
+
+  test("manually added clients remain after reload", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=coach");
+    await page.getByRole("button", { name: "Clients", exact: true }).click();
+
+    await page.getByPlaceholder("Enter client name").fill("Persistent Client");
+    await page.getByPlaceholder("Enter client email").fill("persistent@example.com");
+    await page.getByRole("button", { name: "Add Client", exact: true }).click();
+    await expect(page.getByText("Persistent Client", { exact: true }).first()).toBeVisible();
+
+    await page.reload();
+    await page.getByRole("button", { name: "Clients", exact: true }).click();
+    await expect(page.getByText("Persistent Client", { exact: true }).first()).toBeVisible();
   });
 
   test("client portal cannot access coach credential administration", async ({ page }) => {

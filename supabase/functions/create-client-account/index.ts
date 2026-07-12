@@ -44,12 +44,14 @@ serve(async (request) => {
   }
 
   const payload = await request.json().catch(() => ({}));
-  const name = String(payload.name || "").trim().slice(0, 120);
+  const firstName = String(payload.firstName || "").trim().slice(0, 60);
+  const lastName = String(payload.lastName || "").trim().slice(0, 60);
+  const name = `${firstName} ${lastName}`.trim();
   const email = String(payload.email || "").trim().toLowerCase();
   const password = String(payload.password || "");
 
-  if (!name || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8) {
-    return json({ error: "Valid name, email, and an 8-character password are required" }, 400);
+  if (!firstName || !lastName || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8) {
+    return json({ error: "Valid first name, last name, email, and an 8-character password are required" }, 400);
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -59,7 +61,7 @@ serve(async (request) => {
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name: name, role: "client" },
+    user_metadata: { first_name: firstName, last_name: lastName, full_name: name, role: "client" },
   });
   if (createError || !created.user) {
     return json({ error: createError?.message || "Unable to create client account" }, 400);
