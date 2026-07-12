@@ -57,10 +57,44 @@ test.describe("Portal data synchronization", () => {
       "Side-Lying Clamshell",
       "Standing Hip Abduction",
       "One-Arm Household-Item Row",
+      "One-Arm Dumbbell Row",
       "Close-Grip Cable Row",
     ]) {
       await page.getByPlaceholder(/Search exercises/i).fill(exerciseName);
       await expect(page.getByText(exerciseName, { exact: true }).first()).toBeVisible();
     }
+  });
+
+  test("client dashboard never falls back to another client's plan", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=client");
+
+    await page.evaluate(() => {
+      window.dispatchEvent(
+        new CustomEvent("nlf-portal-state-synced", {
+          detail: {
+            payload: {
+              clients: [
+                { id: "kristen", name: "Kristen Gryzik", email: "kristen@example.com", status: "Active", coachingStatus: "active" },
+              ],
+              savedPlans: [
+                {
+                  id: "louise-plan",
+                  clientId: "louise",
+                  clientName: "Louise B",
+                  planName: "Louise B – 7 Day Strength, Cardio & Confidence Plan",
+                  days: [{ id: "louise-day", name: "Day 1", exercises: [] }],
+                },
+              ],
+              workoutLogs: [],
+              conversations: [],
+            },
+          },
+        })
+      );
+    });
+
+    await expect(page.getByText("Kristen Gryzik's Training", { exact: true })).toBeVisible();
+    await expect(page.locator("main")).not.toContainText("Louise B – 7 Day Strength, Cardio & Confidence Plan");
+    await expect(page.getByText("No assigned plan found yet.", { exact: true })).toBeVisible();
   });
 });

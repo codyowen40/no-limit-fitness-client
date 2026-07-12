@@ -453,6 +453,7 @@ const exerciseLibrary = [
   ex("Bird Dog", ["Calisthenics", "Mobility"], "Core, lower back, glutes, shoulders", "Bodyweight"),
   ex("Side-Lying Clamshell", ["Bodybuilding", "Mobility"], "Glute medius, hip external rotators", "Bodyweight or resistance band"),
   ex("One-Arm Household-Item Row", ["Bodybuilding", "General Fitness"], "Lats, upper back, biceps", "Backpack, jug, or other secure household item"),
+  ex("One-Arm Dumbbell Row", ["Bodybuilding"], "Lats, rhomboids, upper back, biceps", "Dumbbell and bench"),
   ex("Close-Grip Cable Row", ["Bodybuilding"], "Lats, rhomboids, mid-back, biceps", "Cable machine and close-grip handle"),
   ex("Single-Leg RDL", ["Sports Performance", "Bodybuilding", "Mobility"], "Hamstrings, glutes, balance, core", "Bodyweight, dumbbells optional"),
   ex("Sit-Up", ["Calisthenics", "Conditioning"], "Abs, hip flexors", "Bodyweight"),
@@ -1555,8 +1556,7 @@ function findFriendlyAssignedPlan({ clients, savedPlans }) {
     };
   }
 
-  const assignedPlan =
-    safePlans.find(
+  const assignedPlan = safePlans.find(
       (plan) =>
         plan.clientId === activeClient?.id ||
         plan.assignedClientId === activeClient?.id ||
@@ -1564,7 +1564,16 @@ function findFriendlyAssignedPlan({ clients, savedPlans }) {
         plan.client === activeClient?.name ||
         plan.assignedTo === activeClient?.id ||
         plan.assignedTo === activeClient?.name
-    ) || safePlans[0];
+    ) || null;
+
+  if (!assignedPlan) {
+    return {
+      client: activeClient,
+      plan: null,
+      planDays: [],
+      todayDay: null,
+    };
+  }
 
   const planDays = getFriendlyPlanDays(assignedPlan);
   const todayDay = planDays[0] || null;
