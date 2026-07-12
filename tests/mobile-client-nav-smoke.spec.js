@@ -6,13 +6,13 @@ test.describe("Mobile client navigation smoke coverage", () => {
 
     await page.goto("/?testUnlock=true&portalMode=client");
 
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
 
     const mobileNav = page.getByRole("navigation", { name: /Mobile navigation/i });
 
     await expect(mobileNav).toBeVisible();
 
-    for (const label of ["Plan", "Log", "Build", "Msg", "Menu"]) {
+    for (const label of ["Plan", "Log", "My Plan", "Msg", "Menu"]) {
       await expect(
         mobileNav.getByRole("button", { name: new RegExp("^" + label + "$", "i") })
       ).toBeVisible();
@@ -32,17 +32,17 @@ test.describe("Mobile client navigation smoke coverage", () => {
 
     await expect(mobileMenu).toBeVisible();
 
-    for (const label of ["Home", "Nutrition", "Progress", "Logout"]) {
+    for (const label of ["Nutrition", "Progress", "Logout"]) {
       await expect(
         mobileMenu.getByRole("button", { name: new RegExp("^" + label + "$", "i") })
       ).toBeVisible();
     }
 
     await mobileNav.getByRole("button", { name: /^Plan$/i }).click();
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
 
-    await mobileNav.getByRole("button", { name: /^Build$/i }).click();
-    await expect(page.locator("body")).toContainText(/Build Workout Plan|Exercise Library|Search exercises/i);
+    await mobileNav.getByRole("button", { name: /^My Plan$/i }).click();
+    await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
 
     await mobileNav.getByRole("button", { name: /^Log$/i }).click();
     await expect(page.locator("body")).toContainText(/Client Workout Tracker|Assigned Plan|Mark Complete/i);
@@ -58,7 +58,7 @@ test.describe("Mobile client navigation smoke coverage", () => {
   test("client messages use signed-in client role without Send As", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=client");
 
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
 
     await page
       .getByRole("navigation", { name: /Main navigation/i })
@@ -103,7 +103,7 @@ test.describe("Mobile client navigation smoke coverage", () => {
 
       await page.goto("/?testUnlock=true&portalMode=client");
 
-      await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+      await expect(page.getByLabel("Client overview").first()).toBeVisible();
 
       const mobileNav = page.getByRole("navigation", { name: /Mobile navigation/i });
 
@@ -111,7 +111,7 @@ test.describe("Mobile client navigation smoke coverage", () => {
       await expect(mobileNav.getByRole("button", { name: /^More$/i })).toHaveCount(0);
       await expect(page.getByLabel("Mobile More menu")).toHaveCount(0);
 
-      const expectedLabels = ["Plan", "Log", "Build", "Msg", "Menu"];
+      const expectedLabels = ["Plan", "Log", "My Plan", "Msg", "Menu"];
       const navBox = await mobileNav.boundingBox();
 
       expect(navBox).not.toBeNull();
@@ -136,8 +136,8 @@ test.describe("Mobile client navigation smoke coverage", () => {
       await mobileNav.getByRole("button", { name: /^Msg$/i }).click();
       await expect(page.locator("body")).toContainText(/Messages|Conversation|Send Message/i);
 
-      await mobileNav.getByRole("button", { name: /^Build$/i }).click();
-      await expect(page.locator("body")).toContainText(/Build Workout Plan|Exercise Library|Search exercises/i);
+      await mobileNav.getByRole("button", { name: /^My Plan$/i }).click();
+      await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
     }
   });
 

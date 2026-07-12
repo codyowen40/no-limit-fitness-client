@@ -36,7 +36,7 @@ test.describe("Bundle 12U client release lock", () => {
   test("keeps internal test unlock available for release regression coverage", async ({ page }) => {
     await page.goto("/?testUnlock=true");
 
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
@@ -51,7 +51,7 @@ test.describe("Bundle 12U client release lock", () => {
 
     await page.getByRole("button", { name: "Client" }).first().click();
 
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
 
     await page
       .getByRole("navigation", { name: /Main navigation/i })
@@ -63,8 +63,9 @@ test.describe("Bundle 12U client release lock", () => {
 
     const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
 
-    await expect(nav.getByRole("button", { name: /^Home$/ })).toBeVisible();
-    await expect(nav.getByRole("button", { name: /^(Client|My Plan)$/ })).toBeVisible();
+    await expect(nav.getByRole("button", { name: /^Home$/ })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: "Client", exact: true })).toBeVisible();
+    await expect(nav.getByRole("button", { name: "My Plan", exact: true })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Tracker$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Progress$/ })).toBeVisible();
     await expect(nav.getByRole("button", { name: /^Messages$/ })).toBeVisible();
@@ -76,6 +77,8 @@ test.describe("Bundle 12U client release lock", () => {
   test("keeps View Full Plan routing available when assigned plan action is present", async ({ page }) => {
     await page.goto("/?testUnlock=true");
 
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
+    await page.getByRole("button", { name: "My Plan", exact: true }).click();
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
     const viewFullPlan = page.getByRole("button", { name: "View Full Plan" }).first();

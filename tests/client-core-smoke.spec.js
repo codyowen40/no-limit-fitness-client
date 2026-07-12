@@ -4,13 +4,15 @@ test.describe("Client core smoke coverage", () => {
   test("client portal core buttons and windows stay usable", async ({ page }) => {
     await page.goto("/?testUnlock=true");
 
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
 
-    await page.getByRole("button", { name: "HOME" }).first().click();
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+
     await expect(page.getByRole("navigation", { name: /Main navigation/i }).first()).toBeVisible();
     await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|Client Training Home|Workout Plans|MY PLAN|TODAY'S WORKOUT/i);
     const mainNavigation = page.getByRole("navigation", { name: /Main navigation/i }).first();
-    await expect(mainNavigation.getByRole("button", { name: "Workout Plans", exact: true })).toBeVisible();
+    await expect(mainNavigation.getByRole("button", { name: "My Plan", exact: true })).toBeVisible();
     await expect(mainNavigation.getByRole("button", { name: "Plans", exact: true })).toHaveCount(0);
 
     await page
@@ -26,19 +28,18 @@ test.describe("Client core smoke coverage", () => {
     await expect(page.getByTestId("client-build-edit-plan-flow")).toHaveCount(0);
 
     await page.getByRole("button", { name: "Client" }).first().click();
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Workout Plans", exact: true })
+      .getByRole("button", { name: "My Plan", exact: true })
       .click();
 
-    await page.getByRole("button", { name: "Build a Plan" }).first().click();
-
-    await expect(page.getByTestId("client-build-edit-plan-flow").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /Save Draft|Save Plan|Save Workout Plan|Save for Review|Submit for Review|Send to Coach/i }).first()).toBeVisible();
-    await expect(page.getByTestId("client-plan-draft-title-input")).toBeEditable();
+    await expect(page.getByRole("button", { name: "Build a Plan", exact: true })).toHaveCount(0);
 
     await page
       .getByRole("navigation", { name: /Main navigation/i })
@@ -46,7 +47,10 @@ test.describe("Client core smoke coverage", () => {
       .getByRole("button", { name: "Client", exact: true })
       .click();
 
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
     await page.getByRole("button", { name: "View Full Plan" }).first().click();
     await expect(page.getByTestId("client-full-assigned-plan").first()).toBeVisible();
@@ -68,7 +72,7 @@ test.describe("Client core smoke coverage", () => {
     await page.goto("/");
 
     await expect(page.getByText("NO LIMIT FITNESS").first()).toBeVisible();
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toHaveCount(0);
+    await expect(page.getByLabel("Client overview").first()).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Sign In|Log In|Login/i }).first()).toBeVisible();
   });
 });
@@ -159,6 +163,9 @@ test("client dashboard shows nutrition check-in and progress photo summary cards
 
   await page.goto("/?testUnlock=true&portalMode=client");
 
+  await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   const summaryPanel = page.getByTestId("client-dashboard-checkin-summary").first();

@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("Nutrition Coach top tab opens the working Nutrition Coach window", async ({ page }) => {
   await page.goto("/?testUnlock=true");
 
-  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+  await expect(page.getByLabel("Client overview").first()).toBeVisible();
 
   await page
     .getByRole("navigation", { name: /Main navigation/i })

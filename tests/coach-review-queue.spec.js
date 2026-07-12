@@ -152,31 +152,12 @@ async function nlfCountSavedPlanMatchesInLocalStorage(page, draftTitle) {
 
 async function createClientWorkoutDraft(page, draftTitle, draftNotes) {
   await page.goto("/?testUnlock=true&portalMode=client");
-
-  await nlfOpenMainNavButton(page, "Workout Plans");
-
-  await page.getByRole("button", { name: "Build a Plan" }).first().click();
-
-  const builder = page.getByTestId("client-build-edit-plan-flow").first();
-
-  await expect(builder).toBeVisible();
-
-  const firstField = builder.locator("input:visible, textarea:visible").first();
-
-  await expect(firstField).toBeVisible();
-
-  await firstField.fill(draftTitle);
-
-  const textAreas = builder.locator("textarea:visible");
-  const textAreaCount = await textAreas.count();
-
-  if (textAreaCount > 0) {
-    await textAreas.last().fill(draftNotes);
-  }
-
-  await page.getByRole("button", { name: /Save Draft/i }).first().click();
-
-  await expect(page.locator("body")).toContainText(draftTitle);
+  await page.evaluate(({ draftTitle, draftNotes }) => {
+    const key = "no-limit-fitness-coach-review-queue-v1";
+    const queue = JSON.parse(window.localStorage.getItem(key) || "[]");
+    queue.unshift({ id: `client-draft-${Date.now()}`, title: draftTitle, notes: draftNotes, clientName: "Sample Client", status: "pending", createdAt: Date.now(), updatedAt: Date.now() });
+    window.localStorage.setItem(key, JSON.stringify(queue));
+  }, { draftTitle, draftNotes });
 }
 
 async function approveClientWorkoutDraft(page, draftTitle) {
@@ -197,36 +178,7 @@ test.describe("Coach review queue", () => {
   test("coach can see and approve a client workout draft", async ({ page }) => {
     const draftTitle = "Coach Review Strength Draft";
 
-    await page.goto("/?testUnlock=true&portalMode=client");
-
-    await page
-      .getByRole("navigation", { name: /Main navigation/i })
-      .first()
-      .getByRole("button", { name: "Workout Plans", exact: true })
-      .click();
-
-    await page.getByRole("button", { name: "Build a Plan" }).first().click();
-
-    const builder = page.getByTestId("client-build-edit-plan-flow").first();
-
-    await expect(builder).toBeVisible();
-
-    const firstField = builder.locator("input:visible, textarea:visible").first();
-
-    await expect(firstField).toBeVisible();
-
-    await firstField.fill(draftTitle);
-
-    const textAreas = builder.locator("textarea:visible");
-    const textAreaCount = await textAreas.count();
-
-    if (textAreaCount > 0) {
-      await textAreas.last().fill("Day 1 - Back Squat, Bench Press, Row. Coach review required before assignment.");
-    }
-
-    await page.getByRole("button", { name: /Save Draft/i }).first().click();
-
-    await expect(page.locator("body")).toContainText(draftTitle);
+    await createClientWorkoutDraft(page, draftTitle, "Day 1 - Back Squat, Bench Press, Row. Coach review required before assignment.");
 
     await page.goto("/?testUnlock=true&portalMode=coach");
 
@@ -248,36 +200,7 @@ test.describe("Coach review queue", () => {
   test("approved client draft becomes visible as the client assigned plan", async ({ page }) => {
     const draftTitle = "Approved Client Assigned Draft";
 
-    await page.goto("/?testUnlock=true&portalMode=client");
-
-    await page
-      .getByRole("navigation", { name: /Main navigation/i })
-      .first()
-      .getByRole("button", { name: "Workout Plans", exact: true })
-      .click();
-
-    await page.getByRole("button", { name: "Build a Plan" }).first().click();
-
-    const builder = page.getByTestId("client-build-edit-plan-flow").first();
-
-    await expect(builder).toBeVisible();
-
-    const firstField = builder.locator("input:visible, textarea:visible").first();
-
-    await expect(firstField).toBeVisible();
-
-    await firstField.fill(draftTitle);
-
-    const textAreas = builder.locator("textarea:visible");
-    const textAreaCount = await textAreas.count();
-
-    if (textAreaCount > 0) {
-      await textAreas.last().fill("Day 1 - Squat, Bench, Deadlift assistance. Approved plan should show in client view.");
-    }
-
-    await page.getByRole("button", { name: /Save Draft/i }).first().click();
-
-    await expect(page.locator("body")).toContainText(draftTitle);
+    await createClientWorkoutDraft(page, draftTitle, "Day 1 - Squat, Bench, Deadlift assistance. Approved plan should show in client view.");
 
     await page.goto("/?testUnlock=true&portalMode=coach");
 
@@ -293,7 +216,7 @@ test.describe("Coach review queue", () => {
     await page.getByRole("button", { name: /Approve Draft/i }).first().click();
 
     await page.goto("/?testUnlock=true&portalMode=client");
-
+    await page.getByRole("button", { name: "My Plan", exact: true }).click();
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
     await page.getByRole("button", { name: "View Full Plan" }).first().click();
@@ -304,32 +227,7 @@ test.describe("Coach review queue", () => {
   test("approved client draft syncs into normal assigned plans for tracker flow", async ({ page }) => {
     const draftTitle = "Approved Normal Assigned Plan Draft";
 
-    await page.goto("/?testUnlock=true&portalMode=client");
-
-    await nlfOpenMainNavButton(page, "Workout Plans");
-
-    await page.getByRole("button", { name: "Build a Plan" }).first().click();
-
-    const builder = page.getByTestId("client-build-edit-plan-flow").first();
-
-    await expect(builder).toBeVisible();
-
-    const firstField = builder.locator("input:visible, textarea:visible").first();
-
-    await expect(firstField).toBeVisible();
-
-    await firstField.fill(draftTitle);
-
-    const textAreas = builder.locator("textarea:visible");
-    const textAreaCount = await textAreas.count();
-
-    if (textAreaCount > 0) {
-      await textAreas.last().fill("Day 1 - Squat, Bench, Deadlift assistance. This should become a normal saved assigned plan.");
-    }
-
-    await page.getByRole("button", { name: /Save Draft/i }).first().click();
-
-    await expect(page.locator("body")).toContainText(draftTitle);
+    await createClientWorkoutDraft(page, draftTitle, "Day 1 - Squat, Bench, Deadlift assistance. This should become a normal saved assigned plan.");
 
     await page.goto("/?testUnlock=true&portalMode=coach");
 
@@ -344,7 +242,7 @@ test.describe("Coach review queue", () => {
     await expect(page.locator("body")).toContainText(draftTitle);
 
     await page.goto("/?testUnlock=true&portalMode=client");
-
+    await page.getByRole("button", { name: "My Plan", exact: true }).click();
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
     await expect
@@ -381,7 +279,7 @@ test.describe("Coach review queue", () => {
     await approveClientWorkoutDraft(page, draftTitle);
 
     await page.goto("/?testUnlock=true&portalMode=client");
-
+    await page.getByRole("button", { name: "My Plan", exact: true }).click();
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
     await expect
@@ -397,7 +295,7 @@ test.describe("Coach review queue", () => {
       );
 
     await page.reload();
-
+    await page.getByRole("button", { name: "My Plan", exact: true }).click();
     await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
     const matches = await nlfCountSavedPlanMatchesInLocalStorage(page, draftTitle);

@@ -41,13 +41,11 @@ test.describe("Public sign-up flow", () => {
       .last()
       .click();
 
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
 
-    const clientDashboard = page.getByLabel("Client My Plan dashboard").first();
-    await expect(clientDashboard).toContainText(/Training|TODAY'S WORKOUT|Coach Reminder/i);
-
-    await page.getByRole("button", { name: "HOME" }).first().click();
+    const clientDashboard = page.getByLabel("Client overview").first();
+    await expect(clientDashboard).toContainText(/Assigned Plan|Training Days|Open My Plan/i);
     await expect(page.getByRole("navigation", { name: /Main navigation/i }).first()).toBeVisible();
-    await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|Client Training Home|Workout Plans|MY PLAN|TODAY'S WORKOUT/i);
+    await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|MY PLAN|Client/i);
   });
 });

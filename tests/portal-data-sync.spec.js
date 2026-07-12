@@ -48,6 +48,23 @@ test.describe("Portal data synchronization", () => {
     await expect(page.getByLabel("Client My Plan dashboard")).toHaveCount(0);
   });
 
+  test("client overview excludes coach administration and libraries paginate by role", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=client");
+    const overview = page.getByLabel("Client overview");
+    await expect(overview).toBeVisible();
+    await expect(overview).not.toContainText("Client Profiles");
+    await expect(overview).not.toContainText("Clear Local Data");
+    await page.getByRole("button", { name: "Exercise Library", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Client-Safe Exercise Library" })).toBeVisible();
+    await expect(page.getByTestId("exercise-card")).toHaveCount(24);
+
+    await page.goto("/?testUnlock=true&portalMode=coach");
+    await page.getByRole("button", { name: "Exercise Library", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Coach Exercise Library" })).toBeVisible();
+    await expect(page.getByTestId("exercise-card")).toHaveCount(24);
+    await expect(page.getByRole("button", { name: "Show More Exercises", exact: true })).toBeVisible();
+  });
+
   test("exercise library includes required client substitutions", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=client");
     await page.getByRole("button", { name: "Exercise Library", exact: true }).click();
@@ -93,9 +110,9 @@ test.describe("Portal data synchronization", () => {
       );
     });
 
-    await expect(page.getByText("Kristen Gryzik's Training", { exact: true })).toBeVisible();
+    await expect(page.getByText("Kristen Gryzik’s Dashboard", { exact: true })).toBeVisible();
     await expect(page.locator("main")).not.toContainText("Louise B – 7 Day Strength, Cardio & Confidence Plan");
-    await expect(page.getByText("No assigned plan found yet.", { exact: true })).toBeVisible();
+    await expect(page.getByText("No workout plan assigned", { exact: true })).toBeVisible();
   });
 
   test("client full plan exposes all seven clickable days and saved exercise names", async ({ page }) => {
@@ -108,12 +125,19 @@ test.describe("Portal data synchronization", () => {
       }));
       window.dispatchEvent(new CustomEvent("nlf-portal-state-synced", { detail: { payload: {
         clients: [{ id: "louise", name: "Louise Boquet", email: "louise@example.com", status: "Active", coachingStatus: "active" }],
-        savedPlans: [{ id: "seven-day-plan", clientId: "louise", clientName: "Louise Boquet", planName: "Seven Day Plan", days }],
+        savedPlans: [
+          { id: "seven-day-plan", clientId: "louise", clientName: "Louise Boquet", planName: "Seven Day Plan", status: "Active", days },
+          { id: "unassigned-plan", clientId: "louise", clientName: "Louise Boquet", planName: "Hidden Unassigned Plan", status: "Unassigned", days },
+        ],
         workoutLogs: [], conversations: [],
       } } }));
     });
 
+    await page.getByRole("button", { name: "My Plan", exact: true }).click();
     await expect(page.getByText("1. Brisk Walk", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Home", exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Assigned Workout Plan")).toHaveValue("seven-day-plan");
+    await expect(page.getByLabel("Assigned Workout Plan").getByRole("option", { name: "Hidden Unassigned Plan" })).toHaveCount(0);
     await page.getByRole("button", { name: "View Full Plan", exact: true }).click();
     const fullPlan = page.getByTestId("client-full-assigned-plan");
     for (let day = 1; day <= 7; day += 1) {
@@ -121,5 +145,25 @@ test.describe("Portal data synchronization", () => {
     }
     await fullPlan.getByRole("tab", { name: "Day 7", exact: true }).click();
     await expect(page.getByTestId("selected-client-plan-day")).toContainText("Bird Dog");
+    const todayWorkout = page.getByText("Today's Workout", { exact: true }).locator("..");
+    await expect(todayWorkout).toContainText("Day 7");
+    await expect(todayWorkout).toContainText("Bird Dog");
+  });
+
+  test("coach plan library can edit safely, unassign, and expose Save As", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=coach");
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("nlf-portal-state-synced", { detail: { payload: {
+      clients: [{ id: "louise", name: "Louise Boquet", email: "louise@example.com", status: "Active", coachingStatus: "active", coachId: "coach-primary" }],
+      savedPlans: [{ id: "editable-plan", clientId: "louise", clientName: "Louise Boquet", planName: "Editable Plan", status: "Active", days: [{ id: "day-1", name: "Day 1", exercises: [{ id: "exercise-1", exerciseName: "Bird Dog", sets: "3", repsOrTime: "10" }] }] }],
+      workoutLogs: [], conversations: [],
+    } } })));
+    await page.getByRole("button", { name: "Workout Plans", exact: true }).click();
+    const library = page.getByTestId("coach-workout-plan-library");
+    await expect(library.getByLabel("Workout Plan")).toHaveValue("editable-plan");
+    await library.getByRole("button", { name: "Edit Original", exact: true }).click({ force: true });
+    await expect(page.getByText("Editing Existing Plan", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save As New Plan", exact: true })).toBeVisible();
+    await library.getByRole("button", { name: "Unassign", exact: true }).click();
+    await expect(library.getByLabel("Assign to Client")).toHaveValue("");
   });
 });

@@ -329,7 +329,7 @@ import {
   X,
 } from "lucide-react";
 import { createClientRecord, createManagedClientAccount, fetchAdminDirectory, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
-import { createBackendPlanFromAppPlan, updateBackendPlanFromAppPlan, createBackendWorkoutLogFromAppLog, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage } from "./lib/noLimitBackendBridge";
+import { createBackendPlanFromAppPlan, updateBackendPlanFromAppPlan, updateBackendPlanAssignment, createBackendWorkoutLogFromAppLog, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage } from "./lib/noLimitBackendBridge";
 
 const STORAGE_KEY = "no-limit-fitness-app-local-state-v1";
 
@@ -559,17 +559,20 @@ const defaultServerSettings = {
 };
 
 function copyPlanDaysForEdit(days) {
-  return days.map((day) => ({
+  return (Array.isArray(days) ? days : []).map((day) => ({
     ...day,
-    exercises: day.exercises.map((exercise) => ({ ...exercise })),
+    exercises: (Array.isArray(day?.exercises) ? day.exercises : []).map((exercise) => ({
+      ...exercise,
+      categories: Array.isArray(exercise?.categories) ? exercise.categories : [],
+    })),
   }));
 }
 
 function clonePlanDays(days) {
-  return days.map((day) => ({
+  return (Array.isArray(days) ? days : []).map((day) => ({
     ...day,
     id: makeId("day"),
-    exercises: day.exercises.map((exercise) => ({ ...exercise, id: makeId("plan-exercise") })),
+    exercises: (Array.isArray(day?.exercises) ? day.exercises : []).map((exercise) => ({ ...exercise, id: makeId("plan-exercise"), categories: Array.isArray(exercise?.categories) ? exercise.categories : [] })),
   }));
 }
 
@@ -677,11 +680,18 @@ function normalizeServerSender(value) {
 }
 
 function mapServerClientForApp(client) {
+  const coachId = String(getServerValue(client, ["coachId", "coach_id"], ""));
+  const createdAt = String(getServerValue(client, ["createdAt", "created_at"], ""));
   return {
     id: String(getServerValue(client, ["id", "clientId", "client_id"], makeId("server-client"))),
     name: String(getServerValue(client, ["name", "fullName", "full_name"], "Server Client")),
     email: String(getServerValue(client, ["email"], "")),
     status: String(getServerValue(client, ["status"], "Active")),
+    coachId,
+    profileId: String(getServerValue(client, ["profileId", "profile_id"], "")),
+    coachingStatus: coachId ? "active" : "unassigned",
+    assignedAt: coachId ? createdAt : "",
+    createdAt,
   };
 }
 
@@ -695,6 +705,9 @@ function mapServerPlanExerciseForApp(exercise) {
     weightGuidance: String(getServerValue(exercise, ["weightGuidance", "weight_guidance"], "")),
     rest: String(getServerValue(exercise, ["rest", "restPeriod", "rest_period"], "")),
     notes: String(getServerValue(exercise, ["notes", "coachNotes", "coach_notes"], "")),
+    categories: Array.isArray(exercise?.categories) ? exercise.categories : [],
+    muscles: String(getServerValue(exercise, ["muscles", "musclesWorked", "muscles_worked"], "")),
+    equipment: String(getServerValue(exercise, ["equipment"], "")),
   };
 }
 
@@ -722,6 +735,7 @@ function mapServerPlanForApp(plan, clients) {
     days: days.map(mapServerPlanDayForApp),
     createdAt: normalizeServerDateLabel(createdAtRaw),
     timestamp: normalizeServerTimestamp(createdAtRaw),
+    status: String(getServerValue(plan, ["status"], "Active")),
   };
 }
 
@@ -850,7 +864,7 @@ const PORTAL_VISIBLE_TABS_BY_MODE = {
     "Progress",
     "Login",
   ],
-  client: ["Home", "Client", "Nutrition", "WorkoutPlans", "Tracker", "Progress", "Messages", "Exercises", "Login"],
+  client: ["Client", "Nutrition", "WorkoutPlans", "Tracker", "Progress", "Messages", "Exercises", "Login"],
 };
 
 const PORTAL_LANDING_TAB_BY_MODE = {
@@ -1558,13 +1572,16 @@ function findFriendlyAssignedPlan({ clients, savedPlans }) {
   }
 
   const assignedPlan = safePlans.find(
-      (plan) =>
+    (plan) =>
+      !["unassigned", "draft"].includes(String(plan.status || "active").toLowerCase()) &&
+      (
         plan.clientId === activeClient?.id ||
         plan.assignedClientId === activeClient?.id ||
         plan.client === activeClient?.id ||
         plan.client === activeClient?.name ||
         plan.assignedTo === activeClient?.id ||
         plan.assignedTo === activeClient?.name
+      )
     ) || null;
 
   if (!assignedPlan) {
@@ -5460,6 +5477,29 @@ function ClientWorkoutPlansHub() {
   );
 }
 
+function ClientOverviewScreen({ clients, savedPlans, onOpenPlans, onOpenTracker, onOpenMessages }) {
+  const { client, plan, planDays } = findFriendlyAssignedPlan({ clients, savedPlans });
+  return (
+    <section aria-label="Client overview" className="rounded-3xl border border-[#00BF63]/25 bg-black/55 p-5">
+      <SectionHeader eyebrow="Client" title={`${getFriendlyClientName(client)}’s Dashboard`} description="Your assigned workout summary and direct links to your training tools." />
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard label="Assigned Plan" value={plan ? getFriendlyPlanTitle(plan) : "None"} />
+        <StatCard label="Training Days" value={planDays.length} />
+        <StatCard label="Status" value={client?.status || "Active"} />
+      </div>
+      <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+        <h3 className="text-xl font-black">{plan ? getFriendlyPlanTitle(plan) : "No workout plan assigned"}</h3>
+        <p className="mt-2 text-sm text-white/60">View all coach-assigned workout plans, days, and exercises under My Plan.</p>
+      </div>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button type="button" onClick={onOpenPlans} className="rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black">Open My Plan</button>
+        <button type="button" onClick={onOpenTracker} className="rounded-full border border-white/15 px-5 py-3 text-sm font-black uppercase text-white">Open Tracker</button>
+        <button type="button" onClick={onOpenMessages} className="rounded-full border border-white/15 px-5 py-3 text-sm font-black uppercase text-white">Message Coach</button>
+      </div>
+    </section>
+  );
+}
+
 function ClientPortalMyPlanPanel({
   clients,
   savedPlans,
@@ -5516,12 +5556,20 @@ const handleSaveClientPlanDraft = () => {
     }, 0);
   };
 
-  const { client, plan, planDays, todayDay } = findFriendlyAssignedPlan({
+  const assignedContext = findFriendlyAssignedPlan({
     clients,
     savedPlans,
   });
+  const client = assignedContext.client;
+  const assignedPlanOptions = (Array.isArray(savedPlans) ? savedPlans : []).filter((item) =>
+    item.clientId === client?.id && !["unassigned", "draft"].includes(String(item.status || "active").toLowerCase())
+  );
+  const [selectedAssignedPlanId, setSelectedAssignedPlanId] = useState("");
+  const plan = assignedPlanOptions.find((item) => item.id === selectedAssignedPlanId) || assignedContext.plan;
+  const planDays = getFriendlyPlanDays(plan);
   const [selectedFullPlanDayId, setSelectedFullPlanDayId] = useState("");
   const selectedFullPlanDay = planDays.find((day) => day.id === selectedFullPlanDayId) || planDays[0] || null;
+  const todayDay = selectedFullPlanDay;
 
   const recentLogs = Array.isArray(workoutLogs) ? workoutLogs.slice(-3).reverse() : [];
   const todayExercises = getFriendlyDayExercises(todayDay).slice(0, 5);
@@ -5790,6 +5838,16 @@ return (
       </div>
 
       {clientDashboardTab === "checkins" && <ClientCheckInsWorkspace />}
+      {clientDashboardTab === "dashboard" && (
+      <>
+      {assignedPlanOptions.length > 0 && (
+        <label className="mb-5 block rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4 text-xs font-black uppercase tracking-wide text-[#00BF63]">
+          Assigned Workout Plan
+          <select aria-label="Assigned Workout Plan" value={plan?.id || ""} onChange={(event) => setSelectedAssignedPlanId(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-sm font-bold normal-case text-white">
+            {assignedPlanOptions.map((item) => <option key={item.id} value={item.id}>{item.planName}</option>)}
+          </select>
+        </label>
+      )}
       <ClientDashboardCheckInSummaryCards />
 
       <ClientLatestCoachActionPlanPanel />
@@ -6035,43 +6093,11 @@ return (
           >
             View Progress
           </button>
-              <button
-                type="button"
-                data-nlf-client-build-plan-action="true"
-                onClick={() => {
-                  setIsClientPlanBuilderOpen(true);
-                  setClientPlanDraftStatus("");
-                  window.setTimeout(() => {
-                    document
-                      .querySelector('[data-testid="client-build-edit-plan-flow"]')
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 0);
-                }}
-                className="min-h-12 rounded-2xl border border-[#00BF63]/40 bg-[#00BF63]/10 px-3 py-3 text-center text-[11px] font-black uppercase tracking-[0.14em] text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black md:min-h-0 md:rounded-full md:px-4 md:py-2 md:text-xs md:tracking-[0.18em]"
-              >
-                Build a Plan
-              </button>
-              <button
-                type="button"
-                data-nlf-client-edit-plan-action="true"
-                onClick={() => {
-                  setIsClientPlanBuilderOpen(true);
-                  setClientPlanDraftStatus("");
-                  window.setTimeout(() => {
-                    document
-                      .querySelector('[data-testid="client-build-edit-plan-flow"]')
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 0);
-                }}
-                className="min-h-12 rounded-2xl border border-white/15 bg-white/5 px-3 py-3 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-[#00BF63] hover:text-[#00BF63] md:min-h-0 md:rounded-full md:px-4 md:py-2 md:text-xs md:tracking-[0.18em]"
-              >
-                Edit Workout Plan
-              </button>
         </div>
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <article className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+        <article data-testid="client-todays-workout" className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
           <p className="text-xs font-black uppercase tracking-[0.22em] text-white/40">
             Today's Workout
           </p>
@@ -6132,7 +6158,7 @@ return (
                   key={index}
                   onClick={() => {
                     setSelectedFullPlanDayId(day.id);
-                    document.querySelector('[data-testid="client-full-assigned-plan"]')?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    document.querySelector('[data-testid="client-todays-workout"]')?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
                   className="rounded-2xl border border-white/10 bg-black/40 p-3"
                 >
@@ -6189,6 +6215,8 @@ return (
           )}
         </div>
       </div>
+      </>
+      )}
     </section>
   );
 }
@@ -6898,6 +6926,7 @@ const [clients, setClients] = useState(initialState.clients);
       try {
         const session = await getCurrentSession();
         if (!session || !active) return;
+        const accountProfile = await getCurrentProfile();
 
         const [serverClients, serverPlans, serverWorkoutLogs, serverMessages] = await Promise.all([
           fetchBackendClients(),
@@ -6923,6 +6952,21 @@ const [clients, setClients] = useState(initialState.clients);
         setSavedPlans(nextPlans);
         setWorkoutLogs(nextLogs);
         setConversations(nextConversations);
+        if (String(portalMode).toLowerCase() === "client") {
+          const currentClient = nextClients.find((client) =>
+            client.profileId === accountProfile?.id ||
+            String(client.email || "").toLowerCase() === String(accountProfile?.email || "").toLowerCase()
+          ) || nextClients[0] || null;
+          if (currentClient) {
+            setSelectedClientProfileId(currentClient.id);
+            setTrackerClientId(currentClient.id);
+            setSelectedConversationId(currentClient.id);
+            setPlanDraft((current) => ({ ...current, clientId: currentClient.id }));
+            const assignedPlan = nextPlans.find((plan) => plan.clientId === currentClient.id);
+            setSelectedTrackerPlanId(assignedPlan?.id || "");
+            setSelectedTrackerDayId(assignedPlan?.days?.[0]?.id || "");
+          }
+        }
       } catch (error) {
         console.warn("Could not refresh shared portal data:", error);
       }
@@ -7008,7 +7052,7 @@ const isLoggedIn =
       badge: messageUnreadCount,
       isMessageTab: true,
     },
-    { id: "WorkoutPlans", label: "Workout Plans", icon: ClipboardList },
+    { id: "WorkoutPlans", label: normalizedPortalMode === "client" ? "My Plan" : "Workout Plans", icon: ClipboardList },
     { id: "Progress", icon: TrendingUp },
     { id: "Tracker", icon: CheckCircle },
     {
@@ -7037,7 +7081,7 @@ const isLoggedIn =
   const mobilePrimaryTabLabels = {
     Client: "Plan",
     Tracker: "Log",
-    WorkoutPlans: "Build",
+    WorkoutPlans: "My Plan",
     Exercises: "Library",
     Messages: "Msg",
   };
@@ -7045,7 +7089,7 @@ const isLoggedIn =
   const mobileMenuTabLabels = {
     Home: "Home",
     Nutrition: "Nutrition",
-    WorkoutPlans: "Workout Plans",
+    WorkoutPlans: "My Plan",
     Progress: "Progress",
     Login: isLoggedIn ? "Logout" : "Login",
     Coach: "Coach",
@@ -7446,12 +7490,61 @@ const isLoggedIn =
       clientId: plan.clientId,
       days: copyPlanDaysForEdit(plan.days),
     });
-    setSelectedDayId(plan.days[0]?.id || "");
+    setSelectedDayId(plan.days?.[0]?.id || "");
     setPlanExerciseSearch("");
     setPlanCategory("All");
     setSelectedPlanDetailId(plan.id);
     setActiveTab("WorkoutPlans");
     setBuilderMessage(`Editing "${plan.planName}". Make changes, then click Save Changes.`);
+  }
+
+  async function updateSavedPlanAssignment(planId, clientId) {
+    const nextStatus = clientId ? "Active" : "Unassigned";
+    if (!isLocalRegressionRuntime()) {
+      try {
+        await updateBackendPlanAssignment(planId, clientId);
+        const refreshedPlans = await fetchBackendPlans();
+        setSavedPlans(refreshedPlans.map((plan) => mapServerPlanForApp(plan, clients)));
+        setBuilderMessage(clientId ? "Workout plan assigned securely." : "Workout plan unassigned securely.");
+        return;
+      } catch (error) {
+        setBuilderMessage(error?.message || "Unable to update plan assignment.");
+        return;
+      }
+    }
+    setSavedPlans((current) => current.map((plan) => plan.id === planId ? {
+      ...plan,
+      clientId: clientId || "",
+      clientName: clients.find((client) => client.id === clientId)?.name || "Unassigned",
+      status: nextStatus,
+    } : plan));
+    setBuilderMessage(clientId ? "Workout plan assigned." : "Workout plan unassigned.");
+  }
+
+  async function savePlanAsNew() {
+    const planName = String(planDraft.planName || "").trim();
+    const assignedClient = clients.find((client) => client.id === planDraft.clientId);
+    if (!planName) return setBuilderMessage("Add a plan name before using Save As.");
+    if (!planDraft.clientId) return setBuilderMessage("Select a client before using Save As.");
+    const copyName = `${planName} Copy`;
+    const days = clonePlanDays(planDraft.days);
+    if (!isLocalRegressionRuntime()) {
+      try {
+        const profile = await getCurrentProfile();
+        await createBackendPlanFromAppPlan({ coachId: profile?.id, clientId: planDraft.clientId, planName: copyName, days });
+        const refreshedPlans = await fetchBackendPlans();
+        setSavedPlans(refreshedPlans.map((plan) => mapServerPlanForApp(plan, clients)));
+        setBuilderMessage(`Saved "${copyName}" as a new editable plan.`);
+        return;
+      } catch (error) {
+        setBuilderMessage(error?.message || "Unable to save a new plan copy.");
+        return;
+      }
+    }
+    const copy = { id: makeId("saved-plan"), planName: copyName, clientId: planDraft.clientId, clientName: assignedClient?.name || "Client", status: "Active", createdAt: new Date().toLocaleString(), timestamp: Date.now(), days };
+    setSavedPlans((current) => [copy, ...current]);
+    setSelectedPlanDetailId(copy.id);
+    setBuilderMessage(`Saved "${copyName}" as a new editable plan.`);
   }
 
   function duplicateSavedPlan(planId) {
@@ -8305,16 +8398,14 @@ function handlePortalLogout() {
 
         <main className="mx-auto max-w-7xl px-4 py-8 pb-28 md:pb-8">
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_START */}
-        {["Home", "Client"].includes(activeTab) && normalizedPortalMode === "client" && (
-          <ClientPortalMyPlanPanel
+        {activeTab === "Client" && normalizedPortalMode === "client" && (
+          <ClientOverviewScreen
             clients={clients}
             savedPlans={savedPlans}
-            workoutLogs={workoutLogs}
             onOpenTracker={() => setActiveTab("Tracker")}
             onOpenMessages={() => setActiveTab("Messages")}
-            onOpenProgress={() => setActiveTab("Progress")}
             onOpenPlans={() => setActiveTab("WorkoutPlans")}
-              />
+          />
         )}
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_END */}
         {/* Bundle 12N: ClientsScreen is now the single coach client-management surface. */}
@@ -8421,7 +8512,6 @@ function handlePortalLogout() {
               onOpenMessages={() => setActiveTab("Messages")}
               onOpenProgress={() => setActiveTab("Progress")}
               onOpenPlans={() => setActiveTab("WorkoutPlans")}
-              forceBuildWorkoutPlanOpen={true}
             />
           )}
 
@@ -8458,6 +8548,8 @@ function handlePortalLogout() {
               startEditPlan={startEditPlan}
               duplicateSavedPlan={duplicateSavedPlan}
               deleteSavedPlan={deleteSavedPlan}
+              updateSavedPlanAssignment={updateSavedPlanAssignment}
+              savePlanAsNew={savePlanAsNew}
             />
             </>
           )}
@@ -8509,6 +8601,7 @@ function handlePortalLogout() {
 
           {activeTab === "Exercises" && (
             <ExercisesScreen
+              isCoachPortal={normalizedPortalMode !== "client"}
               librarySearch={librarySearch}
               setLibrarySearch={setLibrarySearch}
               libraryCategory={libraryCategory}
@@ -12171,7 +12264,7 @@ function ClientsScreen({
         </form>
       </section>
 
-      <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
+      {isLocalRegressionRuntime() && <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
         <h3 className="text-xl font-black uppercase">Add Client</h3>
         <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
           <label className="block">
@@ -12210,7 +12303,7 @@ function ClientsScreen({
             Add Client
           </button>
         </div>
-      </section>
+      </section>}
 
       <section
         data-testid="active-client-window"
@@ -12425,7 +12518,7 @@ function ClientProfileDetails({ client, savedPlans, workoutLogs, conversations, 
   );
 }
 
-function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selectedDayId, setSelectedDayId, updatePlanField, addTrainingDay, updateTrainingDayCount, updateTrainingDayName, removeTrainingDay, planExerciseSearch, setPlanExerciseSearch, planCategory, setPlanCategory, filteredBuilderExercises, addExerciseToSelectedDay, updatePlanExercise, removePlanExercise, savePlan, resetPlanBuilder, builderMessage, savedPlans, selectedPlanDetailId, setSelectedPlanDetailId, editingPlanId, startEditPlan, duplicateSavedPlan, deleteSavedPlan }) {
+function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selectedDayId, setSelectedDayId, updatePlanField, addTrainingDay, updateTrainingDayCount, updateTrainingDayName, removeTrainingDay, planExerciseSearch, setPlanExerciseSearch, planCategory, setPlanCategory, filteredBuilderExercises, addExerciseToSelectedDay, updatePlanExercise, removePlanExercise, savePlan, resetPlanBuilder, builderMessage, savedPlans, selectedPlanDetailId, setSelectedPlanDetailId, editingPlanId, startEditPlan, duplicateSavedPlan, deleteSavedPlan, updateSavedPlanAssignment, savePlanAsNew }) {
   const builderModeLabel = editingPlanId ? "Editing Existing Plan" : "Creating New Plan";
   const builderModeDescription = editingPlanId
     ? "You are editing a saved plan. Make your changes, then click Save Changes. Use Cancel Editing to leave edit mode without saving new changes."
@@ -12441,6 +12534,19 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
         title="Workout Builder"
         description="Coach-only workout creator and editor. Choose the client, build the days, add exercises, then save. Existing saved plans can be viewed, edited, copied, or deleted from the saved plan cards."
       />
+
+      <section data-testid="coach-workout-plan-library" className="mb-6 rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/10 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">General Plan Library</p>
+        <h3 className="mt-2 text-2xl font-black uppercase">All Created Workout Plans</h3>
+        <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+          <Select label="Workout Plan" value={selectedPlanDetail?.id || ""} onChange={setSelectedPlanDetailId} options={savedPlans.map((plan) => ({ label: `${plan.planName}${String(plan.status).toLowerCase() === "unassigned" ? " (Unassigned)" : ""}`, value: plan.id }))} />
+          <Select label="Assign to Client" value={String(selectedPlanDetail?.status).toLowerCase() === "unassigned" ? "" : selectedPlanDetail?.clientId || ""} onChange={(clientId) => selectedPlanDetail && updateSavedPlanAssignment(selectedPlanDetail.id, clientId)} options={[{ label: "Unassigned", value: "" }, ...clients.map((client) => ({ label: client.name, value: client.id }))]} />
+          <div className="flex flex-wrap items-end gap-2">
+            <button type="button" disabled={!selectedPlanDetail} onClick={() => selectedPlanDetail && startEditPlan(selectedPlanDetail.id)} className="rounded-full bg-[#00BF63] px-4 py-3 text-xs font-black uppercase text-black disabled:opacity-40">Edit Original</button>
+            <button type="button" disabled={!selectedPlanDetail?.clientId} onClick={() => selectedPlanDetail && updateSavedPlanAssignment(selectedPlanDetail.id, "")} className="rounded-full border border-white/20 px-4 py-3 text-xs font-black uppercase text-white disabled:opacity-40">Unassign</button>
+          </div>
+        </div>
+      </section>
 
       <div aria-label="Workout builder quick steps" className="mb-6 grid gap-3 md:grid-cols-4">
         {[
@@ -12512,6 +12618,7 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
                 <Save size={17} />
                 {editingPlanId ? "Save Changes" : "Save New Plan"}
               </button>
+              {editingPlanId && <button type="button" onClick={savePlanAsNew} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[#00BF63]/40 bg-[#00BF63]/10 px-5 py-3 text-sm font-black uppercase tracking-wide text-[#00BF63]"><Copy size={17} />Save As New Plan</button>}
               <button
                 type="button"
                 onClick={resetPlanBuilder}
@@ -12542,9 +12649,12 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
 }
 
 function ExercisePicker({ exercises, onAdd }) {
+  const [visibleCount, setVisibleCount] = useState(18);
+  useEffect(() => setVisibleCount(18), [exercises]);
+  const visibleExercises = exercises.slice(0, visibleCount);
   return (
     <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
-      {exercises.map((exercise) => (
+      {visibleExercises.map((exercise) => (
         <div key={exercise.name} className="rounded-2xl border border-white/10 bg-black/40 p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <ExerciseSummary exercise={exercise} />
@@ -12552,6 +12662,7 @@ function ExercisePicker({ exercises, onAdd }) {
           </div>
         </div>
       ))}
+      {visibleCount < exercises.length && <button type="button" onClick={() => setVisibleCount((count) => count + 18)} className="w-full rounded-2xl border border-[#00BF63]/40 bg-[#00BF63]/10 px-4 py-3 text-sm font-black uppercase text-[#00BF63]">Show More Exercises</button>}
       {exercises.length === 0 && <EmptyState text="No exercises match your search." />}
     </div>
   );
@@ -12560,7 +12671,7 @@ function ExercisePicker({ exercises, onAdd }) {
 function ExerciseSummary({ exercise }) {
   return (
     <div>
-      <div className="mb-2 flex flex-wrap gap-2">{exercise.categories.map((category) => <CategoryPill key={category}>{category}</CategoryPill>)}</div>
+      <div className="mb-2 flex flex-wrap gap-2">{(exercise.categories || []).map((category) => <CategoryPill key={category}>{category}</CategoryPill>)}</div>
       <h4 className="text-lg font-black">{exercise.name}</h4>
       <p className="mt-1 text-sm text-white/55"><span className="font-bold text-white/80">Muscles:</span> {exercise.muscles}</p>
       <p className="mt-1 text-sm text-white/55"><span className="font-bold text-white/80">Equipment:</span> {exercise.equipment}</p>
@@ -12584,7 +12695,7 @@ function TrainingDayBuilder({ planDraft, selectedDay, selectedDayId, setSelected
             {selectedDay.exercises.map((exercise, index) => (
               <div key={exercise.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                 <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><div className="mt-2 flex flex-wrap gap-2">{exercise.categories.map((category) => <CategoryPill key={category}>{category}</CategoryPill>)}</div><p className="mt-2 text-sm text-white/50">{exercise.muscles} • {exercise.equipment}</p></div>
+                  <div><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><div className="mt-2 flex flex-wrap gap-2">{(exercise.categories || []).map((category) => <CategoryPill key={category}>{category}</CategoryPill>)}</div><p className="mt-2 text-sm text-white/50">{exercise.muscles} • {exercise.equipment}</p></div>
                   <button type="button" onClick={() => removePlanExercise(selectedDay.id, exercise.id)} className="rounded-full border border-red-500/30 bg-red-500/10 p-2 text-red-300 transition hover:bg-red-500 hover:text-white" aria-label="Remove exercise"><Trash2 size={18} /></button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -13371,7 +13482,10 @@ function getClientSafeExerciseSearchText(exercise) {
 }
 // NLF_CLIENT_SAFE_EXERCISE_LIBRARY_END
 
-function ExercisesScreen({ librarySearch, setLibrarySearch, libraryCategory, setLibraryCategory, filteredLibraryExercises, totalExerciseCount }) {
+function ExercisesScreen({ isCoachPortal = false, librarySearch, setLibrarySearch, libraryCategory, setLibraryCategory, filteredLibraryExercises, totalExerciseCount }) {
+  const [visibleCount, setVisibleCount] = useState(24);
+  useEffect(() => setVisibleCount(24), [librarySearch, libraryCategory]);
+  const visibleExercises = filteredLibraryExercises.slice(0, visibleCount);
   const categoryCount =
     libraryCategory === "All" ? totalExerciseCount : filteredLibraryExercises.length;
 
@@ -13379,8 +13493,8 @@ function ExercisesScreen({ librarySearch, setLibrarySearch, libraryCategory, set
     <div>
       <SectionHeader
         eyebrow="Exercises"
-        title="Client-Safe Exercise Library"
-        description="Search exercise names, muscle groups, equipment, instructions, and substitution options without exposing coach-only edit controls."
+        title={isCoachPortal ? "Coach Exercise Library" : "Client-Safe Exercise Library"}
+        description={isCoachPortal ? "Search the complete exercise database for workout programming, instructions, equipment, and substitutions." : "Search exercise names, muscle groups, equipment, instructions, and substitution options."}
       />
 
       <div
@@ -13431,15 +13545,16 @@ function ExercisesScreen({ librarySearch, setLibrarySearch, libraryCategory, set
           data-testid="exercise-library-count"
           className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-3 text-sm font-bold text-[#00BF63]"
         >
-          Showing {filteredLibraryExercises.length} exercise(s). Coach edit controls are not available in this client-safe view.
+          Showing {visibleExercises.length} of {filteredLibraryExercises.length} exercise(s). {isCoachPortal ? "Use the Workout Plans builder to add and edit exercise programming." : "Client-safe instructions and substitutions are shown."}
         </p>
       </div>
 
       <div data-testid="client-safe-exercise-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filteredLibraryExercises.map((exercise) => (
+        {visibleExercises.map((exercise) => (
           <ExerciseCard key={exercise.name} exercise={exercise} />
         ))}
       </div>
+      {visibleCount < filteredLibraryExercises.length && <button type="button" onClick={() => setVisibleCount((count) => count + 24)} className="mt-5 w-full rounded-2xl border border-[#00BF63]/40 bg-[#00BF63]/10 px-5 py-3 text-sm font-black uppercase text-[#00BF63]">Show More Exercises</button>}
 
       {filteredLibraryExercises.length === 0 && (
         <EmptyState text="No exercises match your search. Try a muscle group, equipment type, or substitution term." />
@@ -13526,13 +13641,13 @@ function ProgressScreen({
 
       <div className="mb-6 rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/10 p-5">
         <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
-          Frontend Step 1 Complete
+          Training Progress
         </p>
         <h3 className="mt-2 text-2xl font-black uppercase text-white">
           Progress Dashboard
         </h3>
         <p className="mt-2 text-sm font-bold leading-6 text-white/65">
-          Local React state and localStorage are still powering this screen. Server progress tables can come later after the frontend is stable.
+          Review completed workouts, consistency, substitutions, notes, and recent training history.
         </p>
       </div>
 

@@ -25,7 +25,7 @@ test.describe("Public logout flow", () => {
       window.localStorage.setItem("no-limit-fitness-portal-mode-v1", "client");
     });
     await page.reload();
-    await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+    await expect(page.getByLabel("Client overview").first()).toBeVisible();
 
     await page.getByRole("button", { name: /LOGOUT/i }).first().click();
 

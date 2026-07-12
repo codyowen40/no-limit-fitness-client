@@ -400,6 +400,21 @@ export async function updateBackendPlanFromAppPlan({ planId, clientId, planName,
   }
 }
 
+export async function updateBackendPlanAssignment(planId, clientId) {
+  const assigned = Boolean(clientId);
+  const changes = assigned
+    ? { client_id: clientId, status: "Active" }
+    : { status: "Unassigned" };
+  const { data, error } = await supabase
+    .from("workout_plans")
+    .update(changes)
+    .eq("id", planId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createBackendWorkoutLogFromAppLog({
   clientId,
   planId = null,

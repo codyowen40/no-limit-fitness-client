@@ -318,6 +318,9 @@ test.describe("Coach/client assignment data coverage", () => {
 test("coach can review saved nutrition targets meals and notes", async ({ page }) => {
   await page.goto("/?testUnlock=true&portalMode=client");
 
+  await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   await page
@@ -475,6 +478,9 @@ test("client weekly check-in appears in coach nutrition review", async ({ page }
 
   await page.goto("/?testUnlock=true&portalMode=client");
 
+  await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   await page.getByTestId("client-dashboard-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
@@ -576,6 +582,9 @@ test("client can upload progress photos and coach can review them", async ({ pag
 
   await page.goto("/?testUnlock=true&portalMode=client");
 
+  await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   await page.getByTestId("client-dashboard-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
@@ -921,6 +930,9 @@ test("coach can generate weekly action plan and client can view it", async ({ pa
 
   await page.goto("/?testUnlock=true&portalMode=client");
 
+  await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   const clientActionPlanPanel = page.getByTestId("client-latest-coach-action-plan").first();
@@ -958,6 +970,9 @@ test("client can complete coach action plan and coach can review completion", as
 
   await page.goto("/?testUnlock=true&portalMode=client");
 
+  await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   await page.getByTestId("client-dashboard-tab-strip").getByRole("tab", { name: "Check-Ins", exact: true }).click();
@@ -1171,6 +1186,9 @@ test("coach can generate weekly adjustment and client can view it", async ({ pag
 
   await page.goto("/?testUnlock=true&portalMode=client");
 
+  await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   const clientAdjustmentPanel = page.getByTestId("client-latest-coach-adjustment").first();
@@ -1187,6 +1205,9 @@ test("check-ins workspace contains moved check-in tools and coach can generate w
 
   await page.goto("/?testUnlock=true&portalMode=client");
 
+  await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
   await expect(page.getByTestId("client-checkins-workspace")).toHaveCount(0);
 
@@ -1317,19 +1338,21 @@ Notes: Strong form, fatigue on last set.`);
 test("workout plans opens directly inside the client portal without a nested app shell", async ({ page }) => {
   await page.goto("/?testUnlock=true&portalMode=client");
 
+  await expect(page.getByLabel("Client overview").first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: /Main navigation/i }).first().getByRole("button", { name: "My Plan", exact: true }).click();
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
 
   const workoutPlansButton = page
     .getByRole("navigation", { name: /Main navigation/i })
     .first()
-    .getByRole("button", { name: /Workout Plans/i })
+    .getByRole("button", { name: /My Plan/i })
     .first();
 
   await workoutPlansButton.click();
 
   await expect(page.getByTestId("client-workout-plans-hub")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: /Main navigation/i })).toHaveCount(1);
-  await expect(page.getByText("Build or edit your workout plan").first()).toBeVisible();
-  await page.getByRole("button", { name: "Build a Plan", exact: true }).click();
-  await expect(page.getByTestId("client-build-edit-plan-flow")).toBeVisible();
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Build a Plan", exact: true })).toHaveCount(0);
 });
