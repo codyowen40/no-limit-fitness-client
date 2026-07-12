@@ -8432,6 +8432,12 @@ function handlePortalLogout() {
               openTrackerForClient={openTrackerForClient}
               openMessagesForClient={openMessagesForClient}
               openPlansForClient={openPlansForClient}
+              onOpenClientAccounts={() => {
+                setActiveTab("Clients");
+                window.setTimeout(() => {
+                  document.querySelector('[data-testid="coach-client-account-admin"]')?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 0);
+              }}
             />
           )}
 
@@ -11236,6 +11242,7 @@ function CoachScreen({
   openTrackerForClient = () => {},
   openMessagesForClient = () => {},
   openPlansForClient = () => {},
+  onOpenClientAccounts = () => {},
 }) {
   const [coachCommandTab, setCoachCommandTab] = useState("command");
   const [selectedCoachClientId, setSelectedCoachClientId] = useState("");
@@ -11424,6 +11431,17 @@ function CoachScreen({
         title="Coach Command Center"
         description="Manage assigned clients, plan reviews, workout logs, messages, and progress from one production-facing workspace."
       />
+
+      <section className="mb-6 flex flex-col gap-4 rounded-[1.5rem] border border-[#00BF63]/35 bg-[#00BF63]/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">Coach Admin</p>
+          <h3 className="mt-2 text-xl font-black uppercase text-white">Client Login Administration</h3>
+          <p className="mt-2 text-sm text-white/65">Create secured login credentials and a linked client profile from the coach portal.</p>
+        </div>
+        <button type="button" onClick={onOpenClientAccounts} className="shrink-0 rounded-2xl bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white">
+          Create Client Login
+        </button>
+      </section>
 
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard label="Active Clients" value={activeClients.length} />

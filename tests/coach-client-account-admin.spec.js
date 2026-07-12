@@ -4,11 +4,8 @@ test.describe("Coach client account administration", () => {
   test("coach-only Clients screen exposes secure credential creation with local validation", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=coach");
 
-    await page
-      .getByRole("navigation", { name: /Main navigation/i })
-      .first()
-      .getByRole("button", { name: "Clients", exact: true })
-      .click();
+    await expect(page.getByRole("button", { name: "Create Client Login", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Create Client Login", exact: true }).click();
 
     const admin = page.getByTestId("coach-client-account-admin");
     await expect(admin).toBeVisible();
