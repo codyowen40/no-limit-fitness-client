@@ -5684,14 +5684,19 @@ const handleSaveClientPlanDraft = () => {
               <label className="grid gap-2 text-sm font-bold text-white/80">
                 Days
                 <select
+                  data-testid="client-plan-draft-days-select"
+                  aria-label="Training Days Per Week"
                   value={clientPlanDraftDays}
                   onChange={(event) => setClientPlanDraftDays(event.target.value)}
                   className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
                 >
+                  <option value="1">1</option>
                   <option value="2">2</option>
                   <option value="3">3</option>
                   <option value="4">4</option>
                   <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
                 </select>
               </label>
             </div>
@@ -5882,14 +5887,18 @@ return (
                 Training Days
                 <select
                   data-testid="client-plan-draft-days-select"
+                  aria-label="Training Days Per Week"
                   value={clientPlanDraftDays}
                   onChange={(event) => setClientPlanDraftDays(event.target.value)}
                   className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#00BF63]"
                 >
+                  <option value="1">1 day / week</option>
                   <option value="2">2 days / week</option>
                   <option value="3">3 days / week</option>
                   <option value="4">4 days / week</option>
                   <option value="5">5 days / week</option>
+                  <option value="6">6 days / week</option>
+                  <option value="7">7 days / week</option>
                 </select>
               </label>
 
@@ -7069,6 +7078,24 @@ const isLoggedIn =
     const newDay = { id: makeId("day"), name: "", exercises: [] };
     setPlanDraft((current) => ({ ...current, days: [...current.days, newDay] }));
     setSelectedDayId(newDay.id);
+    setBuilderMessage("");
+  }
+
+  function updateTrainingDayCount(value) {
+    const requestedCount = Math.min(7, Math.max(1, Number(value) || 1));
+    const nextDays = planDraft.days.slice(0, requestedCount);
+
+    while (nextDays.length < requestedCount) {
+      const dayNumber = nextDays.length + 1;
+      nextDays.push({ id: makeId("day"), name: `Day ${dayNumber}`, exercises: [] });
+    }
+
+    setPlanDraft((current) => ({ ...current, days: nextDays }));
+
+    if (!nextDays.some((day) => day.id === selectedDayId)) {
+      setSelectedDayId(nextDays[0].id);
+    }
+
     setBuilderMessage("");
   }
 
@@ -8270,6 +8297,7 @@ function handlePortalLogout() {
               setSelectedDayId={setSelectedDayId}
               updatePlanField={updatePlanField}
               addTrainingDay={addTrainingDay}
+              updateTrainingDayCount={updateTrainingDayCount}
               updateTrainingDayName={updateTrainingDayName}
               removeTrainingDay={removeTrainingDay}
               planExerciseSearch={planExerciseSearch}
@@ -12148,7 +12176,7 @@ function ClientProfileDetails({ client, savedPlans, workoutLogs, conversations, 
   );
 }
 
-function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selectedDayId, setSelectedDayId, updatePlanField, addTrainingDay, updateTrainingDayName, removeTrainingDay, planExerciseSearch, setPlanExerciseSearch, planCategory, setPlanCategory, filteredBuilderExercises, addExerciseToSelectedDay, updatePlanExercise, removePlanExercise, savePlan, resetPlanBuilder, builderMessage, savedPlans, selectedPlanDetailId, setSelectedPlanDetailId, editingPlanId, startEditPlan, duplicateSavedPlan, deleteSavedPlan }) {
+function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selectedDayId, setSelectedDayId, updatePlanField, addTrainingDay, updateTrainingDayCount, updateTrainingDayName, removeTrainingDay, planExerciseSearch, setPlanExerciseSearch, planCategory, setPlanCategory, filteredBuilderExercises, addExerciseToSelectedDay, updatePlanExercise, removePlanExercise, savePlan, resetPlanBuilder, builderMessage, savedPlans, selectedPlanDetailId, setSelectedPlanDetailId, editingPlanId, startEditPlan, duplicateSavedPlan, deleteSavedPlan }) {
   const builderModeLabel = editingPlanId ? "Editing Existing Plan" : "Creating New Plan";
   const builderModeDescription = editingPlanId
     ? "You are editing a saved plan. Make your changes, then click Save Changes. Use Cancel Editing to leave edit mode without saving new changes."
@@ -12188,6 +12216,7 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
             <div className="grid gap-4 md:grid-cols-2">
               <Input label="Plan Name" value={planDraft.planName} onChange={(value) => updatePlanField("planName", value)} placeholder="Example: 4 Week Strength Plan" />
               <Select label="Select Client" value={planDraft.clientId} onChange={(value) => updatePlanField("clientId", value)} options={clients.map((client) => ({ label: client.name, value: client.id }))} />
+              <Select label="Training Days Per Week" value={String(planDraft.days.length)} onChange={updateTrainingDayCount} options={Array.from({ length: 7 }, (_, index) => ({ label: `${index + 1} ${index === 0 ? "day" : "days"} / week`, value: String(index + 1) }))} />
             </div>
             <div className="mt-4 grid gap-3 rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4 md:grid-cols-3"><StatCard label="Selected Client" value={selectedClient?.name || "None"} /><StatCard label="Training Days" value={planDraft.days.length} /><StatCard label="Plan Exercises" value={totalExercises} /></div>
             <div

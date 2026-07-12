@@ -24,6 +24,32 @@ test.describe("Build Workout Plan tab", () => {
 
     await expect(page.getByTestId("client-build-edit-plan-flow").first()).toBeVisible();
     await expect(page.locator("body")).toContainText(/Save Draft|Save Changes|Save Workout Plan|Submit.*Review|Send.*Coach/i);
+
+    const clientDaySelector = page.getByTestId("client-plan-draft-days-select");
+    await expect(clientDaySelector.locator("option")).toHaveCount(7);
+    await clientDaySelector.selectOption("1");
+    await expect(clientDaySelector).toHaveValue("1");
+    await clientDaySelector.selectOption("7");
+    await expect(clientDaySelector).toHaveValue("7");
+  });
+
+  test("coach can choose one through seven training days", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=coach");
+
+    await page
+      .getByRole("navigation", { name: /Main navigation/i })
+      .first()
+      .getByRole("button", { name: "Workout Plans", exact: true })
+      .click();
+
+    const coachDaySelector = page.getByLabel("Training Days Per Week");
+    await expect(coachDaySelector.locator("option")).toHaveCount(7);
+    await coachDaySelector.selectOption("7");
+    await expect(coachDaySelector).toHaveValue("7");
+    await expect(page.getByRole("button", { name: "Day 7", exact: true })).toBeVisible();
+    await coachDaySelector.selectOption("1");
+    await expect(coachDaySelector).toHaveValue("1");
+    await expect(page.getByRole("button", { name: "Day 7", exact: true })).toHaveCount(0);
   });
   test("plan title fields are not mislabeled as exercise search", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=client");
