@@ -423,6 +423,7 @@ export async function createBackendWorkoutLogFromAppLog({
   dayName = "",
   status,
   skipReason = "",
+  submittedAt = null,
   entries = [],
 }) {
   const { data: workoutLog, error: logError } = await supabase
@@ -435,6 +436,7 @@ export async function createBackendWorkoutLogFromAppLog({
       day_name: dayName,
       status,
       skip_reason: skipReason,
+      ...(submittedAt ? { submitted_at: submittedAt } : {}),
     })
     .select()
     .single();

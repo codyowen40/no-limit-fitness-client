@@ -95,6 +95,8 @@ function createCompletedLog(overrides = {}) {
     status: "completed",
     skipReason: "",
     submittedAt: "Test completed time",
+    workoutDate: "2026-05-18",
+    workoutDateLabel: "May 18, 2026",
     timestamp: 1710000001000,
     entries: [
       createEntry({
@@ -182,6 +184,29 @@ async function openProgress(page) {
 }
 
 test.describe("No Limit Fitness workout log details", () => {
+  test("records the selected workout date and keeps it after refresh", async ({ page }) => {
+    await openSeededApp(page);
+    await page.getByRole("navigation").getByRole("button", { name: /^Tracker$/ }).click();
+
+    await page.getByLabel("Workout Date").fill("2026-05-18");
+    await page.getByRole("button", { name: "Mark Complete" }).click();
+    await expect(page.getByText("Workout Date: May 18, 2026")).toBeVisible();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await openProgress(page);
+    await expect(page.getByText("May 18, 2026").first()).toBeVisible();
+  });
+
+  test("coach View Client opens the selected client workspace", async ({ page }) => {
+    await openSeededApp(page);
+    await page.evaluate((portalModeKey) => window.localStorage.setItem(portalModeKey, "coach"), PORTAL_MODE_KEY);
+    await page.goto(`${TEST_UNLOCK_URL}&portalMode=coach`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("navigation").getByRole("button", { name: /^Coach$/ }).click();
+    await page.getByRole("button", { name: "View Client" }).first().click();
+
+    await expect(page.getByTestId("selected-client-workspace")).toContainText(testClient.name);
+  });
+
   test("saves a completed workout with client-entered values and keeps it after refresh", async ({
     page,
   }) => {
@@ -190,6 +215,7 @@ test.describe("No Limit Fitness workout log details", () => {
 
     await expect(page.getByText(testClient.name).first()).toBeVisible();
     await expect(page.getByText(testPlan.planName).first()).toBeVisible();
+    await expect(page.getByText("May 18, 2026").first()).toBeVisible();
     await expect(page.getByText("Back Squat").first()).toBeVisible();
 
     await expect(page.getByText(/Actual Weight Used:\s*235 lb/i).first()).toBeVisible();

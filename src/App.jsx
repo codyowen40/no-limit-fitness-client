@@ -674,6 +674,23 @@ function normalizeServerDateLabel(value) {
   return new Date(parsed).toLocaleString();
 }
 
+function getLocalWorkoutDateValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getWorkoutDateTimestamp(value) {
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? String(value) : getLocalWorkoutDateValue();
+  const parsed = new Date(`${normalized}T12:00:00`);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function getWorkoutDateLabel(value) {
+  return getWorkoutDateTimestamp(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 function normalizeServerSender(value) {
   const sender = String(value || "Coach").toLowerCase();
   return sender.includes("client") ? "Client" : "Coach";
@@ -776,6 +793,8 @@ function mapServerWorkoutLogForApp(log, clients, plans) {
     dayName: String(getServerValue(log, ["dayName", "day_name"], "Server Workout")),
     status: rawStatus.includes("skip") ? "skipped" : "completed",
     submittedAt: normalizeServerDateLabel(submittedAtRaw),
+    workoutDate: getLocalWorkoutDateValue(new Date(normalizeServerTimestamp(submittedAtRaw))),
+    workoutDateLabel: getWorkoutDateLabel(getLocalWorkoutDateValue(new Date(normalizeServerTimestamp(submittedAtRaw)))),
     timestamp: normalizeServerTimestamp(submittedAtRaw),
     skipReason: String(getServerValue(log, ["skipReason", "skip_reason"], "")),
     entries: entries.map(mapServerWorkoutEntryForApp),
@@ -6688,6 +6707,7 @@ const [clients, setClients] = useState(initialState.clients);
   const [trackingDrafts, setTrackingDrafts] = useState({});
   const [trackerMessage, setTrackerMessage] = useState("");
   const [skipReason, setSkipReason] = useState("");
+  const [workoutDate, setWorkoutDate] = useState(() => getLocalWorkoutDateValue());
 
   const [planDraft, setPlanDraft] = useState({
     planName: "",
@@ -7718,6 +7738,7 @@ const isLoggedIn =
       };
     });
 
+    const workoutDateTime = getWorkoutDateTimestamp(workoutDate);
     const newLog = {
       id: makeId("workout-log"),
       clientId: plan.clientId,
@@ -7728,8 +7749,10 @@ const isLoggedIn =
       dayName: day.name,
       status,
       skipReason: status === "skipped" ? skipReason.trim() : "",
-      submittedAt: new Date().toLocaleString(),
-      timestamp: Date.now(),
+      workoutDate,
+      workoutDateLabel: getWorkoutDateLabel(workoutDate),
+      submittedAt: workoutDateTime.toLocaleString(),
+      timestamp: workoutDateTime.getTime(),
       entries,
     };
 
@@ -7743,6 +7766,7 @@ const isLoggedIn =
           dayName: newLog.dayName,
           status: newLog.status,
           skipReason: newLog.skipReason,
+          submittedAt: workoutDateTime.toISOString(),
           entries: newLog.entries.map((entry) => ({ ...entry, planExerciseId: entry.exerciseId })),
         });
         const refreshedLogs = await fetchBackendWorkoutLogs();
@@ -8467,6 +8491,10 @@ function handlePortalLogout() {
               openTrackerForClient={openTrackerForClient}
               openMessagesForClient={openMessagesForClient}
               openPlansForClient={openPlansForClient}
+              onOpenClient={(clientId) => {
+                setSelectedClientProfileId(clientId);
+                setActiveTab("Clients");
+              }}
               onOpenClientAccounts={() => {
                 setActiveTab("Clients");
                 window.setTimeout(() => {
@@ -8574,6 +8602,8 @@ function handlePortalLogout() {
               setActiveTab={setActiveTab}
               skipReason={skipReason}
               setSkipReason={setSkipReason}
+              workoutDate={workoutDate}
+              setWorkoutDate={setWorkoutDate}
               deleteWorkoutLog={deleteWorkoutLog}
             />
           )}
@@ -9119,7 +9149,7 @@ function ClientDashboardScreen({
                         </div>
 
                         <p className="mt-2 text-xs font-bold uppercase tracking-wide text-white/40">
-                          {log.submittedAt}
+                          Workout Date: {log.workoutDateLabel || log.submittedAt}
                         </p>
 
                         {log.skipReason && (
@@ -11276,6 +11306,7 @@ function CoachScreen({
   openTrackerForClient = () => {},
   openMessagesForClient = () => {},
   openPlansForClient = () => {},
+  onOpenClient = () => {},
   onOpenClientAccounts = () => {},
 }) {
   const [coachCommandTab, setCoachCommandTab] = useState("command");
@@ -11531,7 +11562,10 @@ function CoachScreen({
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => setSelectedCoachClientId(client.id)}
+                      onClick={() => {
+                        setSelectedCoachClientId(client.id);
+                        onOpenClient(client.id);
+                      }}
                       className="rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white transition hover:border-[#00BF63] hover:text-[#00BF63]"
                     >
                       View Client
@@ -12499,7 +12533,7 @@ function ClientProfileDetails({ client, savedPlans, workoutLogs, conversations, 
               <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-black">{log.dayName}</p><StatusPill status={log.status} /></div>
               <p className="mt-1 text-sm text-white/55">{log.planName}</p>
               {log.skipReason && <p className="mt-2 text-xs font-bold text-yellow-200">Skip Reason: {log.skipReason}</p>}
-              <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-white/35">{log.submittedAt}</p>
+              <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-white/35">Workout Date: {log.workoutDateLabel || log.submittedAt}</p>
             </div>
           ))}
           {clientLogs.length === 0 && <EmptyState text="No workout logs for this client yet." />}
@@ -12770,7 +12804,7 @@ function PlanDetailView({ plan }) {
   );
 }
 
-function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientId, selectedTrackerPlanId, setSelectedTrackerPlanId, selectedTrackerDayId, setSelectedTrackerDayId, trackingDrafts, updateTrackingDraft, markWorkoutStatus, trackerMessage, workoutLogs, selectedWorkoutLogId, setSelectedWorkoutLogId, setActiveTab, skipReason, setSkipReason, deleteWorkoutLog }) {
+function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientId, selectedTrackerPlanId, setSelectedTrackerPlanId, selectedTrackerDayId, setSelectedTrackerDayId, trackingDrafts, updateTrackingDraft, markWorkoutStatus, trackerMessage, workoutLogs, selectedWorkoutLogId, setSelectedWorkoutLogId, setActiveTab, skipReason, setSkipReason, workoutDate, setWorkoutDate, deleteWorkoutLog }) {
   const assignedPlans = savedPlans.filter((plan) => plan.clientId === trackerClientId);
   const selectedPlan = assignedPlans.find((plan) => plan.id === selectedTrackerPlanId) || assignedPlans[0] || null;
   const selectedDay = selectedPlan?.days.find((day) => day.id === selectedTrackerDayId) || selectedPlan?.days[0] || null;
@@ -12809,7 +12843,7 @@ function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientI
               {selectedPlan && selectedDay && <div className="flex flex-wrap gap-2"><button type="button" onClick={() => markWorkoutStatus(selectedPlan, selectedDay, "completed")} className="rounded-full bg-[#00BF63] px-4 py-2 text-sm font-black uppercase text-black transition hover:bg-white">Mark Complete</button><button type="button" onClick={() => markWorkoutStatus(selectedPlan, selectedDay, "skipped")} className="rounded-full border border-yellow-500/40 bg-yellow-500/10 px-4 py-2 text-sm font-black uppercase text-yellow-200 transition hover:bg-yellow-500 hover:text-black">Mark Skipped</button></div>}
             </div>
             {trackerMessage && <p className="mb-4 rounded-2xl border border-[#00BF63]/30 bg-black/50 p-3 text-sm font-bold text-[#00BF63]">{trackerMessage}</p>}
-            {selectedPlan && selectedDay && <ActiveWorkoutForm selectedPlan={selectedPlan} selectedDay={selectedDay} trackingDrafts={trackingDrafts} updateTrackingDraft={updateTrackingDraft} skipReason={skipReason} setSkipReason={setSkipReason} />}
+            {selectedPlan && selectedDay && <ActiveWorkoutForm selectedPlan={selectedPlan} selectedDay={selectedDay} trackingDrafts={trackingDrafts} updateTrackingDraft={updateTrackingDraft} skipReason={skipReason} setSkipReason={setSkipReason} workoutDate={workoutDate} setWorkoutDate={setWorkoutDate} />}
             {!selectedPlan && <EmptyState text="Select a client with an assigned plan." />}
           </div>
         </div>
@@ -12828,9 +12862,10 @@ function NoPlanNotice({ setActiveTab }) {
   );
 }
 
-function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTrackingDraft, skipReason, setSkipReason }) {
+function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTrackingDraft, skipReason, setSkipReason, workoutDate, setWorkoutDate }) {
   return (
     <div className="space-y-4">
+      <Input label="Workout Date" type="date" value={workoutDate} onChange={setWorkoutDate} />
       <Input label="Skip Reason" value={skipReason} onChange={setSkipReason} placeholder="Optional: reason if this workout is marked skipped" />
       {selectedDay.exercises.map((exercise, index) => {
         const key = getTrackingKey(selectedPlan.id, selectedDay.id, exercise.id);
@@ -14018,7 +14053,7 @@ function WorkoutLogList({ logs, selectedLogId, onSelect, onDelete }) {
             <p className="mt-1 text-sm font-bold text-white/75">{log.dayName}</p>
             <p className="mt-1 text-sm text-white/55">{log.planName}</p>
             {log.skipReason && <p className="mt-2 text-xs font-bold text-yellow-200">Skip Reason: {log.skipReason}</p>}
-            <p className="mt-2 text-xs font-bold uppercase tracking-[0.18em] text-white/35">{log.submittedAt}</p>
+            <p className="mt-2 text-xs font-bold uppercase tracking-[0.18em] text-white/35">Workout Date: {log.workoutDateLabel || log.submittedAt}</p>
           </button>
           {onDelete && <button type="button" onClick={() => onDelete(log.id)} className="mt-3 flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-black uppercase text-red-300 transition hover:bg-red-500 hover:text-white"><Trash2 size={14} />Delete Workout Log</button>}
         </div>
@@ -14036,7 +14071,7 @@ function WorkoutLogDetails({ log, onDelete }) {
         <div><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Selected Workout</p><h4 className="mt-1 text-2xl font-black uppercase">{log.dayName}</h4><p className="mt-1 text-sm text-white/60">{log.planName}</p></div>
         <div className="flex flex-wrap gap-2"><StatusPill status={log.status} />{onDelete && <button type="button" onClick={() => onDelete(log.id)} className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-black uppercase text-red-300 transition hover:bg-red-500 hover:text-white">Delete Workout Log</button>}</div>
       </div>
-      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4"><MiniProgram label="Client" value={log.clientName} /><MiniProgram label="Plan" value={log.planName} /><MiniProgram label="Training Day" value={log.dayName} /><MiniProgram label="Submitted" value={log.submittedAt} /></div>
+      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4"><MiniProgram label="Client" value={log.clientName} /><MiniProgram label="Plan" value={log.planName} /><MiniProgram label="Training Day" value={log.dayName} /><MiniProgram label="Workout Date" value={log.workoutDateLabel || log.submittedAt} /></div>
       {log.skipReason && <div className="mb-5 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-200">Skip Reason</p><p className="mt-2 text-sm font-bold text-white">{log.skipReason}</p></div>}
       <div className="space-y-4">
         {log.entries.map((entry, index) => (
