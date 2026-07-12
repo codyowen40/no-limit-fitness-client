@@ -449,6 +449,11 @@ const exerciseLibrary = [
   ex("Stair Master", ["Conditioning", "Fat Loss", "Legs"], "Glutes, quads, hamstrings, calves, lungs", "Stair master machine"),
   ex("Elliptical", ["Conditioning", "Low Impact", "Fat Loss"], "Quads, glutes, hamstrings, calves, lungs", "Elliptical machine"),
   ex("Stationary Bike", ["Conditioning", "Low Impact", "Fat Loss"], "Quads, hamstrings, glutes, calves, lungs", "Stationary bike"),
+  ex("Standing Hip Abduction", ["Bodybuilding", "Mobility"], "Glute medius, hip abductors", "Bodyweight, resistance band, or cable"),
+  ex("Bird Dog", ["Calisthenics", "Mobility"], "Core, lower back, glutes, shoulders", "Bodyweight"),
+  ex("Side-Lying Clamshell", ["Bodybuilding", "Mobility"], "Glute medius, hip external rotators", "Bodyweight or resistance band"),
+  ex("One-Arm Household-Item Row", ["Bodybuilding", "General Fitness"], "Lats, upper back, biceps", "Backpack, jug, or other secure household item"),
+  ex("Close-Grip Cable Row", ["Bodybuilding"], "Lats, rhomboids, mid-back, biceps", "Cable machine and close-grip handle"),
   ex("Single-Leg RDL", ["Sports Performance", "Bodybuilding", "Mobility"], "Hamstrings, glutes, balance, core", "Bodyweight, dumbbells optional"),
   ex("Sit-Up", ["Calisthenics", "Conditioning"], "Abs, hip flexors", "Bodyweight"),
   ex("Ski Erg", ["Conditioning", "CrossFit", "Sports Performance"], "Lats, triceps, abs, lungs", "Ski erg"),
@@ -497,7 +502,7 @@ const starterConversations = [
       {
         id: "msg-2",
         sender: "Client",
-        body: "Sounds good coach. Iâ€™m ready to start.",
+        body: "Sounds good coach. I’m ready to start.",
         sentAt: "Sample message",
         timestamp: 2,
         unreadForCoach: true,
@@ -568,11 +573,13 @@ function clonePlanDays(days) {
 }
 
 function createDefaultState() {
+  const useStarterData = typeof window === "undefined" || isLocalRegressionRuntime();
+
   return {
-    clients: starterClients,
+    clients: useStarterData ? starterClients : [],
     savedPlans: [],
     workoutLogs: [],
-    conversations: starterConversations,
+    conversations: useStarterData ? starterConversations : [],
     readActivityIds: [],
     notificationPreferences: defaultNotificationPreferences,
     serverSettings: defaultServerSettings,
@@ -1344,7 +1351,7 @@ function getFriendlyExerciseDose(exercise) {
     pieces.push("Rest " + rest);
   }
 
-  return pieces.join(" â€¢ ") || exercise.notes || "See coach notes";
+  return pieces.join(" • ") || exercise.notes || "See coach notes";
 }
 
 
@@ -6040,7 +6047,7 @@ return (
                 {getFriendlyDayTitle(todayDay, 0)}
               </h2>
               <p className="mt-2 text-sm leading-6 text-white/60">
-                {getFriendlyPlanTitle(plan)} â€” {getFriendlyPlanGoal(plan)}
+                {getFriendlyPlanTitle(plan)} — {getFriendlyPlanGoal(plan)}
               </p>
 
               <div className="mt-4 grid gap-2">
@@ -6404,7 +6411,7 @@ function NoLimitFitnessAppShell() {
   const [initialState] = useState(loadInitialState);
   const [activeTab, setActiveTab] = useState(() => {
     if (hasCurrentTestUnlockUrl()) return getInitialTabForPortalMode(getRequestedTestUnlockPortalMode());
-    if (getNoLimitPublicAccountAccess()) return "Client";
+    if (getNoLimitPublicAccountAccess()) return getInitialTabForPortalMode(getInitialPortalMode());
 
     const mode = getInitialPortalMode();
 
@@ -7136,17 +7143,6 @@ const isLoggedIn =
             priority: message.sender === "Client" ? "High" : "Low",
           });
         });
-    });
-
-    activity.push({
-      id: "email-placeholder",
-      type: "Email",
-      title: "Email notifications not connected",
-      detail: "Email alerts should be handled later through a secure notification service, not directly inside App.jsx.",
-      time: "Frontend placeholder",
-      timestamp: 0,
-      priority: "Future",
-      systemItem: true,
     });
 
     return activity
@@ -8117,11 +8113,11 @@ function handlePortalLogout() {
 
       <div className="relative z-10">
         <header className="border-b border-white/10 bg-black/80 backdrop-blur">
-          <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="mx-auto flex max-w-[90rem] flex-col gap-4 px-4 py-4 xl:flex-row xl:items-center xl:justify-between">
             <button type="button" onClick={() => setActiveTab("Home")} className="flex items-center gap-3 text-left">
               <img src="/images/logo.png" alt="No Limit Fitness" className="h-14 w-14 rounded-2xl object-contain" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/50">Coach Portal</p>
+                <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/50">{normalizedPortalMode === "client" ? "Client Portal" : "Coach Portal"}</p>
                 <h1 className="text-2xl font-black uppercase tracking-wide">
                   No Limit <span className="text-[#00BF63]">Fitness</span>
                 </h1>
@@ -8130,12 +8126,12 @@ function handlePortalLogout() {
 
             <nav
               aria-label="Main navigation"
-              className={["w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:justify-end", normalizedPortalMode === "client" ? "hidden md:flex" : "flex"].join(" ")}
+              className={["w-full flex-col gap-3 xl:w-auto xl:flex-row xl:items-center xl:justify-end", normalizedPortalMode === "client" ? "hidden md:flex" : "flex"].join(" ")}
             >
               {homeNavTabs.length > 0 && (
                 <div
                   data-nlf-home-nav="true"
-                  className="flex flex-wrap gap-2 border-b border-white/10 pb-3 lg:mr-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4"
+                  className="flex flex-wrap gap-2 border-b border-white/10 pb-3 xl:mr-4 xl:border-b-0 xl:border-r xl:pb-0 xl:pr-4"
                 >
                   {homeNavTabs.map((tab) => {
                     const Icon = tab.icon;
@@ -8752,7 +8748,7 @@ function ClientDashboardScreen({
       <SectionHeader
         eyebrow="Client Portal"
         title="Client Dashboard"
-        description="Client-facing dashboard for assigned plans, today's workout, workout history, messages, and coach notes. Still frontend-only with local React state."
+        description="Client-facing dashboard for assigned plans, today's workout, workout history, messages, and coach notes."
       />
 
       {!selectedClient ? (
@@ -11576,7 +11572,7 @@ function CoachScreen({
                 <h4 className="text-xl font-black text-white">{selectedClient.name || "Client"}</h4>
                 <p className="mt-1 text-sm text-white/65">{selectedClient.email || "No email on file"}</p>
                 <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-[#00BF63]">
-                  {selectedClient.coachName || "No Limit Coach"} · {getClientStatusLabel(getClientCoachingStatus(selectedClient))}
+                  Assigned Coach: {selectedClient.coachName || "No Limit Coach"} · Client Status: {getClientStatusLabel(getClientCoachingStatus(selectedClient))}
                 </p>
               </div>
 
@@ -11622,7 +11618,7 @@ function CoachScreen({
               <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
                 <p className="text-xs font-black uppercase text-[#00BF63]">Coach Notes</p>
                 <p className="mt-2 text-sm leading-6 text-white/60">
-                  Coach-only notes can be connected to saved client records in the next database-backed phase.
+                  Coach notes remain attached to the client workflow for future reviews.
                 </p>
               </div>
 
@@ -12385,7 +12381,7 @@ function ClientProfileDetails({ client, savedPlans, workoutLogs, conversations, 
           {assignedPlans.map((plan) => (
             <div key={plan.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <p className="font-black">{plan.planName}</p>
-              <p className="mt-1 text-sm text-white/55">Days: {plan.days.length} â€¢ Exercises: {plan.days.reduce((total, day) => total + day.exercises.length, 0)}</p>
+              <p className="mt-1 text-sm text-white/55">Days: {plan.days.length} • Exercises: {plan.days.reduce((total, day) => total + day.exercises.length, 0)}</p>
               <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-[#00BF63]">{plan.createdAt}</p>
             </div>
           ))}
@@ -12575,7 +12571,7 @@ function TrainingDayBuilder({ planDraft, selectedDay, selectedDayId, setSelected
             {selectedDay.exercises.map((exercise, index) => (
               <div key={exercise.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                 <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><div className="mt-2 flex flex-wrap gap-2">{exercise.categories.map((category) => <CategoryPill key={category}>{category}</CategoryPill>)}</div><p className="mt-2 text-sm text-white/50">{exercise.muscles} â€¢ {exercise.equipment}</p></div>
+                  <div><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><div className="mt-2 flex flex-wrap gap-2">{exercise.categories.map((category) => <CategoryPill key={category}>{category}</CategoryPill>)}</div><p className="mt-2 text-sm text-white/50">{exercise.muscles} • {exercise.equipment}</p></div>
                   <button type="button" onClick={() => removePlanExercise(selectedDay.id, exercise.id)} className="rounded-full border border-red-500/30 bg-red-500/10 p-2 text-red-300 transition hover:bg-red-500 hover:text-white" aria-label="Remove exercise"><Trash2 size={18} /></button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -12605,7 +12601,7 @@ function SavedPlansPanel({ savedPlans, selectedPlanDetail, setSelectedPlanDetail
             <button type="button" onClick={() => setSelectedPlanDetailId(plan.id)} aria-label={`Select Plan ${plan.planName}`} className="w-full text-left">
               <p className="text-lg font-black">{plan.planName}</p>
               <p className="mt-1 text-sm text-white/60">Client: {plan.clientName}</p>
-              <p className="mt-1 text-sm text-white/60">Days: {plan.days.length} â€¢ Exercises: {plan.days.reduce((total, day) => total + day.exercises.length, 0)}</p>
+              <p className="mt-1 text-sm text-white/60">Days: {plan.days.length} • Exercises: {plan.days.reduce((total, day) => total + day.exercises.length, 0)}</p>
               <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-[#00BF63]">Created: {plan.createdAt}</p>
               {plan.updatedAt && <p className="mt-1 text-xs font-bold uppercase tracking-[0.2em] text-yellow-200">Updated: {plan.updatedAt}</p>}
             </button>
@@ -12718,7 +12714,7 @@ function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTr
         const update = (field, value) => updateTrackingDraft(selectedPlan.id, selectedDay.id, exercise.id, field, value);
         return (
           <div key={exercise.id} className="rounded-2xl border border-white/10 bg-black/40 p-4">
-            <div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><p className="mt-1 text-sm text-white/50">{exercise.muscles} â€¢ {exercise.equipment}</p></div>
+            <div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><p className="mt-1 text-sm text-white/50">{exercise.muscles} • {exercise.equipment}</p></div>
             <div className="mb-4 grid gap-3 md:grid-cols-4"><MiniProgram label="Assigned Sets" value={exercise.sets} /><MiniProgram label="Assigned Reps/Time" value={exercise.repsOrTime} /><MiniProgram label="Weight Guidance" value={exercise.weightGuidance} /><MiniProgram label="Assigned Rest" value={exercise.rest} /></div>
             {exercise.notes && <div className="mb-4 rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-3"><p className="text-xs font-black uppercase tracking-[0.2em] text-[#00BF63]">Coach Notes</p><p className="mt-1 text-sm text-white/70">{exercise.notes}</p></div>}
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -14150,7 +14146,7 @@ function StatusPill({ status }) {
 }
 
 function MiniProgram({ label, value }) {
-  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">{label}</p><p className="mt-2 text-sm font-black text-white">{value || "â€”"}</p></div>;
+  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">{label}</p><p className="mt-2 text-sm font-black text-white">{value || "—"}</p></div>;
 }
 
 function EmptyState({ text }) {
@@ -14227,7 +14223,7 @@ export default function App() {
     );
   }
 
-  return <ClientWorkoutPlansHub />;
+  return <NoLimitFitnessAppShell />;
 }
 // NLF_BUNDLE_12Z_APP_EXPORT_END
 

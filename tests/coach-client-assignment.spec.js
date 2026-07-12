@@ -1314,7 +1314,7 @@ Notes: Strong form, fatigue on last set.`);
   await expect(page.getByTestId("coach-latest-saved-workout-log").first()).toContainText("Face Pull");
 });
 
-test("workout plans tab combines builder and previous plans", async ({ page }) => {
+test("workout plans opens directly inside the client portal without a nested app shell", async ({ page }) => {
   await page.goto("/?testUnlock=true&portalMode=client");
 
   await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
@@ -1327,24 +1327,9 @@ test("workout plans tab combines builder and previous plans", async ({ page }) =
 
   await workoutPlansButton.click();
 
-  const workoutPlansHub = page.getByTestId("client-workout-plans-hub").first();
-
-  await expect(workoutPlansHub).toBeVisible();
-  await expect(workoutPlansHub).toContainText("Workout Plans");
-  await expect(page.getByTestId("workout-plans-builder-section").first()).toBeVisible();
-
-  await page
-    .getByTestId("workout-plans-view-switcher")
-    .getByRole("tab", { name: "Previous Plans", exact: true })
-    .click();
-
-  await expect(page.getByTestId("workout-plans-previous-section").first()).toBeVisible();
-
-  await page
-    .getByTestId("workout-plans-view-switcher")
-    .getByRole("tab", { name: "Show Both", exact: true })
-    .click();
-
-  await expect(page.getByTestId("workout-plans-builder-section").first()).toBeVisible();
-  await expect(page.getByTestId("workout-plans-previous-section").first()).toBeVisible();
+  await expect(page.getByTestId("client-workout-plans-hub")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: /Main navigation/i })).toHaveCount(1);
+  await expect(page.getByText("Build or edit your workout plan").first()).toBeVisible();
+  await page.getByRole("button", { name: "Build a Plan", exact: true }).click();
+  await expect(page.getByTestId("client-build-edit-plan-flow")).toBeVisible();
 });
