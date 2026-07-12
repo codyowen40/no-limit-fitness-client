@@ -7941,7 +7941,7 @@ function handlePortalLogout() {
               )}
 
               <div data-nlf-main-nav="true" className="flex flex-wrap gap-2">
-                {mainNavTabs.map((tab) => {
+                {mainNavTabs.filter((tab) => normalizedPortalMode !== "client" || tab.id !== "Plans").map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
                   const isMessageTab = tab.id === "Messages";
@@ -8041,7 +8041,7 @@ function handlePortalLogout() {
                 </p>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {mobileMenuTabs.map((tab) => {
+                  {mobileMenuTabs.filter((tab) => normalizedPortalMode !== "client" || tab.id !== "Plans").map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
                     const tabLabel = getMobileMenuTabLabel(tab);
@@ -8083,7 +8083,7 @@ function handlePortalLogout() {
             )}
 
             <div className="grid grid-cols-5 items-end gap-1">
-              {mobilePrimaryTabs.map((tab) => {
+              {mobilePrimaryTabs.filter((tab) => normalizedPortalMode !== "client" || tab.id !== "Plans").map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 const tabLabel = getMobilePrimaryTabLabel(tab);
@@ -8151,7 +8151,7 @@ function handlePortalLogout() {
             onOpenTracker={() => setActiveTab("Tracker")}
             onOpenMessages={() => setActiveTab("Messages")}
             onOpenProgress={() => setActiveTab("Progress")}
-                onOpenPlans={() => setActiveTab("Plans")}
+                onOpenPlans={() => setActiveTab("Exercises")}
                 forceNutritionCoachOpen={activeTab === "Nutrition"}
             forceBuildWorkoutPlanOpen={activeTab === "Exercises"}
               />
@@ -8397,7 +8397,7 @@ function ServerSettingsPanel({ settings, onChange }) {
 
 function HomeScreen({ setActiveTab, clients, savedPlans, workoutLogs, exerciseCount, unreadCoachCount, unreadActivityCount, localSaveNotice, clearLocalData, notificationPreferences, toggleNotificationPreference, serverSettings, updateServerSetting }) {
   const homeCards = [
-    { title: "Build Workout Plan", text: "Create structured training days, add exercises, and program coaching details.", icon: ClipboardList, target: "Plans" },
+    { title: "Workout Plans", text: "Build workout plans, review previous plans, and manage training details.", icon: ClipboardList, target: "Exercises" },
     { title: "Client Profiles", text: "Open client details, assigned plans, recent logs, and recent messages.", icon: Users, target: "Clients" },
     { title: "Client Tracker", text: "Open an assigned workout and log actual client performance.", icon: CheckCircle, target: "Tracker" },
     { title: "Messages", text: "Send local coach/client messages and track unread client replies.", icon: MessageSquare, target: "Messages" },
@@ -8415,7 +8415,7 @@ function HomeScreen({ setActiveTab, clients, savedPlans, workoutLogs, exerciseCo
             </p>
             <div className="mt-6 rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4"><p className="text-sm font-bold text-[#00BF63]">{localSaveNotice}</p></div>
             <div className="mt-8 flex flex-wrap gap-3">
-              <button type="button" onClick={() => setActiveTab("Plans")} className="rounded-full bg-[#00BF63] px-6 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-white">Build Plan</button>
+              <button type="button" onClick={() => setActiveTab("Exercises")} className="rounded-full bg-[#00BF63] px-6 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-white">Workout Plans</button>
               <button type="button" onClick={() => setActiveTab("Clients")} className="rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-6 py-3 text-sm font-black uppercase tracking-wide text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black">Client Profiles</button>
               <button type="button" onClick={clearLocalData} className="rounded-full border border-red-500/30 bg-red-500/10 px-6 py-3 text-sm font-black uppercase tracking-wide text-red-300 transition hover:bg-red-500 hover:text-white">Clear Local Data</button>
             </div>
@@ -12421,7 +12421,7 @@ function NoPlanNotice({ setActiveTab }) {
     <div className="rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/10 p-6">
       <h3 className="text-xl font-black uppercase">No Assigned Plans Yet</h3>
       <p className="mt-2 text-sm leading-6 text-white/65">Build and save a workout plan first. Once saved, it will appear here for the selected client.</p>
-      <button type="button" onClick={() => setActiveTab("Plans")} className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white">Build A Plan</button>
+      <button type="button" onClick={() => setActiveTab("Exercises")} className="mt-5 rounded-full bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white">Workout Plans</button>
     </div>
   );
 }

@@ -18,7 +18,7 @@ test.describe("Mobile client navigation smoke coverage", () => {
       ).toBeVisible();
     }
 
-    for (const hiddenPrimary of ["Home", "Nutrition", "Plans", "Progress", "Logout", "More"]) {
+    for (const hiddenPrimary of ["Home", "Nutrition", "Progress", "Logout", "More"]) {
       await expect(
         mobileNav.getByRole("button", { name: new RegExp("^" + hiddenPrimary + "$", "i") })
       ).toHaveCount(0);
@@ -32,7 +32,7 @@ test.describe("Mobile client navigation smoke coverage", () => {
 
     await expect(mobileMenu).toBeVisible();
 
-    for (const label of ["Home", "Nutrition", "Plans", "Progress", "Logout"]) {
+    for (const label of ["Home", "Nutrition", "Progress", "Logout"]) {
       await expect(
         mobileMenu.getByRole("button", { name: new RegExp("^" + label + "$", "i") })
       ).toBeVisible();

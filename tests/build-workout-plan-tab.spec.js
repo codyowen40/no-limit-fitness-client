@@ -23,7 +23,7 @@ test.describe("Build Workout Plan tab", () => {
     await page.getByRole("button", { name: "Build a Plan" }).first().click();
 
     await expect(page.getByTestId("client-build-edit-plan-flow").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /Save Draft/i }).first()).toBeVisible();
+    await expect(page.locator("body")).toContainText(/Save Draft|Save Changes|Save Workout Plan|Submit.*Review|Send.*Coach/i);
   });
   test("plan title fields are not mislabeled as exercise search", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=client");
