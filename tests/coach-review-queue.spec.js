@@ -2,10 +2,12 @@ import { expect, test } from "@playwright/test";
 
 
 async function nlfOpenMainNavButton(page, name) {
+  const navName = name === "Build Workout Plan" ? "Workout Plans" : name;
+
   await page
     .getByRole("navigation", { name: /Main navigation/i })
     .first()
-    .getByRole("button", { name, exact: true })
+    .getByRole("button", { name: navName, exact: true })
     .click();
 }
 
@@ -150,7 +152,7 @@ async function nlfCountSavedPlanMatchesInLocalStorage(page, draftTitle) {
 async function createClientWorkoutDraft(page, draftTitle, draftNotes) {
   await page.goto("/?testUnlock=true&portalMode=client");
 
-  await nlfOpenMainNavButton(page, "Build Workout Plan");
+  await nlfOpenMainNavButton(page, "Workout Plans");
 
   await page.getByRole("button", { name: "Build a Plan" }).first().click();
 
@@ -199,7 +201,7 @@ test.describe("Coach review queue", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await page.getByRole("button", { name: "Build a Plan" }).first().click();
@@ -230,7 +232,7 @@ test.describe("Coach review queue", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Plans" })
+      .getByRole("button", { name: "Plans", exact: true })
       .click();
 
     await expect(page.getByTestId("coach-client-plan-review-queue").first()).toBeVisible();
@@ -250,7 +252,7 @@ test.describe("Coach review queue", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await page.getByRole("button", { name: "Build a Plan" }).first().click();
@@ -281,7 +283,7 @@ test.describe("Coach review queue", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Plans" })
+      .getByRole("button", { name: "Plans", exact: true })
       .click();
 
     await expect(page.getByTestId("coach-client-plan-review-queue").first()).toBeVisible();
@@ -303,7 +305,7 @@ test.describe("Coach review queue", () => {
 
     await page.goto("/?testUnlock=true&portalMode=client");
 
-    await nlfOpenMainNavButton(page, "Build Workout Plan");
+    await nlfOpenMainNavButton(page, "Workout Plans");
 
     await page.getByRole("button", { name: "Build a Plan" }).first().click();
 

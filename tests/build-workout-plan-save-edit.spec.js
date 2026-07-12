@@ -7,11 +7,11 @@ test.describe("Build Workout Plan save and edit coverage", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await expect(page.getByText("Build or edit your workout plan").first()).toBeVisible();
-    await expect(page.locator("body")).toContainText(/Build Workout Plan|Build or edit your workout plan|Exercise Library|Search exercises/i);
+    await expect(page.locator("body")).toContainText(/Workout Plans|Build or edit your workout plan|Exercise Library|Search exercises/i);
 
     const exerciseSearch = page
       .locator(
@@ -50,11 +50,11 @@ test.describe("Build Workout Plan save and edit coverage", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await expect(page.getByText("Build or edit your workout plan").first()).toBeVisible();
-    await expect(page.locator("body")).toContainText(/Build Workout Plan|Build or edit your workout plan|Exercise Library|Search exercises/i);
+    await expect(page.locator("body")).toContainText(/Workout Plans|Build or edit your workout plan|Exercise Library|Search exercises/i);
 
     await page.getByRole("button", { name: "Build a Plan" }).first().click();
 

@@ -8,13 +8,13 @@ test.describe("Client core smoke coverage", () => {
 
     await page.getByRole("button", { name: "HOME" }).first().click();
     await expect(page.getByRole("navigation", { name: /Main navigation/i }).first()).toBeVisible();
-    await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|Client Training Home|Build Workout Plan|MY PLAN|TODAY'S WORKOUT/i);
-    await expect(page.getByRole("button", { name: "Build Workout Plan", exact: true }).first()).toBeVisible();
+    await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|Client Training Home|Workout Plans|MY PLAN|TODAY'S WORKOUT/i);
+    await expect(page.getByRole("button", { name: "Workout Plans", exact: true }).first()).toBeVisible();
 
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await expect(page.getByText(/Exercise Library|General Exercise Database|Exercise Database/i).first()).toBeVisible();
@@ -29,7 +29,7 @@ test.describe("Client core smoke coverage", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await page.getByRole("button", { name: "Build a Plan" }).first().click();

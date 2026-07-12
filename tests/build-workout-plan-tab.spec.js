@@ -7,7 +7,7 @@ test.describe("Build Workout Plan tab", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await expect(page.getByText("Build or edit your workout plan").first()).toBeVisible();
@@ -33,7 +33,7 @@ test.describe("Build Workout Plan tab", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await page.getByRole("button", { name: /^Build a Plan$/i }).first().click();

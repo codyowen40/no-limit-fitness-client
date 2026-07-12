@@ -1313,3 +1313,38 @@ Notes: Strong form, fatigue on last set.`);
   await expect(page.getByTestId("coach-latest-saved-workout-log").first()).toContainText("Barbell Bench Press");
   await expect(page.getByTestId("coach-latest-saved-workout-log").first()).toContainText("Face Pull");
 });
+
+test("workout plans tab combines builder and previous plans", async ({ page }) => {
+  await page.goto("/?testUnlock=true&portalMode=client");
+
+  await expect(page.getByLabel("Client My Plan dashboard").first()).toBeVisible();
+
+  const workoutPlansButton = page
+    .getByRole("navigation", { name: /Main navigation/i })
+    .first()
+    .getByRole("button", { name: /Workout Plans/i })
+    .first();
+
+  await workoutPlansButton.click();
+
+  const workoutPlansHub = page.getByTestId("client-workout-plans-hub").first();
+
+  await expect(workoutPlansHub).toBeVisible();
+  await expect(workoutPlansHub).toContainText("Workout Plans");
+  await expect(page.getByTestId("workout-plans-builder-section").first()).toBeVisible();
+
+  await page
+    .getByTestId("workout-plans-view-switcher")
+    .getByRole("tab", { name: "Previous Plans", exact: true })
+    .click();
+
+  await expect(page.getByTestId("workout-plans-previous-section").first()).toBeVisible();
+
+  await page
+    .getByTestId("workout-plans-view-switcher")
+    .getByRole("tab", { name: "Show Both", exact: true })
+    .click();
+
+  await expect(page.getByTestId("workout-plans-builder-section").first()).toBeVisible();
+  await expect(page.getByTestId("workout-plans-previous-section").first()).toBeVisible();
+});

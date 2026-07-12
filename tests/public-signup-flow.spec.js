@@ -48,6 +48,6 @@ test.describe("Public sign-up flow", () => {
 
     await page.getByRole("button", { name: "HOME" }).first().click();
     await expect(page.getByRole("navigation", { name: /Main navigation/i }).first()).toBeVisible();
-    await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|Client Training Home|Build Workout Plan|MY PLAN|TODAY'S WORKOUT/i);
+    await expect(page.locator("body")).toContainText(/NO LIMIT FITNESS|Client Training Home|Workout Plans|MY PLAN|TODAY'S WORKOUT/i);
   });
 });

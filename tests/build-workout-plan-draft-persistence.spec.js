@@ -9,7 +9,7 @@ test.describe("Build Workout Plan draft persistence", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await page.getByRole("button", { name: "Build a Plan" }).first().click();
@@ -50,7 +50,7 @@ test.describe("Build Workout Plan draft persistence", () => {
     await page
       .getByRole("navigation", { name: /Main navigation/i })
       .first()
-      .getByRole("button", { name: "Build Workout Plan", exact: true })
+      .getByRole("button", { name: "Workout Plans", exact: true })
       .click();
 
     await expect(page.locator("body")).toContainText(draftTitle);

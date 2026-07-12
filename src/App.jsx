@@ -5338,6 +5338,99 @@ function ClientCheckInsWorkspace() {
   );
 }
 
+function ClientWorkoutPlansHub() {
+  const [workoutPlansView, setWorkoutPlansView] = useState("builder");
+
+  return (
+    <section
+      data-testid="client-workout-plans-hub"
+      aria-label="Workout Plans tab"
+      className="rounded-3xl border border-[#00BF63]/25 bg-black/55 p-5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#00BF63]">
+            Workout Plans
+          </p>
+          <h2 className="mt-2 text-2xl font-black uppercase text-white">
+            Workout Plans
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            Build a workout plan, review assigned plans, and look back at previous saved workout plans in one place.
+          </p>
+        </div>
+
+        <div
+          data-testid="workout-plans-view-switcher"
+          role="tablist"
+          aria-label="Workout plans view switcher"
+          className="flex w-fit flex-wrap gap-2 rounded-full border border-[#00BF63]/25 bg-black/50 p-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={workoutPlansView === "builder"}
+            onClick={() => setWorkoutPlansView("builder")}
+            className={
+              workoutPlansView === "builder"
+                ? "rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black"
+                : "rounded-full px-4 py-2 text-xs font-black uppercase text-white/55 transition hover:text-[#00BF63]"
+            }
+          >
+            Build Plan
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={workoutPlansView === "previous"}
+            onClick={() => setWorkoutPlansView("previous")}
+            className={
+              workoutPlansView === "previous"
+                ? "rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black"
+                : "rounded-full px-4 py-2 text-xs font-black uppercase text-white/55 transition hover:text-[#00BF63]"
+            }
+          >
+            Previous Plans
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={workoutPlansView === "all"}
+            onClick={() => setWorkoutPlansView("all")}
+            className={
+              workoutPlansView === "all"
+                ? "rounded-full bg-[#00BF63] px-4 py-2 text-xs font-black uppercase text-black"
+                : "rounded-full px-4 py-2 text-xs font-black uppercase text-white/55 transition hover:text-[#00BF63]"
+            }
+          >
+            Show Both
+          </button>
+        </div>
+      </div>
+
+      {(workoutPlansView === "builder" || workoutPlansView === "all") && (
+        <div
+          data-testid="workout-plans-builder-section"
+          className="mt-5 rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <NoLimitFitnessAppShell />
+        </div>
+      )}
+
+      {(workoutPlansView === "previous" || workoutPlansView === "all") && (
+        <div
+          data-testid="workout-plans-previous-section"
+          className="mt-5 rounded-3xl border border-white/10 bg-black/40 p-4"
+        >
+          <ClientPortalMyPlanPanel />
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ClientPortalMyPlanPanel({
   clients,
   savedPlans,
@@ -6733,7 +6826,7 @@ const isLoggedIn =
     { id: "Nutrition", label: "Nutrition Coach", icon: ClipboardList },
     { id: "Clients", icon: Users },
     { id: "Coach", icon: ShieldCheck },
-    { id: "Exercises", label: "Build Workout Plan", icon: Dumbbell },
+    { id: "Exercises", label: "Workout Plans", icon: Dumbbell },
     {
       id: "Messages",
       icon: MessageSquare,
@@ -13806,7 +13899,7 @@ export default function App() {
     );
   }
 
-  return <NoLimitFitnessAppShell />;
+  return <ClientWorkoutPlansHub />;
 }
 // NLF_BUNDLE_12Z_APP_EXPORT_END
 
