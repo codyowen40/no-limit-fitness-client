@@ -6594,7 +6594,9 @@ useEffect(() => {
 
 const [clients, setClients] = useState(initialState.clients);
   const [clientForm, setClientForm] = useState({ name: "", email: "" });
-  const [selectedClientProfileId, setSelectedClientProfileId] = useState(initialState.clients[0]?.id || "");
+  const [selectedClientProfileId, setSelectedClientProfileId] = useState(() =>
+    getInitialPortalMode() === "client" ? initialState.clients[0]?.id || "" : ""
+  );
   const [clientActionNotice, setClientActionNotice] = useState("");
 
   const [savedPlans, setSavedPlans] = useState(initialState.savedPlans);
@@ -11873,14 +11875,9 @@ function ClientsScreen({
   const searchedActiveClients = activeClients.filter(matchesSearch);
   const searchedUnassignedClients = unassignedClients.filter(matchesSearch);
 
-  const selectedClient =
-    normalizedSearch
-      ? searchedActiveClients.find((client) => client.id === selectedClientProfileId) ||
-        searchedActiveClients[0] ||
-        null
-      : activeClients.find((client) => client.id === selectedClientProfileId) ||
-        activeClients[0] ||
-        null;
+  const selectedClient = activeClients.find(
+    (client) => client.id === selectedClientProfileId
+  ) || null;
 
   const selectedArchivedClient =
     archivedClients.find((client) => client.id === selectedArchivedClientId) || null;
@@ -11915,6 +11912,7 @@ function ClientsScreen({
         <button
           type="button"
           onClick={() => setSelectedClientProfileId(client.id)}
+          data-testid={`select-client-${client.id}`}
           className="w-full text-left"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -12150,7 +12148,7 @@ function ClientsScreen({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-black/35 p-4">
+            <div data-testid="selected-client-workspace" className="rounded-2xl border border-white/10 bg-black/35 p-4">
               {selectedClient ? (
                 <ClientProfileDetails
                   client={selectedClient}
@@ -12163,7 +12161,7 @@ function ClientsScreen({
                   updateClientStatus={updateClientStatus}
                 />
               ) : (
-                <EmptyState text="No active client selected." />
+                <EmptyState text="Select a client to open their complete profile workspace." />
               )}
             </div>
           </div>

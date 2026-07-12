@@ -17,6 +17,23 @@ test.describe("Coach client account administration", () => {
     await expect(page.getByRole("button", { name: "Add Client", exact: true })).toBeVisible();
   });
 
+  test("Clients opens with a clean slate and reveals profile tools only after selection", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=coach");
+    await page.getByRole("button", { name: "Clients", exact: true }).click();
+
+    const workspace = page.getByTestId("selected-client-workspace");
+    await expect(workspace).toContainText("Select a client to open their complete profile workspace.");
+    await expect(workspace.getByText("Client Profile Detail View", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Client", exact: true })).toHaveCount(0);
+
+    await page.locator('[data-testid^="select-client-"]').first().click();
+    await expect(workspace.getByText("Client Profile Detail View", { exact: true })).toBeVisible();
+    await expect(workspace.getByRole("button", { name: "Open Tracker", exact: true })).toBeVisible();
+    await expect(workspace.getByRole("button", { name: "Open Messages", exact: true })).toBeVisible();
+    await expect(workspace.getByRole("button", { name: "View Plans", exact: true })).toBeVisible();
+    await expect(workspace.getByLabel("Client Status")).toBeVisible();
+  });
+
   test("coach-only Clients screen exposes secure credential creation with local validation", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=coach");
 
