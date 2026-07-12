@@ -222,6 +222,7 @@ function nlfClearAuthOnlyStorage() {
     if (normalizedKey.includes("app-local-state")) return false;
 
     return (
+      normalizedKey === "nlf-public-account-access-v1" ||
       normalizedKey.includes("auth") ||
       normalizedKey.includes("session") ||
       normalizedKey.includes("login") ||
@@ -262,9 +263,7 @@ function nlfReturnToPublicLogin() {
     // No-op.
   }
 
-  window.setTimeout(() => {
-    window.location.assign("/");
-  }, 0);
+  window.location.replace("/");
 }
 
 if (typeof window !== "undefined" && !window.__nlfLogoutGuardInstalled) {
@@ -7762,16 +7761,7 @@ const isLoggedIn =
   
 
 function handlePortalLogout() {
-    try {
-      window.localStorage.removeItem(TEST_UNLOCK_STORAGE_KEY);
-      window.localStorage.removeItem(COACH_SESSION_LOCK_STORAGE_KEY);
-      window.localStorage.setItem(PORTAL_MODE_STORAGE_KEY, "login");
-    } catch {
-      // LocalStorage can fail in restricted browser modes.
-    }
-
-    setPortalMode("login");
-    setActiveTab("Login");
+    nlfReturnToPublicLogin();
   }
 
   // Bundle 12Y.1 public account gate start
