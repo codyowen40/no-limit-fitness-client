@@ -1575,11 +1575,24 @@ function nlfMergeApprovedPlansIntoSavedPlans(currentSavedPlans, approvedPlans, c
 function findFriendlyAssignedPlan({ clients, savedPlans }) {
   const safeClients = Array.isArray(clients) ? clients : [];
   const safePlans = Array.isArray(savedPlans) ? savedPlans : [];
+  const accountProfile = nlfReadPublicAccountProfile();
+  const accountClientId = String(accountProfile?.clientId || "").trim();
+  const accountProfileId = String(accountProfile?.id || "").trim();
+  const accountEmail = String(accountProfile?.email || "").trim().toLowerCase();
+  const hasAccountIdentity = Boolean(accountClientId || accountProfileId || accountEmail);
+  const authenticatedClient = hasAccountIdentity
+    ? safeClients.find((client) =>
+        (accountClientId && String(client.id || "") === accountClientId) ||
+        (accountProfileId && String(client.profileId || "") === accountProfileId) ||
+        (accountEmail && String(client.email || "").trim().toLowerCase() === accountEmail)
+      ) || null
+    : null;
 
   const activeClient =
-    safeClients.find((client) => getClientCoachingStatus(client) === "active") ||
-    safeClients[0] ||
-    null;
+    authenticatedClient ||
+    (!hasAccountIdentity
+      ? safeClients.find((client) => getClientCoachingStatus(client) === "active") || safeClients[0] || null
+      : null);
 
   if (!safePlans.length) {
     return {
@@ -5590,7 +5603,9 @@ const handleSaveClientPlanDraft = () => {
   const selectedFullPlanDay = planDays.find((day) => day.id === selectedFullPlanDayId) || planDays[0] || null;
   const todayDay = selectedFullPlanDay;
 
-  const recentLogs = Array.isArray(workoutLogs) ? workoutLogs.slice(-3).reverse() : [];
+  const recentLogs = Array.isArray(workoutLogs)
+    ? workoutLogs.filter((log) => log.clientId === client?.id).slice(-3).reverse()
+    : [];
   const todayExercises = getFriendlyDayExercises(todayDay).slice(0, 5);
 
   const buildWorkoutExerciseOptions = [
@@ -6973,10 +6988,12 @@ const [clients, setClients] = useState(initialState.clients);
         setWorkoutLogs(nextLogs);
         setConversations(nextConversations);
         if (String(portalMode).toLowerCase() === "client") {
+          const hasAccountIdentity = Boolean(accountProfile?.id || accountProfile?.email || accountProfile?.clientId);
           const currentClient = nextClients.find((client) =>
+            client.id === accountProfile?.clientId ||
             client.profileId === accountProfile?.id ||
             String(client.email || "").toLowerCase() === String(accountProfile?.email || "").toLowerCase()
-          ) || nextClients[0] || null;
+          ) || (!hasAccountIdentity ? nextClients[0] || null : null);
           if (currentClient) {
             setSelectedClientProfileId(currentClient.id);
             setTrackerClientId(currentClient.id);

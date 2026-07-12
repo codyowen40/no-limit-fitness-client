@@ -82,16 +82,24 @@ test.describe("Portal data synchronization", () => {
     }
   });
 
-  test("client dashboard never falls back to another client's plan", async ({ page }) => {
+  test("Caleb's login stays blank instead of falling back to Louise's plan", async ({ page }) => {
     await page.goto("/?testUnlock=true&portalMode=client");
 
     await page.evaluate(() => {
+      window.localStorage.setItem("nlf-public-account-profile-v1", JSON.stringify({
+        id: "caleb-auth-profile",
+        clientId: "caleb",
+        name: "Caleb",
+        email: "caleb@example.com",
+        role: "client",
+      }));
       window.dispatchEvent(
         new CustomEvent("nlf-portal-state-synced", {
           detail: {
             payload: {
               clients: [
-                { id: "kristen", name: "Kristen Gryzik", email: "kristen@example.com", status: "Active", coachingStatus: "active" },
+                { id: "louise", profileId: "louise-auth-profile", name: "Louise B", email: "louise@example.com", status: "Active", coachingStatus: "active" },
+                { id: "caleb", profileId: "caleb-auth-profile", name: "Caleb", email: "caleb@example.com", status: "Active", coachingStatus: "active" },
               ],
               savedPlans: [
                 {
@@ -110,9 +118,11 @@ test.describe("Portal data synchronization", () => {
       );
     });
 
-    await expect(page.getByText("Kristen Gryzik’s Dashboard", { exact: true })).toBeVisible();
+    await expect(page.getByText("Caleb’s Dashboard", { exact: true })).toBeVisible();
     await expect(page.locator("main")).not.toContainText("Louise B – 7 Day Strength, Cardio & Confidence Plan");
     await expect(page.getByText("No workout plan assigned", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "My Plan", exact: true }).click();
+    await expect(page.getByLabel("Client My Plan dashboard")).toContainText("No assigned workout plan is available yet.");
   });
 
   test("client full plan exposes all seven clickable days and saved exercise names", async ({ page }) => {
