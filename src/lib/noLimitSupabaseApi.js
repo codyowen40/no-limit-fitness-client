@@ -593,3 +593,36 @@ export async function upsertNotificationPreferences(preferences) {
 
   return data;
 }
+
+export async function createManagedClientAccount({ name, email, password }) {
+  const client = requireSupabase();
+  const cleanName = normalizeRequiredText(name);
+  const cleanEmail = normalizeRequiredText(email).toLowerCase();
+  const cleanPassword = normalizeRequiredText(password);
+
+  if (!cleanName || !cleanEmail || !cleanPassword) {
+    throw new Error("Client name, email, and temporary password are required.");
+  }
+
+  if (cleanPassword.length < 8) {
+    throw new Error("Temporary password must be at least 8 characters.");
+  }
+
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+
+  if (sessionError) throw sessionError;
+  if (!sessionData?.session?.access_token) {
+    throw new Error(
+      "Secure coach session required. Sign out, choose Coach Access, and sign in with your Supabase coach account before creating client credentials."
+    );
+  }
+
+  const { data, error } = await client.functions.invoke("create-client-account", {
+    body: { name: cleanName, email: cleanEmail, password: cleanPassword },
+  });
+
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+
+  return data;
+}

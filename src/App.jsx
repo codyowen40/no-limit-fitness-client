@@ -252,7 +252,7 @@ function nlfClearAuthOnlyStorage() {
   });
 }
 
-function nlfReturnToPublicLogin() {
+async function nlfReturnToPublicLogin() {
   if (typeof window === "undefined") return;
 
   nlfClearAuthOnlyStorage();
@@ -263,7 +263,13 @@ function nlfReturnToPublicLogin() {
     // No-op.
   }
 
-  window.location.replace("/");
+  try {
+    if (!isLocalRegressionRuntime()) await signOutUser();
+  } catch {
+    // Local cleanup still guarantees a locked UI if remote sign-out is unavailable.
+  } finally {
+    window.location.replace("/");
+  }
 }
 
 if (typeof window !== "undefined" && !window.__nlfLogoutGuardInstalled) {
@@ -322,7 +328,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
+import { createManagedClientAccount, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
 import { fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary } from "./lib/noLimitBackendBridge";
 
 const STORAGE_KEY = "no-limit-fitness-app-local-state-v1";
@@ -809,8 +815,14 @@ const COACH_SESSION_LOCK_STORAGE_KEY = "no-limit-fitness-coach-session-lock-v1";
 const PUBLIC_PORTAL_MODE = "client";
 const PUBLIC_LANDING_TAB = "Login";
 
+function isLocalRegressionRuntime() {
+  if (typeof window === "undefined") return false;
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname);
+}
+
 function hasCurrentTestUnlockUrl() {
   if (typeof window === "undefined") return false;
+  if (!isLocalRegressionRuntime()) return false;
 
   try {
     return new URLSearchParams(window.location.search).get("testUnlock") === "true";
@@ -895,6 +907,7 @@ function getPortalTestUnlocked() {
 
 function hasCoachSessionLock() {
   if (typeof window === "undefined") return false;
+  if (!isLocalRegressionRuntime()) return false;
 
   try {
     const savedMode = String(
@@ -6199,7 +6212,7 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
     setEmail("");
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     const safeEmail = email.trim();
@@ -6210,23 +6223,51 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
       return;
     }
 
-    const profile = {
-      name: isCoachLogin ? "No Limit Coach" : name.trim() || "No Limit Client",
-      email: safeEmail,
-      createdAt: new Date().toISOString(),
-      mode: isClientSignup ? "signup" : "login",
-      role: accountType,
-    };
+    const isLocalRegressionAccount =
+      ["localhost", "127.0.0.1"].includes(window.location.hostname) &&
+      safeEmail.endsWith("@nolimittest.com");
 
-    saveNoLimitPublicAccountAccess(profile);
-    setAccountStatus(
-      isCoachLogin
-        ? "Coach login accepted. Opening your coach portal."
-        : isClientSignup
-          ? "Client account created. Opening your client portal."
-          : "Client login accepted. Opening your client portal."
-    );
-    onUnlock(profile);
+    if (isClientSignup && !isLocalRegressionAccount) {
+      setAccountStatus("Ask your coach to create your secured client login.");
+      return;
+    }
+
+    setAccountStatus("Verifying secured account...");
+
+    try {
+      let profile = {
+        name: isCoachLogin ? "No Limit Coach" : name.trim() || "No Limit Client",
+        email: safeEmail,
+        createdAt: new Date().toISOString(),
+        mode: isClientSignup ? "signup" : "login",
+        role: accountType,
+      };
+
+      if (!isLocalRegressionAccount) {
+        await signInWithEmailPassword(safeEmail, safePassword);
+        const securedProfile = await getCurrentProfile();
+        const securedRole = String(securedProfile?.role || "").toLowerCase();
+
+        if (!securedProfile || securedRole !== accountType) {
+          await signOutUser();
+          throw new Error(`This account does not have ${accountType} access.`);
+        }
+
+        profile = {
+          ...profile,
+          id: securedProfile.id,
+          name: securedProfile.full_name || profile.name,
+          email: securedProfile.email || safeEmail,
+          role: securedRole,
+        };
+      }
+
+      saveNoLimitPublicAccountAccess(profile);
+      setAccountStatus(`${isCoachLogin ? "Coach" : "Client"} login accepted. Opening your portal.`);
+      onUnlock(profile);
+    } catch (error) {
+      setAccountStatus(error?.message || "Unable to verify this account.");
+    }
   }
 
   return (
@@ -6338,7 +6379,7 @@ function NoLimitFitnessPublicLoginGate({ authMode, setAuthMode, onUnlock }) {
               {isCoachLogin ? "Open Coach Portal" : isClientSignup ? "Create Account" : "Log In"}
             </button>
 
-            {accountType === "client" && (
+            {accountType === "client" && isLocalRegressionRuntime() && (
               <button
                 type="button"
                 onClick={() => {
@@ -11710,6 +11751,31 @@ function ClientsScreen({
   const [showActiveClientList, setShowActiveClientList] = useState(true);
   const [showArchivedClients, setShowArchivedClients] = useState(false);
   const [selectedArchivedClientId, setSelectedArchivedClientId] = useState("");
+  const [accountForm, setAccountForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [accountStatus, setAccountStatus] = useState("");
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+
+  async function handleCreateClientAccount(event) {
+    event.preventDefault();
+
+    if (accountForm.password !== accountForm.confirmPassword) {
+      setAccountStatus("Passwords do not match.");
+      return;
+    }
+
+    setIsCreatingAccount(true);
+    setAccountStatus("");
+
+    try {
+      const result = await createManagedClientAccount(accountForm);
+      setAccountStatus(`Secure login created for ${result.client.email}.`);
+      setAccountForm({ name: "", email: "", password: "", confirmPassword: "" });
+    } catch (error) {
+      setAccountStatus(error?.message || "Unable to create client login.");
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  }
 
   const getCoachStatus = (client) => {
     const statusText = String(client.coachingStatus || client.status || "").toLowerCase();
@@ -11902,6 +11968,24 @@ function ClientsScreen({
           {clientActionNotice}
         </p>
       )}
+
+      <section data-testid="coach-client-account-admin" className="rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/5 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">Coach Admin</p>
+        <h3 className="mt-2 text-xl font-black uppercase">Create Client Login</h3>
+        <p className="mt-2 max-w-3xl text-sm text-white/60">
+          Create secured client credentials and link the new account to your coach profile. Share the temporary password privately and ask the client to change it after signing in.
+        </p>
+        <form onSubmit={handleCreateClientAccount} className="mt-5 grid gap-4 md:grid-cols-2">
+          <Input label="New Client Name" value={accountForm.name} onChange={(value) => setAccountForm((current) => ({ ...current, name: value }))} placeholder="Client name" />
+          <Input label="New Client Email" value={accountForm.email} onChange={(value) => setAccountForm((current) => ({ ...current, email: value }))} placeholder="client@example.com" />
+          <label className="block"><span className="mb-2 block text-xs font-black uppercase tracking-[0.25em] text-white/45">Temporary Password</span><input aria-label="Temporary Password" type="password" minLength={8} value={accountForm.password} onChange={(event) => setAccountForm((current) => ({ ...current, password: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]" /></label>
+          <label className="block"><span className="mb-2 block text-xs font-black uppercase tracking-[0.25em] text-white/45">Confirm Temporary Password</span><input aria-label="Confirm Temporary Password" type="password" minLength={8} value={accountForm.confirmPassword} onChange={(event) => setAccountForm((current) => ({ ...current, confirmPassword: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#00BF63]" /></label>
+          <div className="md:col-span-2 flex flex-wrap items-center gap-3">
+            <button type="submit" disabled={isCreatingAccount} className="rounded-2xl bg-[#00BF63] px-5 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:cursor-wait disabled:opacity-60">{isCreatingAccount ? "Creating Secure Login..." : "Create Secure Client Login"}</button>
+            {accountStatus && <p role="status" className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-bold text-white/75">{accountStatus}</p>}
+          </div>
+        </form>
+      </section>
 
       <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
         <h3 className="text-xl font-black uppercase">Add Client</h3>
@@ -13908,9 +13992,55 @@ function EmptyState({ text }) {
 // NLF_BUNDLE_12Z_APP_EXPORT_START
 export default function App() {
   const [authMode, setAuthMode] = useState("login");
-  const [accountUnlocked, setAccountUnlocked] = useState(() => getNoLimitPublicAccountAccess());
+  const [accountUnlocked, setAccountUnlocked] = useState(() =>
+    isLocalRegressionRuntime() ? getNoLimitPublicAccountAccess() : false
+  );
+  const [isCheckingAccount, setIsCheckingAccount] = useState(() => !isLocalRegressionRuntime());
+
+  useEffect(() => {
+    if (isLocalRegressionRuntime()) return;
+
+    let active = true;
+
+    (async () => {
+      try {
+        const session = await getCurrentSession();
+        const profile = session ? await getCurrentProfile() : null;
+
+        if (!active) return;
+
+        if (session && profile && ["coach", "client"].includes(profile.role)) {
+          saveNoLimitPublicAccountAccess({
+            id: profile.id,
+            name: profile.full_name,
+            email: profile.email,
+            role: profile.role,
+          });
+          setAccountUnlocked(true);
+        } else {
+          nlfClearAuthOnlyStorage();
+          setAccountUnlocked(false);
+        }
+      } catch {
+        if (active) {
+          nlfClearAuthOnlyStorage();
+          setAccountUnlocked(false);
+        }
+      } finally {
+        if (active) setIsCheckingAccount(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const internalTestUnlocked = getPortalTestUnlocked() || hasCoachSessionLock();
+
+  if (isCheckingAccount && !internalTestUnlocked) {
+    return <main className="flex min-h-screen items-center justify-center bg-black text-sm font-black uppercase tracking-[0.2em] text-[#00BF63]">Checking secure access...</main>;
+  }
 
   if (!internalTestUnlocked && !accountUnlocked) {
     return (
