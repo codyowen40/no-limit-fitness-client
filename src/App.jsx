@@ -7744,7 +7744,7 @@ const isLoggedIn =
   async function markWorkoutStatus(plan, day, status) {
     if (!plan || !day) {
       setTrackerMessage("Select a plan and training day first.");
-      return;
+      return false;
     }
 
     const entries = day.exercises.map((exercise) => {
@@ -7766,6 +7766,45 @@ const isLoggedIn =
         notes: draft.notes || "",
       };
     });
+
+    if (status === "completed" && entries.length === 0) {
+      setTrackerMessage("This rest day has no exercises to log.");
+      return false;
+    }
+
+    const hasCompletionDetails = entries.some((entry) =>
+      [
+        entry.actualWeight,
+        entry.setsCompleted,
+        entry.repsCompleted,
+        entry.timeCompleted,
+        entry.restUsed,
+        entry.substitution,
+        entry.notes,
+      ].some((value) => String(value || "").trim())
+    );
+
+    if (status === "completed" && !hasCompletionDetails) {
+      setTrackerMessage(
+        "Enter at least one completed result or note before saving this workout."
+      );
+      return false;
+    }
+
+    if (status === "skipped" && !skipReason.trim()) {
+      setTrackerMessage("Add a skip reason before logging this workout as skipped.");
+      return false;
+    }
+
+    const clearCompletedDraft = () => {
+      setTrackingDrafts((current) => {
+        const next = { ...current };
+        day.exercises.forEach((exercise) => {
+          delete next[getTrackingKey(plan.id, day.id, exercise.id)];
+        });
+        return next;
+      });
+    };
 
     const workoutDateTime = getWorkoutDateTimestamp(workoutDate);
     const newLog = {
@@ -7804,11 +7843,12 @@ const isLoggedIn =
         setSelectedWorkoutLogId(persistedLogs[0]?.id || "");
         setSelectedClientProfileId(plan.clientId);
         setSkipReason("");
+        clearCompletedDraft();
         setTrackerMessage(`${day.name} ${status}. Coach and client portals are synchronized.`);
-        return;
+        return true;
       } catch (error) {
         setTrackerMessage(error?.message || "Unable to save workout status securely.");
-        return;
+        return false;
       }
     }
 
@@ -7816,11 +7856,13 @@ const isLoggedIn =
     setSelectedWorkoutLogId(newLog.id);
     setSelectedClientProfileId(plan.clientId);
     setSkipReason("");
+    clearCompletedDraft();
     setTrackerMessage(
       status === "completed"
         ? `${day.name} marked complete. Coach activity and workout log details updated.`
         : `${day.name} marked skipped. Coach activity and workout log details updated.`
     );
+    return true;
   }
 
   function deleteWorkoutLog(logId) {
@@ -8635,6 +8677,7 @@ function handlePortalLogout() {
               workoutDate={workoutDate}
               setWorkoutDate={setWorkoutDate}
               deleteWorkoutLog={deleteWorkoutLog}
+              isClientPortal={normalizedPortalMode === "client"}
             />
           )}
 
@@ -12852,47 +12895,59 @@ function PlanDetailView({ plan }) {
   );
 }
 
-function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientId, selectedTrackerPlanId, setSelectedTrackerPlanId, selectedTrackerDayId, setSelectedTrackerDayId, trackingDrafts, updateTrackingDraft, markWorkoutStatus, trackerMessage, workoutLogs, selectedWorkoutLogId, setSelectedWorkoutLogId, setActiveTab, skipReason, setSkipReason, workoutDate, setWorkoutDate, deleteWorkoutLog }) {
+function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientId, selectedTrackerPlanId, setSelectedTrackerPlanId, selectedTrackerDayId, setSelectedTrackerDayId, trackingDrafts, updateTrackingDraft, markWorkoutStatus, trackerMessage, workoutLogs, selectedWorkoutLogId, setSelectedWorkoutLogId, setActiveTab, skipReason, setSkipReason, workoutDate, setWorkoutDate, deleteWorkoutLog, isClientPortal = false }) {
   const assignedPlans = savedPlans.filter((plan) => plan.clientId === trackerClientId);
   const selectedPlan = assignedPlans.find((plan) => plan.id === selectedTrackerPlanId) || assignedPlans[0] || null;
   const selectedDay = selectedPlan?.days.find((day) => day.id === selectedTrackerDayId) || selectedPlan?.days[0] || null;
   const selectedClient = clients.find((client) => client.id === trackerClientId);
   const clientLogs = workoutLogs.filter((log) => log.clientId === trackerClientId);
+  const [submittingStatus, setSubmittingStatus] = useState("");
+
+  async function submitWorkout(status) {
+    if (submittingStatus) return;
+    setSubmittingStatus(status);
+    try {
+      await markWorkoutStatus(selectedPlan, selectedDay, status);
+    } finally {
+      setSubmittingStatus("");
+    }
+  }
 
   return (
     <div>
-      <SectionHeader eyebrow="Client Workout Tracker" title="Log The Work" description="Open an assigned plan and let the client enter actual weight, sets, reps, time, rest, substitutions, notes, and skipped workout reasons." />
+      <SectionHeader eyebrow="Client Workout Tracker" title="Log Your Workout" description="Choose today's training day, record what you completed, and save one clear update for your coach." />
       {savedPlans.length === 0 && <NoPlanNotice setActiveTab={setActiveTab} />}
       {savedPlans.length > 0 && (
         <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
           <div className="space-y-6">
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-              <div className="mb-4 flex items-center gap-3"><Users className="text-[#00BF63]" /><h3 className="text-xl font-black uppercase">Tracker Setup</h3></div>
+            <div data-testid="workout-picker" className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
+              <div className="mb-4 flex items-center gap-3"><Users className="text-[#00BF63]" /><h3 className="text-xl font-black uppercase">Choose Your Workout</h3></div>
               <div className="space-y-4">
-                <Select label="Client" value={trackerClientId} onChange={(value) => { setTrackerClientId(value); setSelectedTrackerPlanId(""); setSelectedTrackerDayId(""); }} options={clients.map((client) => ({ label: client.name, value: client.id }))} />
-                <Select label="Assigned Plan" value={selectedPlan?.id || ""} onChange={(value) => { setSelectedTrackerPlanId(value); setSelectedTrackerDayId(""); }} options={assignedPlans.length > 0 ? assignedPlans.map((plan) => ({ label: plan.planName, value: plan.id })) : [{ label: "No plans assigned", value: "" }]} />
-                <div className="rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4"><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Selected Client</p><p className="mt-2 text-2xl font-black">{selectedClient?.name || "No client selected"}</p><p className="mt-1 text-sm text-white/60">Assigned plans: {assignedPlans.length}</p></div>
+                {!isClientPortal && <Select label="Client" value={trackerClientId} onChange={(value) => { setTrackerClientId(value); setSelectedTrackerPlanId(""); setSelectedTrackerDayId(""); }} options={clients.map((client) => ({ label: client.name, value: client.id }))} />}
+                {(assignedPlans.length > 1 || !isClientPortal) && <Select label={isClientPortal ? "Workout Plan" : "Assigned Plan"} value={selectedPlan?.id || ""} onChange={(value) => { setSelectedTrackerPlanId(value); setSelectedTrackerDayId(""); }} options={assignedPlans.length > 0 ? assignedPlans.map((plan) => ({ label: plan.planName, value: plan.id })) : [{ label: "No plans assigned", value: "" }]} />}
+                {isClientPortal && selectedPlan && <div className="rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4"><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Active Plan</p><p className="mt-2 text-xl font-black">{selectedPlan.planName}</p><p className="mt-1 text-sm text-white/60">Choose a training day below to begin.</p></div>}
+                {!isClientPortal && <div className="rounded-2xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-4"><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Selected Client</p><p className="mt-2 text-2xl font-black">{selectedClient?.name || "No client selected"}</p><p className="mt-1 text-sm text-white/60">Assigned plans: {assignedPlans.length}</p></div>}
               </div>
             </div>
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
+            <div data-testid="training-day-picker" className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
               <h3 className="mb-4 text-xl font-black uppercase">Training Days</h3>
-              {selectedPlan && <div className="flex flex-wrap gap-2">{selectedPlan.days.map((day) => <button key={day.id} type="button" onClick={() => setSelectedTrackerDayId(day.id)} className={`rounded-full border px-4 py-2 text-sm font-black transition ${selectedDay?.id === day.id ? "border-[#00BF63] bg-[#00BF63] text-black" : "border-white/10 bg-black/40 text-white hover:border-[#00BF63]"}`}>{day.name}</button>)}</div>}
+              {selectedPlan && <div aria-label="Training days" className="flex flex-wrap gap-2">{selectedPlan.days.map((day) => <button key={day.id} type="button" aria-pressed={selectedDay?.id === day.id} onClick={() => setSelectedTrackerDayId(day.id)} className={`rounded-full border px-4 py-2 text-sm font-black transition ${selectedDay?.id === day.id ? "border-[#00BF63] bg-[#00BF63] text-black" : "border-white/10 bg-black/40 text-white hover:border-[#00BF63]"}`}>{day.name}</button>)}</div>}
               {!selectedPlan && <EmptyState text="This client does not have a saved plan assigned yet." />}
             </div>
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-              <h3 className="mb-4 text-xl font-black uppercase">Recent Client Logs</h3>
-              <WorkoutLogList logs={clientLogs.slice(0, 6)} selectedLogId={selectedWorkoutLogId} onSelect={setSelectedWorkoutLogId} onDelete={deleteWorkoutLog} />
-              {clientLogs.length === 0 && <EmptyState text="No workout logs for this client yet." />}
-            </div>
           </div>
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
+          <div data-testid="active-workout-form" className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Active Workout</p><h3 className="mt-1 text-2xl font-black uppercase">{selectedDay?.name || "No Day Selected"}</h3><p className="mt-1 text-sm text-white/60">{selectedPlan?.planName || "Select an assigned plan"}</p></div>
-              {selectedPlan && selectedDay && <div className="flex flex-wrap gap-2"><button type="button" onClick={() => markWorkoutStatus(selectedPlan, selectedDay, "completed")} className="rounded-full bg-[#00BF63] px-4 py-2 text-sm font-black uppercase text-black transition hover:bg-white">Mark Complete</button><button type="button" onClick={() => markWorkoutStatus(selectedPlan, selectedDay, "skipped")} className="rounded-full border border-yellow-500/40 bg-yellow-500/10 px-4 py-2 text-sm font-black uppercase text-yellow-200 transition hover:bg-yellow-500 hover:text-black">Mark Skipped</button></div>}
             </div>
-            {trackerMessage && <p className="mb-4 rounded-2xl border border-[#00BF63]/30 bg-black/50 p-3 text-sm font-bold text-[#00BF63]">{trackerMessage}</p>}
+            {trackerMessage && <p aria-live="polite" className="mb-4 rounded-2xl border border-[#00BF63]/30 bg-black/50 p-3 text-sm font-bold text-[#00BF63]">{trackerMessage}</p>}
             {selectedPlan && selectedDay && <ActiveWorkoutForm selectedPlan={selectedPlan} selectedDay={selectedDay} trackingDrafts={trackingDrafts} updateTrackingDraft={updateTrackingDraft} skipReason={skipReason} setSkipReason={setSkipReason} workoutDate={workoutDate} setWorkoutDate={setWorkoutDate} />}
+            {selectedPlan && selectedDay && selectedDay.exercises.length > 0 && <div data-testid="workout-submit-actions" className="mt-5 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4"><p className="mb-3 text-sm font-bold leading-6 text-white/70">Review your entries, then save the workout. Skipped workouts require a reason.</p><div className="grid gap-3 sm:grid-cols-2"><button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("completed")} className="min-h-12 rounded-2xl bg-[#00BF63] px-4 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:cursor-wait disabled:opacity-60">{submittingStatus === "completed" ? "Saving Workout..." : "Save Completed Workout"}</button><button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("skipped")} className="min-h-12 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-black uppercase text-yellow-200 transition hover:bg-yellow-500 hover:text-black disabled:cursor-wait disabled:opacity-60">{submittingStatus === "skipped" ? "Saving Skip..." : "Log as Skipped"}</button></div></div>}
             {!selectedPlan && <EmptyState text="Select a client with an assigned plan." />}
+          </div>
+          <div data-testid="recent-workout-logs" className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 xl:col-span-2">
+            <div className="mb-4"><h3 className="text-xl font-black uppercase">Recent Workout History</h3><p className="mt-1 text-sm text-white/55">Submitted workouts are read-only here so your coach keeps a reliable history.</p></div>
+            <WorkoutLogList logs={clientLogs.slice(0, 6)} selectedLogId={selectedWorkoutLogId} onSelect={setSelectedWorkoutLogId} onDelete={isClientPortal ? undefined : deleteWorkoutLog} />
+            {clientLogs.length === 0 && <EmptyState text="No workout logs for this client yet." />}
           </div>
         </div>
       )}
@@ -12914,7 +12969,7 @@ function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTr
   return (
     <div className="space-y-4">
       <Input label="Workout Date" type="date" value={workoutDate} onChange={setWorkoutDate} />
-      <Input label="Skip Reason" value={skipReason} onChange={setSkipReason} placeholder="Optional: reason if this workout is marked skipped" />
+      <div><Input label="Skip Reason" value={skipReason} onChange={setSkipReason} placeholder="Why was this workout skipped?" /><p className="mt-2 text-xs font-bold text-white/40">Required only when logging this workout as skipped.</p></div>
       {selectedDay.exercises.map((exercise, index) => {
         const key = getTrackingKey(selectedPlan.id, selectedDay.id, exercise.id);
         const draft = trackingDrafts[key] || emptyTrackingEntry;
