@@ -7969,14 +7969,15 @@ const isLoggedIn =
     const selectedConversation = conversations.find((conversation) => conversation.clientId === selectedConversationId);
     if (!selectedConversation) return setMessageNotice("Select a conversation first.");
 
+    const resolvedSender = nlfResolveMessageSenderRole(normalizedPortalMode);
     const newMessage = {
       id: makeId("message"),
-      sender: nlfResolveMessageSenderRole(normalizedPortalMode),
+      sender: resolvedSender,
       body: text,
       sentAt: new Date().toLocaleString(),
       timestamp: Date.now(),
-      unreadForCoach: messageSender === "Client",
-      unreadForClient: messageSender === "Coach",
+      unreadForCoach: resolvedSender === "Client",
+      unreadForClient: resolvedSender === "Coach",
     };
 
     if (!isLocalRegressionRuntime()) {
@@ -13361,6 +13362,8 @@ function MessagesScreen({
                 {messagesToShow.map((message) => (
                   <div
                     key={message.id}
+                    data-testid="message-bubble"
+                    data-message-sender={message.sender}
                     className={`rounded-2xl border p-4 ${
                       message.sender === "Coach"
                         ? "border-[#00BF63]/30 bg-[#00BF63]/10"
@@ -13368,12 +13371,11 @@ function MessagesScreen({
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-black uppercase text-white">
+                      <p data-testid="message-sender-label" className="text-sm font-black uppercase text-white">
                         {message.sender}
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {message.unreadForCoach && <UnreadPill label="Coach" />}
-                        {message.unreadForClient && <UnreadPill label="Client" />}
+                        {(message.unreadForCoach || message.unreadForClient) && <UnreadPill label="Unread" />}
                       </div>
                     </div>
                     <p className="mt-2 text-sm text-white/70">{message.body}</p>

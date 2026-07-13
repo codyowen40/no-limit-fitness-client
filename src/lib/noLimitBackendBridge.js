@@ -113,13 +113,14 @@ export function normalizeBackendWorkoutLog(log) {
 }
 
 export function normalizeBackendMessage(message) {
+  const normalizedSenderRole = String(message.sender_role || "").toLowerCase() === "coach" ? "coach" : "client";
   return {
     id: message.id,
     clientId: message.client_id,
     clientName: message.clients?.name || "",
     senderProfileId: message.sender_profile_id,
-    senderRole: message.sender_role,
-    sender: message.sender_role === "coach" ? "Coach" : "Client",
+    senderRole: normalizedSenderRole,
+    sender: normalizedSenderRole === "coach" ? "Coach" : "Client",
     body: message.body,
     unreadForCoach: Boolean(message.unread_for_coach),
     unreadForClient: Boolean(message.unread_for_client),

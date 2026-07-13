@@ -129,6 +129,20 @@ test.describe("Role and assignment messaging", () => {
     await expect(page.locator("main")).toContainText("Messages send from your coach account to assigned clients.");
   });
 
+  test("coach-sent message bubble is labeled Coach instead of Client", async ({ page }) => {
+    await openMessages(page, "coach");
+    const body = `Coach bubble role ${Date.now()}`;
+
+    await page.getByTestId("message-conversation-list").getByRole("button", { name: /Assigned Client/ }).click();
+    await page.getByLabel("Message", { exact: true }).fill(body);
+    await page.getByRole("button", { name: "Send Message", exact: true }).click();
+
+    const bubble = page.getByTestId("message-bubble").filter({ hasText: body });
+    await expect(bubble).toHaveAttribute("data-message-sender", "Coach");
+    await expect(bubble.getByTestId("message-sender-label")).toHaveText("Coach");
+    await expect(bubble).not.toContainText("Client");
+  });
+
   test("client can archive assigned coach conversation from active inbox", async ({ page }) => {
     await openMessages(page, "client");
 
