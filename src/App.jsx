@@ -7031,7 +7031,7 @@ const [clients, setClients] = useState(initialState.clients);
   }, [workoutLogs, selectedWorkoutLogId]);
 
   useEffect(() => {
-    if (savedPlans.length > 0 && !savedPlans.some((plan) => plan.id === selectedPlanDetailId)) {
+    if (selectedPlanDetailId && savedPlans.length > 0 && !savedPlans.some((plan) => plan.id === selectedPlanDetailId)) {
       setSelectedPlanDetailId(savedPlans[0].id);
     }
     if (savedPlans.length === 0) setSelectedPlanDetailId("");
@@ -12588,7 +12588,9 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
     : "You are building a new workout plan. Choose the client, add training days, add exercises, then click Save New Plan.";
 
   const totalExercises = planDraft.days.reduce((total, day) => total + day.exercises.length, 0);
-  const selectedPlanDetail = savedPlans.find((plan) => plan.id === selectedPlanDetailId) || savedPlans[0] || null;
+  const selectedPlanDetail = selectedPlanDetailId
+    ? savedPlans.find((plan) => plan.id === selectedPlanDetailId) || null
+    : null;
   const selectedPlanAssignedClientId = String(selectedPlanDetail?.status || "").toLowerCase() === "unassigned"
     ? ""
     : selectedPlanDetail?.clientId || "";
@@ -12598,7 +12600,9 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
     setAssignmentClientId(selectedPlanAssignedClientId);
   }, [selectedPlanDetail?.id, selectedPlanAssignedClientId]);
 
-  const assignedClientName = clients.find((client) => client.id === selectedPlanAssignedClientId)?.name || "Unassigned";
+  const assignedClientName = selectedPlanDetail
+    ? clients.find((client) => client.id === selectedPlanAssignedClientId)?.name || "Unassigned"
+    : "No plan selected";
 
   return (
     <div>
@@ -12612,8 +12616,8 @@ function PlansScreen({ clients, planDraft, selectedClient, selectedDay, selected
         <p className="text-xs font-black uppercase tracking-[0.22em] text-[#00BF63]">General Plan Library</p>
         <h3 className="mt-2 text-2xl font-black uppercase">All Created Workout Plans</h3>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
-          <Select label="Workout Plan" value={selectedPlanDetail?.id || ""} onChange={setSelectedPlanDetailId} options={savedPlans.map((plan) => ({ label: `${plan.planName}${String(plan.status).toLowerCase() === "unassigned" ? " (Unassigned)" : ""}`, value: plan.id }))} />
-          <Select label="Client to Assign" value={assignmentClientId} onChange={setAssignmentClientId} options={[{ label: "None — Unassigned", value: "" }, ...clients.map((client) => ({ label: client.name, value: client.id }))]} />
+          <Select label="Workout Plan" value={selectedPlanDetail?.id || ""} onChange={setSelectedPlanDetailId} options={[{ label: "None Assigned", value: "" }, ...savedPlans.map((plan) => ({ label: `${plan.planName}${String(plan.status).toLowerCase() === "unassigned" ? " (Unassigned)" : ""}`, value: plan.id }))]} />
+          <Select label="Client to Assign" value={assignmentClientId} onChange={setAssignmentClientId} options={[{ label: "Select a client", value: "" }, ...clients.map((client) => ({ label: client.name, value: client.id }))]} />
           <div className="flex flex-wrap items-end gap-2">
             <button type="button" disabled={!selectedPlanDetail} onClick={() => selectedPlanDetail && updateSavedPlanAssignment(selectedPlanDetail.id, assignmentClientId)} className="rounded-full bg-[#00BF63] px-4 py-3 text-xs font-black uppercase text-black disabled:cursor-not-allowed disabled:opacity-40">Save Assignment</button>
             <button type="button" disabled={!selectedPlanDetail} onClick={() => selectedPlanDetail && startEditPlan(selectedPlanDetail.id)} className="rounded-full bg-[#00BF63] px-4 py-3 text-xs font-black uppercase text-black disabled:opacity-40">Edit Original</button>

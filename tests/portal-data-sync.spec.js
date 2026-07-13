@@ -172,7 +172,11 @@ test.describe("Portal data synchronization", () => {
     } } })));
     await page.getByRole("button", { name: "Workout Plans", exact: true }).click();
     const library = page.getByTestId("coach-workout-plan-library");
-    await expect(library.getByLabel("Workout Plan")).toHaveValue("editable-plan");
+    await expect(library.getByLabel("Workout Plan")).toHaveValue("");
+    await expect(library.getByLabel("Workout Plan").getByRole("option", { name: "None Assigned", exact: true })).toHaveCount(1);
+    await expect(library.getByLabel("Client to Assign").getByRole("option", { name: /None Assigned/i })).toHaveCount(0);
+    await expect(library.getByTestId("plan-assignment-status")).toContainText("No plan selected");
+    await library.getByLabel("Workout Plan").selectOption("editable-plan");
     await library.getByRole("button", { name: "Edit Original", exact: true }).click({ force: true });
     await expect(page.getByText("Editing Existing Plan", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Save As New Plan", exact: true })).toBeVisible();
