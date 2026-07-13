@@ -45,7 +45,7 @@ test.describe("Mobile client navigation smoke coverage", () => {
     await expect(page.getByLabel("Client My Plan dashboard")).toBeVisible();
 
     await mobileNav.getByRole("button", { name: /^Log$/i }).click();
-    await expect(page.locator("body")).toContainText(/Client Workout Tracker|Assigned Plan|Mark Complete/i);
+    await expect(page.locator("body")).toContainText(/Client Workout Tracker|No Assigned Plans Yet|Save Completed Workout/i);
 
     await mobileNav.getByRole("button", { name: /^Menu$/i }).click();
     await mobileMenu.getByRole("button", { name: /^Nutrition$/i }).click();
