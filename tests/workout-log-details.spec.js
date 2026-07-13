@@ -189,7 +189,8 @@ test.describe("No Limit Fitness workout log details", () => {
     await page.getByRole("navigation").getByRole("button", { name: /^Tracker$/ }).click();
 
     await page.getByLabel("Workout Date").fill("2026-05-18");
-    await page.getByRole("button", { name: "Mark Complete" }).click();
+    await page.getByLabel("Sets Completed").fill("4");
+    await page.getByRole("button", { name: "Save Completed Workout" }).click();
     await expect(page.getByText("Workout Date: May 18, 2026")).toBeVisible();
 
     await page.reload({ waitUntil: "domcontentloaded" });
