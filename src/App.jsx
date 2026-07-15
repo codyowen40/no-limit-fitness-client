@@ -7205,8 +7205,8 @@ const isLoggedIn =
     Calendar: "Calendar",
   };
 
-  const mobilePrimaryTabIds = ["Client", "Tracker", "WorkoutPlans", "Messages"];
-  const mobileMenuTabIds = ["Home", "Calendar", "Nutrition", "Exercises", "Progress", "Login", "Coach", "Clients"];
+  const mobilePrimaryTabIds = normalizedPortalMode === "coach" ? ["Clients", "Coach", "WorkoutPlans", "Tracker"] : ["Client", "Tracker", "WorkoutPlans", "Messages"];
+  const mobileMenuTabIds = normalizedPortalMode === "coach" ? ["Calendar", "Messages", "Exercises", "Progress", "Login"] : ["Home", "Calendar", "Nutrition", "Exercises", "Progress", "Login"];
 
   const mobilePrimaryTabs = mobilePrimaryTabIds
     .map((tabId) => renderedTabs.find((tab) => tab.id === tabId))
@@ -7219,6 +7219,8 @@ const isLoggedIn =
   const isMobileMenuActive = mobileMenuTabs.some((tab) => tab.id === activeTab);
 
   function getMobilePrimaryTabLabel(tab) {
+    if (normalizedPortalMode === "coach" && tab.id === "WorkoutPlans") return "Plans";
+    if (normalizedPortalMode === "coach" && tab.id === "Tracker") return "Tracker";
     return mobilePrimaryTabLabels[tab.id] || tab.label || tab.id;
   }
 
@@ -8388,13 +8390,13 @@ function handlePortalLogout() {
       <div className="fixed inset-0 pointer-events-none bg-gradient-to-b from-black via-black/90 to-black" />
 
       <div className="relative z-10">
-        <header className="border-b border-white/10 bg-black/80 backdrop-blur">
-          <div className="mx-auto flex max-w-[90rem] flex-col gap-4 px-4 py-4 xl:flex-row xl:items-center xl:justify-between">
+        <header className="sticky top-0 z-40 border-b border-white/10 bg-black/90 backdrop-blur">
+          <div className="mx-auto flex max-w-[90rem] flex-col gap-2 px-4 py-2 md:gap-4 md:py-4 xl:flex-row xl:items-center xl:justify-between">
             <button type="button" onClick={() => setActiveTab("Home")} className="flex items-center gap-3 text-left">
-              <img src="/images/logo.png" alt="No Limit Fitness" className="h-14 w-14 rounded-2xl object-contain" />
+              <img src="/images/logo.png" alt="No Limit Fitness" className="h-10 w-10 rounded-xl object-contain md:h-14 md:w-14 md:rounded-2xl" />
               <div>
                 <p data-testid="personalized-portal-label" className="text-xs font-bold uppercase tracking-[0.35em] text-white/50">{personalizedPortalLabel}</p>
-                <h1 className="text-2xl font-black uppercase tracking-wide">
+                <h1 className="text-lg font-black uppercase tracking-wide md:text-2xl">
                   No Limit <span className="text-[#00BF63]">Fitness</span>
                 </h1>
               </div>
@@ -8520,7 +8522,7 @@ function handlePortalLogout() {
           </div>
 </header>
 
-        {normalizedPortalMode === "client" && (
+        {(normalizedPortalMode === "client" || normalizedPortalMode === "coach") && (
           <nav
             aria-label="Mobile navigation"
             className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md rounded-[1.75rem] border border-[#00BF63]/35 bg-black/95 px-3 py-2 shadow-2xl shadow-[#00BF63]/15 ring-1 ring-white/10 backdrop-blur md:hidden"
@@ -13166,7 +13168,7 @@ function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientI
             </div>
             {trackerMessage && <p aria-live="polite" className="mb-4 rounded-2xl border border-[#00BF63]/30 bg-black/50 p-3 text-sm font-bold text-[#00BF63]">{trackerMessage}</p>}
             {selectedPlan && selectedDay && <ActiveWorkoutForm selectedPlan={selectedPlan} selectedDay={selectedDay} trackingDrafts={trackingDrafts} updateTrackingDraft={updateTrackingDraft} skipReason={skipReason} setSkipReason={setSkipReason} workoutDate={workoutDate} setWorkoutDate={setWorkoutDate} />}
-            {selectedPlan && selectedDay && <div data-testid="workout-submit-actions" className="mt-5 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4"><p className="mb-3 text-sm font-bold leading-6 text-white/70">Save this selected day only. You can choose a different day before or after this one at any time.</p><div className="grid gap-3 sm:grid-cols-2">{selectedDay.exercises.length > 0 && <button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("completed")} className="min-h-12 rounded-2xl bg-[#00BF63] px-4 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:cursor-wait disabled:opacity-60">{submittingStatus === "completed" ? "Saving Workout..." : "Save Completed Workout"}</button>}<button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("skipped")} className="min-h-12 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-black uppercase text-yellow-200 transition hover:bg-yellow-500 hover:text-black disabled:cursor-wait disabled:opacity-60">{submittingStatus === "skipped" ? "Saving Skip..." : "Log Selected Day as Skipped"}</button></div></div>}
+            {selectedPlan && selectedDay && <div data-testid="workout-submit-actions" className="sticky bottom-20 z-20 mt-5 rounded-2xl border border-[#00BF63]/40 bg-black/95 p-3 shadow-2xl md:static md:bg-[#00BF63]/10 md:p-4"><p className="mb-3 hidden text-sm font-bold leading-6 text-white/70 md:block">Save this selected day only. You can choose a different day before or after this one at any time.</p><div className="grid gap-2 sm:grid-cols-2">{selectedDay.exercises.length > 0 && <button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("completed")} className="min-h-12 rounded-2xl bg-[#00BF63] px-4 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:cursor-wait disabled:opacity-60">{submittingStatus === "completed" ? "Saving Workout..." : "Save Completed Workout"}</button>}<button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("skipped")} className="min-h-12 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-black uppercase text-yellow-200 transition hover:bg-yellow-500 hover:text-black disabled:cursor-wait disabled:opacity-60">{submittingStatus === "skipped" ? "Saving Skip..." : "Log Selected Day as Skipped"}</button></div></div>}
             {!selectedPlan && <EmptyState text="Select a client with an assigned plan." />}
           </div>
           <div data-testid="recent-workout-logs" className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 xl:col-span-2">
@@ -13191,6 +13193,8 @@ function NoPlanNotice({ setActiveTab }) {
 }
 
 function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTrackingDraft, skipReason, setSkipReason, workoutDate, setWorkoutDate }) {
+  const [expandedExerciseId, setExpandedExerciseId] = useState(selectedDay.exercises[0]?.id || "");
+  useEffect(() => setExpandedExerciseId(selectedDay.exercises[0]?.id || ""), [selectedDay.id]);
   return (
     <div className="space-y-4">
       <Input label="Workout Date" type="date" value={workoutDate} onChange={setWorkoutDate} />
@@ -13198,10 +13202,12 @@ function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTr
       {selectedDay.exercises.map((exercise, index) => {
         const key = getTrackingKey(selectedPlan.id, selectedDay.id, exercise.id);
         const draft = trackingDrafts[key] || emptyTrackingEntry;
+        const expanded = expandedExerciseId === exercise.id;
         const update = (field, value) => updateTrackingDraft(selectedPlan.id, selectedDay.id, exercise.id, field, value);
         return (
-          <div key={exercise.id} className="rounded-2xl border border-white/10 bg-black/40 p-4">
-            <div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h4 className="mt-1 text-xl font-black">{exercise.exerciseName}</h4><p className="mt-1 text-sm text-white/50">{exercise.muscles} • {exercise.equipment}</p></div>
+          <div key={exercise.id} className="rounded-2xl border border-white/10 bg-black/40 p-3 md:p-4">
+            <button type="button" aria-expanded={expanded} onClick={() => setExpandedExerciseId(expanded ? "" : exercise.id)} className="mb-3 flex min-h-12 w-full items-center justify-between text-left md:pointer-events-none"><span><span className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</span><span className="mt-1 block text-lg font-black">{exercise.exerciseName}</span></span><span className="text-xs font-black uppercase text-[#00BF63] md:hidden">{expanded ? "Close" : "Enter Results"}</span></button>
+            <div className={`${expanded ? "block" : "hidden"} md:block`}>
             <div className="mb-4 grid gap-3 md:grid-cols-4"><MiniProgram label="Assigned Sets" value={exercise.sets} /><MiniProgram label="Assigned Reps/Time" value={exercise.repsOrTime} /><MiniProgram label="Weight Guidance" value={exercise.weightGuidance} /><MiniProgram label="Assigned Rest" value={exercise.rest} /></div>
             {exercise.notes && <div className="mb-4 rounded-2xl border border-[#00BF63]/20 bg-[#00BF63]/10 p-3"><p className="text-xs font-black uppercase tracking-[0.2em] text-[#00BF63]">Coach Notes</p><p className="mt-1 text-sm text-white/70">{exercise.notes}</p></div>}
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -13212,6 +13218,7 @@ function ActiveWorkoutForm({ selectedPlan, selectedDay, trackingDrafts, updateTr
               <Input label="Actual Rest Used" value={draft.restUsed} onChange={(value) => update("restUsed", value)} placeholder="Example: 90 sec" />
               <Input label="Exercise Substitution" value={draft.substitution} onChange={(value) => update("substitution", value)} placeholder="Example: DB press instead" />
               <div className="md:col-span-2 xl:col-span-3"><TextArea label="Client Notes" value={draft.notes} onChange={(value) => update("notes", value)} placeholder="Pain, difficulty, form notes, energy level, or anything coach should know..." /></div>
+            </div>
             </div>
           </div>
         );
@@ -13848,6 +13855,7 @@ function getClientSafeExerciseSearchText(exercise) {
 
 function ExercisesScreen({ isCoachPortal = false, librarySearch, setLibrarySearch, libraryCategory, setLibraryCategory, filteredLibraryExercises, totalExerciseCount }) {
   const [visibleCount, setVisibleCount] = useState(24);
+  const [openExerciseName, setOpenExerciseName] = useState("");
   useEffect(() => setVisibleCount(24), [librarySearch, libraryCategory]);
   const visibleExercises = filteredLibraryExercises.slice(0, visibleCount);
   const categoryCount =
@@ -13881,13 +13889,13 @@ function ExercisesScreen({ isCoachPortal = false, librarySearch, setLibrarySearc
             placeholder="Search exercises, muscle groups, equipment, or substitutions..."
           />
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 md:flex-wrap md:overflow-visible md:pb-0">
             {exerciseCategories.map((category) => (
               <button
                 key={category}
                 type="button"
                 onClick={() => setLibraryCategory(category)}
-                className={`rounded-full border px-4 py-2 text-sm font-black transition ${
+                className={`shrink-0 rounded-full border px-4 py-2 text-sm font-black transition ${
                   libraryCategory === category
                     ? "border-[#00BF63] bg-[#00BF63] text-black"
                     : "border-white/10 bg-black/40 text-white hover:border-[#00BF63]"
@@ -13913,7 +13921,8 @@ function ExercisesScreen({ isCoachPortal = false, librarySearch, setLibrarySearc
         </p>
       </div>
 
-      <div data-testid="client-safe-exercise-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div data-testid="mobile-exercise-list" className="space-y-2 md:hidden">{visibleExercises.map((exercise) => { const open = openExerciseName === exercise.name; return <div key={exercise.name} className="rounded-2xl border border-white/10 bg-white/[0.04]"><button type="button" aria-expanded={open} onClick={() => setOpenExerciseName(open ? "" : exercise.name)} className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-3 text-left"><span><span className="block font-black">{exercise.name}</span><span className="block text-xs text-white/45">{exercise.equipment}</span></span><span className="text-xs font-black text-[#00BF63]">{open ? "Close" : "Details"}</span></button>{open && <div className="border-t border-white/10 p-4"><ExerciseCard exercise={exercise} /></div>}</div>; })}</div>
+      <div data-testid="client-safe-exercise-grid" className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-3">
         {visibleExercises.map((exercise) => (
           <ExerciseCard key={exercise.name} exercise={exercise} />
         ))}
@@ -13936,6 +13945,7 @@ function ProgressScreen({
   saveWorkoutLogEdits,
   toggleWorkoutLogState,
 }) {
+  const [progressView, setProgressView] = useState("overview");
   const completedLogs = workoutLogs.filter((log) => log.status === "completed");
   const skippedLogs = workoutLogs.filter((log) => log.status === "skipped");
 
@@ -14005,6 +14015,13 @@ function ProgressScreen({
         description="This screen now summarizes progress, client consistency, exercise history, completed workouts, skipped workouts, substitutions, and detailed workout logs."
       />
 
+      <div role="tablist" aria-label="Progress sections" className="mb-6 flex gap-2 overflow-x-auto pb-2">
+        {[["overview", "Overview"], ["exercise", "Exercise History"], ["workouts", "Workout History"]].map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={progressView === id} onClick={() => setProgressView(id)} className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-black ${progressView === id ? "border-[#00BF63] bg-[#00BF63] text-black" : "border-white/15 bg-black/40 text-white"}`}>{label}</button>
+        ))}
+      </div>
+
+      {progressView === "overview" && <>
       <div className="mb-6 rounded-[1.5rem] border border-[#00BF63]/30 bg-[#00BF63]/10 p-5">
         <p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">
           Training Progress
@@ -14118,7 +14135,9 @@ function ProgressScreen({
           )}
         </div>
       </div>
+      </>}
 
+      {progressView === "exercise" &&
       <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
         <h3 className="text-xl font-black uppercase">Exercise History</h3>
 
@@ -14171,7 +14190,9 @@ function ProgressScreen({
           </div>
         )}
       </div>
+      }
 
+      {progressView === "workouts" &&
       <div className="mt-6 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
         <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
           <h3 className="text-xl font-black uppercase">Recent Workout Logs</h3>
@@ -14195,6 +14216,7 @@ function ProgressScreen({
           <WorkoutLogDetails log={selectedWorkoutLog} onDelete={deleteWorkoutLog} onSave={saveWorkoutLogEdits} onToggleLogged={toggleWorkoutLogState} />
         </div>
       </div>
+      }
     </div>
   );
 }

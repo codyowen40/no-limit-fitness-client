@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Mobile client navigation smoke coverage", () => {
+  test("coach mobile navigation keeps core destinations fixed", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/?testUnlock=true&portalMode=coach");
+    const nav = page.getByRole("navigation", { name: /Mobile navigation/i });
+    for (const label of ["Clients", "Coach", "Plans", "Tracker", "Menu"]) await expect(nav.getByRole("button", { name: label, exact: true })).toBeVisible();
+    await nav.getByRole("button", { name: "Menu", exact: true }).click();
+    await expect(page.getByLabel("Mobile tab menu").getByRole("button", { name: "Calendar", exact: true })).toBeVisible();
+  });
   test("mobile bottom nav uses social-style primary buttons with a menu", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
 

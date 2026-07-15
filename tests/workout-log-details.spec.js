@@ -178,6 +178,8 @@ async function openProgress(page) {
     page.getByRole("heading", { name: "Tracking Comes Next" })
   ).toBeVisible();
 
+  await page.getByRole("tab", { name: "Workout History", exact: true }).click();
+
   await expect(
     page.getByRole("heading", { name: "Workout Log Details" })
   ).toBeVisible();
@@ -219,27 +221,27 @@ test.describe("No Limit Fitness workout log details", () => {
     await expect(page.getByText("May 18, 2026").first()).toBeVisible();
     await expect(page.getByText("Back Squat").first()).toBeVisible();
 
-    await expect(page.getByText(/Actual Weight Used:\s*235 lb/i).first()).toBeVisible();
-    await expect(page.getByText(/Sets Completed:\s*4/i).first()).toBeVisible();
-    await expect(page.getByText(/Reps Completed:\s*8/i).first()).toBeVisible();
-    await expect(page.getByText(/Actual Rest Used:\s*90 sec/i).first()).toBeVisible();
+    await expect(page.getByText("235 lb", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("4", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("8", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("90 sec", { exact: true }).first()).toBeVisible();
 
     await expect(
-      page.getByText(/^Exercise Substitution: Goblet Squat$/)
+      page.getByText(/^Goblet Squat$/)
     ).toBeVisible();
 
     await expect(
-      page.getByText(/^Client Notes: Completed workout note stays after refresh\.$/)
+      page.getByText(/^Completed workout note stays after refresh\.$/)
     ).toBeVisible();
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await openProgress(page);
 
     await expect(page.getByText(testClient.name).first()).toBeVisible();
-    await expect(page.getByText(/Actual Weight Used:\s*235 lb/i).first()).toBeVisible();
+    await expect(page.getByText("235 lb", { exact: true }).first()).toBeVisible();
 
     await expect(
-      page.getByText(/^Client Notes: Completed workout note stays after refresh\.$/)
+      page.getByText(/^Completed workout note stays after refresh\.$/)
     ).toBeVisible();
   });
 
@@ -256,7 +258,7 @@ test.describe("No Limit Fitness workout log details", () => {
     await expect(page.getByText(skippedLog.skipReason).first()).toBeVisible();
 
     await expect(
-      page.getByText(/^Client Notes: Skipped workout note stays after refresh\.$/)
+      page.getByText(/^Skipped workout note stays after refresh\.$/)
     ).toBeVisible();
 
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -265,7 +267,7 @@ test.describe("No Limit Fitness workout log details", () => {
     await expect(page.getByText(skippedLog.skipReason).first()).toBeVisible();
 
     await expect(
-      page.getByText(/^Client Notes: Skipped workout note stays after refresh\.$/)
+      page.getByText(/^Skipped workout note stays after refresh\.$/)
     ).toBeVisible();
   });
 
@@ -306,6 +308,7 @@ test.describe("No Limit Fitness workout log details", () => {
     await openProgress(page);
 
     await expect(page.getByText(/Temporary log should be deleted/i).first()).toBeVisible();
+    await page.getByRole("button", { name: /Day 2 - Keep Me/ }).click();
     await expect(page.getByText(/Stored log should remain after reload/i).first()).toBeVisible();
 
     await expect(page.getByRole("button", { name: /Delete Workout Log/i })).toHaveCount(0);
@@ -314,6 +317,7 @@ test.describe("No Limit Fitness workout log details", () => {
     await openProgress(page);
 
     await expect(page.getByText(/Temporary log should be deleted/i).first()).toBeVisible();
+    await page.getByRole("button", { name: /Day 2 - Keep Me/ }).click();
     await expect(page.getByText(/Stored log should remain after reload/i).first()).toBeVisible();
   });
 

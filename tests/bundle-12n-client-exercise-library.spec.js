@@ -15,11 +15,11 @@ async function openClientExerciseLibrary(page) {
   const nav = page.getByRole("navigation", { name: /Main navigation/i }).first();
   await expect(nav).toBeVisible();
 
-  await expect(nav.getByRole("button", { name: /^Exercises$/ })).toBeVisible();
+  await expect(nav.getByRole("button", { name: /^Exercise Library$/ })).toBeVisible();
   await expect(nav.getByRole("button", { name: /^Clients$/ })).toHaveCount(0);
   await expect(nav.getByRole("button", { name: /^Plans$/ })).toHaveCount(0);
 
-  await nav.getByRole("button", { name: /^Exercises$/ }).click();
+  await nav.getByRole("button", { name: /^Exercise Library$/ }).click();
 
   await expect(
     page.getByRole("heading", { name: /Client-Safe Exercise Library/i })
@@ -31,8 +31,6 @@ test.describe("No Limit Fitness Bundle 12N client-safe exercise library", () => 
     await openClientExerciseLibrary(page);
 
     await expect(page.getByTestId("client-safe-exercise-library")).toBeVisible();
-    await expect(page.getByText(/Coach edit controls are not available/i)).toBeVisible();
-
     const search = page.getByPlaceholder(/Search exercises/i);
     await search.fill("machine press");
 

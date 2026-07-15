@@ -78,7 +78,7 @@ test.describe("Portal data synchronization", () => {
       "Close-Grip Cable Row",
     ]) {
       await page.getByPlaceholder(/Search exercises/i).fill(exerciseName);
-      await expect(page.getByText(exerciseName, { exact: true }).first()).toBeVisible();
+      await expect(page.getByTestId("client-safe-exercise-grid").getByText(exerciseName, { exact: true })).toBeVisible();
     }
   });
 

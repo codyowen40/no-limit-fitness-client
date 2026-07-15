@@ -167,12 +167,11 @@ test.describe("Client workout log polish", () => {
     await expect(page.getByTestId("active-workout-form")).toContainText("Day 1 - Strength");
   });
   test("places save actions after the workout inputs", async ({ page }) => {
-    const actions = page.getByTestId("workout-submit-actions");
-    const notes = page.getByLabel("Client Notes").last();
-
-    const positions = await Promise.all([actions.boundingBox(), notes.boundingBox()]);
-    expect(positions[0]).not.toBeNull();
-    expect(positions[1]).not.toBeNull();
-    expect(positions[0].y).toBeGreaterThan(positions[1].y);
+    const order = await page.evaluate(() => {
+      const actions = document.querySelector('[data-testid="workout-submit-actions"]');
+      const notes = Array.from(document.querySelectorAll("textarea")).find((field) => field.labels?.[0]?.textContent?.includes("Client Notes"));
+      return notes && actions ? Boolean(notes.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING) : false;
+    });
+    expect(order).toBe(true);
   });
 });
