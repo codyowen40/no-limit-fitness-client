@@ -269,7 +269,7 @@ test.describe("No Limit Fitness workout log details", () => {
     ).toBeVisible();
   });
 
-  test("deletes a workout log locally and keeps it deleted after refresh", async ({
+  test("keeps client workout history read-only", async ({
     page,
   }) => {
     const deleteMeLog = createCompletedLog({
@@ -308,21 +308,12 @@ test.describe("No Limit Fitness workout log details", () => {
     await expect(page.getByText(/Temporary log should be deleted/i).first()).toBeVisible();
     await expect(page.getByText(/Stored log should remain after reload/i).first()).toBeVisible();
 
-    const deleteButtonCountBefore = await page
-      .getByRole("button", { name: /Delete Workout Log/i })
-      .count();
-
-    expect(deleteButtonCountBefore).toBeGreaterThan(0);
-
-    await page.getByRole("button", { name: /Delete Workout Log/i }).first().click();
-
-    await expect(page.getByText(/Temporary log should be deleted/i)).toHaveCount(0);
-    await expect(page.getByText(/Stored log should remain after reload/i).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Delete Workout Log/i })).toHaveCount(0);
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await openProgress(page);
 
-    await expect(page.getByText(/Temporary log should be deleted/i)).toHaveCount(0);
+    await expect(page.getByText(/Temporary log should be deleted/i).first()).toBeVisible();
     await expect(page.getByText(/Stored log should remain after reload/i).first()).toBeVisible();
   });
 });

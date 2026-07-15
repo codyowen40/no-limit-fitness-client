@@ -28,4 +28,18 @@ test.describe("Workout Plans", () => {
     await expect(page.getByPlaceholder("Search exercises to add...")).toBeVisible();
     await expect(page.getByLabel("Plan Name")).not.toHaveAttribute("placeholder", /Search exercises/i);
   });
+
+  test("Run uses separate distance and time prescription fields", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=coach");
+    await page.getByRole("button", { name: "Workout Plans", exact: true }).click();
+    await page.getByPlaceholder("Search exercises to add...").fill("Run");
+    const runCard = page.getByText("Run", { exact: true }).locator("xpath=ancestor::div[contains(@class,'rounded-2xl')][1]");
+    await runCard.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(page.getByLabel("Run Distance")).toBeVisible();
+    await expect(page.getByLabel("Run Time")).toBeVisible();
+    await page.getByLabel("Run Distance").fill("5 kilometers");
+    await page.getByLabel("Run Time").fill("30 minutes");
+    await expect(page.getByLabel("Run Distance")).toHaveValue("5 kilometers");
+    await expect(page.getByLabel("Run Time")).toHaveValue("30 minutes");
+  });
 });

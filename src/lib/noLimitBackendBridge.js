@@ -363,6 +363,55 @@ export async function createBackendPlanFromAppPlan({
   return plan;
 }
 
+export function normalizeBackendTrainingEvent(event) {
+  return {
+    id: event.id,
+    coachId: event.coach_id,
+    clientId: event.client_id,
+    clientName: event.clients?.name || "",
+    title: event.title || "Training Session",
+    startsAt: event.starts_at,
+    endsAt: event.ends_at,
+    location: event.location || "",
+    notes: event.notes || "",
+    createdAt: event.created_at,
+    updatedAt: event.updated_at,
+  };
+}
+
+export async function fetchBackendTrainingEvents() {
+  const { data, error } = await supabase
+    .from("training_events")
+    .select("*, clients (name)")
+    .order("starts_at", { ascending: true });
+
+  if (error) throw error;
+  return (data || []).map(normalizeBackendTrainingEvent);
+}
+
+export async function saveBackendTrainingEvent(event) {
+  const payload = {
+    coach_id: event.coachId,
+    client_id: event.clientId || null,
+    title: event.title,
+    starts_at: event.startsAt,
+    ends_at: event.endsAt,
+    location: event.location || "",
+    notes: event.notes || "",
+  };
+  const query = event.id
+    ? supabase.from("training_events").update(payload).eq("id", event.id)
+    : supabase.from("training_events").insert(payload);
+  const { data, error } = await query.select("*, clients (name)").single();
+  if (error) throw error;
+  return normalizeBackendTrainingEvent(data);
+}
+
+export async function deleteBackendTrainingEvent(eventId) {
+  const { error } = await supabase.from("training_events").delete().eq("id", eventId);
+  if (error) throw error;
+}
+
 export async function updateBackendPlanFromAppPlan({ planId, clientId, planName, days = [] }) {
   const { error: planError } = await supabase
     .from("workout_plans")

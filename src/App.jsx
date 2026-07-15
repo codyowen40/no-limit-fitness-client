@@ -307,6 +307,7 @@ import ClientNutritionMacroHelper from "./ClientNutritionMacroHelper.jsx";
 import {
   Activity,
   Bell,
+  CalendarDays,
   CheckCircle,
   ClipboardList,
   Copy,
@@ -329,7 +330,7 @@ import {
   X,
 } from "lucide-react";
 import { createClientRecord, createManagedClientAccount, fetchAdminDirectory, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
-import { createBackendPlanFromAppPlan, updateBackendPlanFromAppPlan, updateBackendPlanAssignment, deleteBackendWorkoutPlan, createBackendWorkoutLogFromAppLog, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage } from "./lib/noLimitBackendBridge";
+import { createBackendPlanFromAppPlan, updateBackendPlanFromAppPlan, updateBackendPlanAssignment, deleteBackendWorkoutPlan, createBackendWorkoutLogFromAppLog, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage, fetchBackendTrainingEvents, saveBackendTrainingEvent, deleteBackendTrainingEvent } from "./lib/noLimitBackendBridge";
 
 const STORAGE_KEY = "no-limit-fitness-app-local-state-v1";
 
@@ -540,6 +541,14 @@ const emptyTrackingEntry = {
 
 const makeId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const getTrackingKey = (planId, dayId, exerciseId) => `${planId}-${dayId}-${exerciseId}`;
+const parseRunPrescription = (value) => {
+  const text = String(value || "");
+  return {
+    distance: text.match(/Distance:\s*([^|]+)/i)?.[1]?.trim() || "",
+    time: text.match(/Time:\s*([^|]+)/i)?.[1]?.trim() || "",
+  };
+};
+const formatRunPrescription = ({ distance, time }) => [distance && `Distance: ${distance}`, time && `Time: ${time}`].filter(Boolean).join(" | ");
 
 const defaultNotificationPreferences = {
   completedWorkout: true,
@@ -583,6 +592,7 @@ function createDefaultState() {
     clients: useStarterData ? starterClients : [],
     savedPlans: [],
     workoutLogs: [],
+    trainingEvents: [],
     conversations: useStarterData ? starterConversations : [],
     readActivityIds: [],
     notificationPreferences: defaultNotificationPreferences,
@@ -622,6 +632,7 @@ function loadInitialState() {
       clients,
       savedPlans: Array.isArray(parsed.savedPlans) ? parsed.savedPlans : [],
       workoutLogs: Array.isArray(parsed.workoutLogs) ? parsed.workoutLogs : [],
+      trainingEvents: Array.isArray(parsed.trainingEvents) ? parsed.trainingEvents : [],
       conversations: normalizeConversations(
         clients,
         Array.isArray(parsed.conversations) ? parsed.conversations : fallback.conversations
@@ -682,13 +693,15 @@ function getLocalWorkoutDateValue(date = new Date()) {
 }
 
 function getWorkoutDateTimestamp(value) {
-  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? String(value) : getLocalWorkoutDateValue();
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? String(value) : "";
+  if (!normalized) return null;
   const parsed = new Date(`${normalized}T12:00:00`);
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function getWorkoutDateLabel(value) {
-  return getWorkoutDateTimestamp(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  const parsed = getWorkoutDateTimestamp(value);
+  return parsed ? parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
 }
 
 function normalizeServerSender(value) {
@@ -789,7 +802,7 @@ function mapServerWorkoutLogForApp(log, clients, plans) {
     clientName: String(getServerValue(log, ["clientName", "client_name"], matchedClient?.name || "Server Client")),
     planId,
     planName: String(getServerValue(log, ["planName", "plan_name"], matchedPlan?.planName || "Server Workout Plan")),
-    dayId: String(getServerValue(log, ["dayId", "day_id"], "")),
+    dayId: String(getServerValue(log, ["dayId", "day_id", "workoutDayId", "workout_day_id"], "")),
     dayName: String(getServerValue(log, ["dayName", "day_name"], "Server Workout")),
     status: rawStatus.includes("skip") ? "skipped" : "completed",
     submittedAt: normalizeServerDateLabel(submittedAtRaw),
@@ -797,7 +810,17 @@ function mapServerWorkoutLogForApp(log, clients, plans) {
     workoutDateLabel: getWorkoutDateLabel(getLocalWorkoutDateValue(new Date(normalizeServerTimestamp(submittedAtRaw)))),
     timestamp: normalizeServerTimestamp(submittedAtRaw),
     skipReason: String(getServerValue(log, ["skipReason", "skip_reason"], "")),
-    entries: entries.map(mapServerWorkoutEntryForApp),
+    entries: entries.map((entry) => {
+      const mapped = mapServerWorkoutEntryForApp(entry);
+      const planExercise = matchedPlan?.days?.flatMap((day) => day.exercises || []).find((exercise) => exercise.id === mapped.exerciseId);
+      return planExercise ? {
+        ...mapped,
+        assignedSets: mapped.assignedSets || planExercise.sets,
+        assignedRepsOrTime: mapped.assignedRepsOrTime || planExercise.repsOrTime,
+        assignedWeightGuidance: mapped.assignedWeightGuidance || planExercise.weightGuidance,
+        assignedRest: mapped.assignedRest || planExercise.rest,
+      } : mapped;
+    }),
   };
 }
 
@@ -877,13 +900,14 @@ const PORTAL_VISIBLE_TABS_BY_MODE = {
     "Coach",
     "Clients",
     "WorkoutPlans",
+    "Calendar",
     "Tracker",
     "Messages",
     "Exercises",
     "Progress",
     "Login",
   ],
-  client: ["Client", "Nutrition", "WorkoutPlans", "Tracker", "Progress", "Messages", "Exercises", "Login"],
+  client: ["Client", "Nutrition", "WorkoutPlans", "Calendar", "Tracker", "Progress", "Messages", "Exercises", "Login"],
 };
 
 const PORTAL_LANDING_TAB_BY_MODE = {
@@ -6700,6 +6724,7 @@ const [clients, setClients] = useState(initialState.clients);
   const [selectedPlanDetailId, setSelectedPlanDetailId] = useState(initialState.savedPlans[0]?.id || "");
 
   const [workoutLogs, setWorkoutLogs] = useState(initialState.workoutLogs);
+  const [trainingEvents, setTrainingEvents] = useState(initialState.trainingEvents || []);
   const [selectedWorkoutLogId, setSelectedWorkoutLogId] = useState(initialState.workoutLogs[0]?.id || "");
 
   const [conversations, setConversations] = useState(initialState.conversations);
@@ -6932,8 +6957,8 @@ const [clients, setClients] = useState(initialState.clients);
   }, [clients]);
 
   useEffect(() => {
-    saveStateToLocalStorage({ clients, savedPlans, workoutLogs, conversations, readActivityIds, notificationPreferences, serverSettings });
-  }, [clients, savedPlans, workoutLogs, conversations, readActivityIds, notificationPreferences, serverSettings]);
+    saveStateToLocalStorage({ clients, savedPlans, workoutLogs, trainingEvents, conversations, readActivityIds, notificationPreferences, serverSettings });
+  }, [clients, savedPlans, workoutLogs, trainingEvents, conversations, readActivityIds, notificationPreferences, serverSettings]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -6963,11 +6988,12 @@ const [clients, setClients] = useState(initialState.clients);
         if (!session || !active) return;
         const accountProfile = await getCurrentProfile();
 
-        const [serverClients, serverPlans, serverWorkoutLogs, serverMessages] = await Promise.all([
+        const [serverClients, serverPlans, serverWorkoutLogs, serverMessages, serverTrainingEvents] = await Promise.all([
           fetchBackendClients(),
           fetchBackendPlans(),
           fetchBackendWorkoutLogs(),
           fetchBackendMessages(),
+          fetchBackendTrainingEvents(),
         ]);
         if (!active) return;
 
@@ -6987,6 +7013,7 @@ const [clients, setClients] = useState(initialState.clients);
         setSavedPlans(nextPlans);
         setWorkoutLogs(nextLogs);
         setConversations(nextConversations);
+        setTrainingEvents(Array.isArray(serverTrainingEvents) ? serverTrainingEvents : []);
         if (String(portalMode).toLowerCase() === "client") {
           const hasAccountIdentity = Boolean(accountProfile?.id || accountProfile?.email || accountProfile?.clientId);
           const currentClient = nextClients.find((client) =>
@@ -7000,8 +7027,8 @@ const [clients, setClients] = useState(initialState.clients);
             setSelectedConversationId(currentClient.id);
             setPlanDraft((current) => ({ ...current, clientId: currentClient.id }));
             const assignedPlan = nextPlans.find((plan) => plan.clientId === currentClient.id);
-            setSelectedTrackerPlanId(assignedPlan?.id || "");
-            setSelectedTrackerDayId(assignedPlan?.days?.[0]?.id || "");
+            setSelectedTrackerPlanId((current) => nextPlans.some((plan) => plan.id === current && plan.clientId === currentClient.id) ? current : assignedPlan?.id || "");
+            setSelectedTrackerDayId((current) => nextPlans.some((plan) => plan.clientId === currentClient.id && plan.days?.some((day) => day.id === current)) ? current : assignedPlan?.days?.[0]?.id || "");
           }
         }
       } catch (error) {
@@ -7090,6 +7117,7 @@ const isLoggedIn =
       isMessageTab: true,
     },
     { id: "WorkoutPlans", label: normalizedPortalMode === "client" ? "My Plan" : "Workout Plans", icon: ClipboardList },
+    { id: "Calendar", label: "Calendar", icon: CalendarDays },
     { id: "Progress", icon: TrendingUp },
     { id: "Tracker", icon: CheckCircle },
     {
@@ -7119,6 +7147,7 @@ const isLoggedIn =
     Client: "Plan",
     Tracker: "Log",
     WorkoutPlans: "My Plan",
+    Calendar: "Calendar",
     Exercises: "Library",
     Messages: "Msg",
   };
@@ -7131,10 +7160,11 @@ const isLoggedIn =
     Login: isLoggedIn ? "Logout" : "Login",
     Coach: "Coach",
     Clients: "Clients",
+    Calendar: "Calendar",
   };
 
   const mobilePrimaryTabIds = ["Client", "Tracker", "WorkoutPlans", "Messages"];
-  const mobileMenuTabIds = ["Home", "Nutrition", "Exercises", "Progress", "Login", "Coach", "Clients"];
+  const mobileMenuTabIds = ["Home", "Calendar", "Nutrition", "Exercises", "Progress", "Login", "Coach", "Clients"];
 
   const mobilePrimaryTabs = mobilePrimaryTabIds
     .map((tabId) => renderedTabs.find((tab) => tab.id === tabId))
@@ -7747,6 +7777,11 @@ const isLoggedIn =
       return false;
     }
 
+    if (!workoutDate || !getWorkoutDateTimestamp(workoutDate)) {
+      setTrackerMessage("Choose a valid workout date before saving.");
+      return false;
+    }
+
     const entries = day.exercises.map((exercise) => {
       const key = getTrackingKey(plan.id, day.id, exercise.id);
       const draft = trackingDrafts[key] || emptyTrackingEntry;
@@ -7796,6 +7831,21 @@ const isLoggedIn =
       return false;
     }
 
+    if (status === "completed") {
+      const invalidEntry = entries.find((entry) => {
+        const sets = entry.setsCompleted.trim();
+        const reps = entry.repsCompleted.trim();
+        const numericTextFields = [entry.actualWeight, entry.timeCompleted, entry.restUsed];
+        if (sets && (!/^\d+$/.test(sets) || Number(sets) <= 0)) return true;
+        if (reps && (!/^\d+(?:\s*,\s*\d+)*$/.test(reps) || reps.split(",").some((value) => Number(value.trim()) < 0))) return true;
+        return numericTextFields.some((value) => /(^|\s)-\d|\b(?:nan|infinity)\b/i.test(String(value || "")));
+      });
+      if (invalidEntry) {
+        setTrackerMessage("Use positive numeric workout results. Reps may be entered as comma-separated numbers.");
+        return false;
+      }
+    }
+
     const clearCompletedDraft = () => {
       setTrackingDrafts((current) => {
         const next = { ...current };
@@ -7807,6 +7857,7 @@ const isLoggedIn =
     };
 
     const workoutDateTime = getWorkoutDateTimestamp(workoutDate);
+    const savedEntries = status === "skipped" ? [] : entries;
     const newLog = {
       id: makeId("workout-log"),
       clientId: plan.clientId,
@@ -7821,7 +7872,7 @@ const isLoggedIn =
       workoutDateLabel: getWorkoutDateLabel(workoutDate),
       submittedAt: workoutDateTime.toLocaleString(),
       timestamp: workoutDateTime.getTime(),
-      entries,
+      entries: savedEntries,
     };
 
     if (!isLocalRegressionRuntime()) {
@@ -7872,6 +7923,25 @@ const isLoggedIn =
     setWorkoutLogs(remainingLogs);
     setSelectedWorkoutLogId((current) => (current === logId ? remainingLogs[0]?.id || "" : current));
     setTrackerMessage(`${log.dayName} workout log deleted locally.`);
+  }
+
+  async function saveTrainingEvent(event) {
+    const profile = isLocalRegressionRuntime() ? { id: "coach-primary" } : await getCurrentProfile();
+    const payload = { ...event, coachId: event.coachId || profile?.id };
+    if (!payload.coachId) throw new Error("A signed-in coach is required to schedule training.");
+    if (!isLocalRegressionRuntime()) {
+      const saved = await saveBackendTrainingEvent(payload);
+      setTrainingEvents((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
+      return saved;
+    }
+    const saved = { ...payload, id: payload.id || makeId("training-event") };
+    setTrainingEvents((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
+    return saved;
+  }
+
+  async function removeTrainingEvent(eventId) {
+    if (!isLocalRegressionRuntime()) await deleteBackendTrainingEvent(eventId);
+    setTrainingEvents((current) => current.filter((event) => event.id !== eventId));
   }
 
   function saveCoachSessionForClient({
@@ -8681,6 +8751,17 @@ function handlePortalLogout() {
             />
           )}
 
+          {activeTab === "Calendar" && (
+            <TrainingCalendarScreen
+              clients={clients}
+              events={trainingEvents}
+              isCoachPortal={normalizedPortalMode !== "client"}
+              activeClientId={normalizedPortalMode === "client" ? trackerClientId : ""}
+              onSave={saveTrainingEvent}
+              onDelete={removeTrainingEvent}
+            />
+          )}
+
           {activeTab === "Messages" && (
             <MessagesScreen
               clients={clients}
@@ -8720,7 +8801,7 @@ function handlePortalLogout() {
               workoutLogs={workoutLogs}
               selectedWorkoutLogId={selectedWorkoutLogId}
               setSelectedWorkoutLogId={setSelectedWorkoutLogId}
-              deleteWorkoutLog={deleteWorkoutLog}
+              deleteWorkoutLog={normalizedPortalMode === "client" ? undefined : deleteWorkoutLog}
             />
           )}
 
@@ -12825,7 +12906,10 @@ function TrainingDayBuilder({ planDraft, selectedDay, selectedDayId, setSelected
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   <Input label="Sets" value={exercise.sets} onChange={(value) => updatePlanExercise(selectedDay.id, exercise.id, "sets", value)} placeholder="Example: 3" />
-                  <Input label="Reps or Time" value={exercise.repsOrTime} onChange={(value) => updatePlanExercise(selectedDay.id, exercise.id, "repsOrTime", value)} placeholder="Example: 8 - 12 or 30 sec" />
+                  {exercise.exerciseName === "Run" ? <>
+                    <Input label="Run Distance" value={parseRunPrescription(exercise.repsOrTime).distance} onChange={(value) => updatePlanExercise(selectedDay.id, exercise.id, "repsOrTime", formatRunPrescription({ ...parseRunPrescription(exercise.repsOrTime), distance: value }))} placeholder="Example: 1 mile or 400 meters" />
+                    <Input label="Run Time" value={parseRunPrescription(exercise.repsOrTime).time} onChange={(value) => updatePlanExercise(selectedDay.id, exercise.id, "repsOrTime", formatRunPrescription({ ...parseRunPrescription(exercise.repsOrTime), time: value }))} placeholder="Example: 10 minutes or 2:00 target" />
+                  </> : <Input label="Reps or Time" value={exercise.repsOrTime} onChange={(value) => updatePlanExercise(selectedDay.id, exercise.id, "repsOrTime", value)} placeholder="Example: 8 - 12 or 30 sec" />}
                   <Input label="Weight Guidance" value={exercise.weightGuidance} onChange={(value) => updatePlanExercise(selectedDay.id, exercise.id, "weightGuidance", value)} placeholder="Example: RPE 7" />
                   <Input label="Rest Period" value={exercise.rest} onChange={(value) => updatePlanExercise(selectedDay.id, exercise.id, "rest", value)} placeholder="Example: 60 - 90 sec" />
                   <div className="md:col-span-2"><Input label="Coach Notes" value={exercise.notes} onChange={(value) => updatePlanExercise(selectedDay.id, exercise.id, "notes", value)} placeholder="Tempo, form cue, substitution note, etc." /></div>
@@ -12893,6 +12977,26 @@ function PlanDetailView({ plan }) {
       </div>
     </div>
   );
+}
+
+function TrainingCalendarScreen({ clients, events, isCoachPortal, activeClientId, onSave, onDelete }) {
+  const [view, setView] = useState("week");
+  const [cursor, setCursor] = useState(new Date());
+  const [notice, setNotice] = useState("");
+  const [form, setForm] = useState({ title: "Personal Training", clientId: "", startsAt: "", endsAt: "", location: "" });
+  const visibleEvents = events.filter((item) => !activeClientId || item.clientId === activeClientId);
+  const start = new Date(cursor); start.setHours(0, 0, 0, 0); view === "week" ? start.setDate(start.getDate() - start.getDay()) : start.setDate(1);
+  const count = view === "week" ? 7 : new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+  const days = Array.from({ length: count }, (_, index) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + index));
+  const setField = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  function move(amount) { setCursor((current) => { const next = new Date(current); view === "week" ? next.setDate(next.getDate() + amount * 7) : next.setMonth(next.getMonth() + amount); return next; }); }
+  async function submit(event) { event.preventDefault(); if (!form.title.trim() || !form.clientId || !form.startsAt || !form.endsAt) return setNotice("Add a title, client, start time, and end time."); if (new Date(form.endsAt) <= new Date(form.startsAt)) return setNotice("End time must be after start time."); try { await onSave({ ...form, startsAt: new Date(form.startsAt).toISOString(), endsAt: new Date(form.endsAt).toISOString() }); setForm({ title: "Personal Training", clientId: "", startsAt: "", endsAt: "", location: "" }); setNotice("Training event saved and shared with the client."); } catch (error) { setNotice(error?.message || "Unable to save this event."); } }
+  return <div data-testid="training-calendar"><SectionHeader eyebrow="Schedule" title={isCoachPortal ? "Training Calendar" : "My Training Calendar"} description={isCoachPortal ? "Assign dated and timed training sessions in a week or month view." : "View training sessions assigned by your coach."} />
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4"><div className="flex gap-2"><button type="button" onClick={() => move(-1)} className="rounded-xl border border-white/15 px-3 py-2 font-black">Previous</button><button type="button" onClick={() => setCursor(new Date())} className="rounded-xl border border-white/15 px-3 py-2 font-black">Today</button><button type="button" onClick={() => move(1)} className="rounded-xl border border-white/15 px-3 py-2 font-black">Next</button></div><h2 className="text-xl font-black uppercase">{start.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2><div aria-label="Calendar view" className="flex gap-2">{["week", "month"].map((option) => <button key={option} type="button" aria-pressed={view === option} onClick={() => setView(option)} className={`rounded-xl px-3 py-2 text-sm font-black uppercase ${view === option ? "bg-[#00BF63] text-black" : "border border-white/15"}`}>{option}</button>)}</div></div>
+    {isCoachPortal && <form onSubmit={submit} className="mb-6 rounded-[1.5rem] border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"><h3 className="mb-4 text-xl font-black uppercase">Schedule Training Event</h3><div className="grid gap-4 md:grid-cols-2"><Input label="Event Title" value={form.title} onChange={(value) => setField("title", value)} /><Select label="Assign Client" value={form.clientId} onChange={(value) => setField("clientId", value)} options={[{ label: "Select a client", value: "" }, ...clients.map((client) => ({ label: client.name, value: client.id }))]} /><Input label="Start Date and Time" type="datetime-local" value={form.startsAt} onChange={(value) => setField("startsAt", value)} /><Input label="End Date and Time" type="datetime-local" value={form.endsAt} onChange={(value) => setField("endsAt", value)} /><Input label="Location" value={form.location} onChange={(value) => setField("location", value)} /></div>{notice && <p aria-live="polite" className="mt-4 font-bold text-[#00BF63]">{notice}</p>}<button type="submit" className="mt-4 rounded-xl bg-[#00BF63] px-5 py-3 font-black uppercase text-black">Save Event</button></form>}
+    <div className={`grid gap-3 ${view === "week" ? "md:grid-cols-7" : "sm:grid-cols-2 lg:grid-cols-7"}`}>{days.map((date) => { const key = getLocalWorkoutDateValue(date); const items = visibleEvents.filter((item) => getLocalWorkoutDateValue(new Date(item.startsAt)) === key); return <section key={key} className="min-h-36 rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xs font-black uppercase text-white/45">{date.toLocaleDateString(undefined, { weekday: "short" })}</p><p className="text-lg font-black">{date.getDate()}</p><div className="mt-3 space-y-2">{items.map((item) => <article key={item.id} className="rounded-xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-3"><p className="font-black">{item.title}</p><p className="text-xs text-white/65">{new Date(item.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</p><p className="text-xs text-white/65">{item.clientName || clients.find((client) => client.id === item.clientId)?.name}</p>{item.location && <p className="text-xs text-white/50">{item.location}</p>}{isCoachPortal && <button type="button" onClick={() => onDelete(item.id)} className="mt-2 text-xs font-black text-red-300">Delete</button>}</article>)}</div></section>; })}</div>
+    {!isCoachPortal && !visibleEvents.length && <div className="mt-5"><EmptyState text="Your coach has not scheduled any training events yet." /></div>}
+  </div>;
 }
 
 function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientId, selectedTrackerPlanId, setSelectedTrackerPlanId, selectedTrackerDayId, setSelectedTrackerDayId, trackingDrafts, updateTrackingDraft, markWorkoutStatus, trackerMessage, workoutLogs, selectedWorkoutLogId, setSelectedWorkoutLogId, setActiveTab, skipReason, setSkipReason, workoutDate, setWorkoutDate, deleteWorkoutLog, isClientPortal = false }) {
