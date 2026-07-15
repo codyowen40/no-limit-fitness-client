@@ -309,6 +309,8 @@ import {
   Bell,
   CalendarDays,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   ClipboardList,
   Copy,
   Dumbbell,
@@ -908,7 +910,7 @@ const PORTAL_VISIBLE_TABS_BY_MODE = {
     "Progress",
     "Login",
   ],
-  client: ["Client", "Nutrition", "WorkoutPlans", "Calendar", "Tracker", "Progress", "Messages", "Exercises", "Login"],
+  client: ["Client", "Nutrition", "WorkoutPlans", "Calendar", "Tracker", "Progress", "Messages", "Exercises", "Security", "Login"],
 };
 
 const PORTAL_LANDING_TAB_BY_MODE = {
@@ -6774,6 +6776,7 @@ const [clients, setClients] = useState(initialState.clients);
     initialState.conversations[0]?.clientId || initialState.clients[0]?.id || ""
   );
   const [messageDraft, setMessageDraft] = useState("");
+  const [messageSending, setMessageSending] = useState(false);
   const [messageSender, setMessageSender] = useState("Coach");
   const [messageNotice, setMessageNotice] = useState("");
 
@@ -7162,6 +7165,7 @@ const isLoggedIn =
     { id: "Calendar", label: "Calendar", icon: CalendarDays },
     { id: "Progress", icon: TrendingUp },
     { id: "Tracker", icon: CheckCircle },
+    { id: "Security", label: "Account Security", icon: ShieldCheck, isMobileMenuOnly: true },
     {
       id: "Login",
       label: isLoggedIn ? "Logout" : "Login",
@@ -7179,17 +7183,36 @@ const isLoggedIn =
   const renderedTabs = tabs.filter((tab) => visibleTabsSet.has(tab.id));
   const homeNavTabs = renderedTabs.filter((tab) => tab.isHomeAction);
   const mainNavTabs = renderedTabs.filter(
-    (tab) => !tab.isHomeAction && !tab.isAccountAction
+    (tab) => !tab.isHomeAction && !tab.isAccountAction && !tab.isMobileMenuOnly
   );
   const accountNavTabs = renderedTabs.filter((tab) => tab.isAccountAction);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileHeaderCollapsed, setIsMobileHeaderCollapsed] = useState(false);
+  const [isMobileHeaderPinnedOpen, setIsMobileHeaderPinnedOpen] = useState(false);
+
+  useEffect(() => {
+    const updateMobileHeader = () => {
+      if (window.innerWidth < 768) {
+        if (window.scrollY <= 72) setIsMobileHeaderPinnedOpen(false);
+        setIsMobileHeaderCollapsed(window.scrollY > 72 && !isMobileHeaderPinnedOpen);
+      }
+    };
+    updateMobileHeader();
+    window.addEventListener("scroll", updateMobileHeader, { passive: true });
+    window.addEventListener("resize", updateMobileHeader);
+    return () => {
+      window.removeEventListener("scroll", updateMobileHeader);
+      window.removeEventListener("resize", updateMobileHeader);
+    };
+  }, [isMobileHeaderPinnedOpen]);
 
   const mobilePrimaryTabLabels = {
     Client: "Plan",
     Tracker: "Log",
     WorkoutPlans: "My Plan",
     Calendar: "Calendar",
+    Security: "Account Security",
     Exercises: "Library",
     Messages: "Msg",
   };
@@ -7206,7 +7229,7 @@ const isLoggedIn =
   };
 
   const mobilePrimaryTabIds = normalizedPortalMode === "coach" ? ["Clients", "Coach", "WorkoutPlans", "Tracker"] : ["Client", "Tracker", "WorkoutPlans", "Messages"];
-  const mobileMenuTabIds = normalizedPortalMode === "coach" ? ["Calendar", "Messages", "Exercises", "Progress", "Login"] : ["Home", "Calendar", "Nutrition", "Exercises", "Progress", "Login"];
+  const mobileMenuTabIds = normalizedPortalMode === "coach" ? ["Calendar", "Messages", "Exercises", "Progress", "Login"] : ["Calendar", "Nutrition", "Exercises", "Progress", "Security", "Login"];
 
   const mobilePrimaryTabs = mobilePrimaryTabIds
     .map((tabId) => renderedTabs.find((tab) => tab.id === tabId))
@@ -8150,11 +8173,13 @@ const isLoggedIn =
   }
 
   async function sendMessage() {
+    if (messageSending) return;
     const text = messageDraft.trim();
     if (!text) return setMessageNotice("Type a message before sending.");
 
     const selectedConversation = conversations.find((conversation) => conversation.clientId === selectedConversationId);
     if (!selectedConversation) return setMessageNotice("Select a conversation first.");
+    setMessageSending(true);
 
     const resolvedSender = nlfResolveMessageSenderRole(normalizedPortalMode);
     const newMessage = {
@@ -8180,9 +8205,11 @@ const isLoggedIn =
         setConversations(buildServerConversationsForApp(clients, refreshedMessages));
         setMessageDraft("");
         setMessageNotice(`${newMessage.sender} message sent and mirrored across portals.`);
+        setMessageSending(false);
         return;
       } catch (error) {
         setMessageNotice(error?.message || "Unable to send message securely.");
+        setMessageSending(false);
         return;
       }
     }
@@ -8196,6 +8223,7 @@ const isLoggedIn =
     );
     setMessageDraft("");
     setMessageNotice(`${nlfResolveMessageSenderRole(normalizedPortalMode)} message sent locally.`);
+    setMessageSending(false);
   }
 
   function openTrackerForClient(clientId) {
@@ -8390,21 +8418,25 @@ function handlePortalLogout() {
       <div className="fixed inset-0 pointer-events-none bg-gradient-to-b from-black via-black/90 to-black" />
 
       <div className="relative z-10">
-        <header className="sticky top-0 z-40 border-b border-white/10 bg-black/90 backdrop-blur">
-          <div className="mx-auto flex max-w-[90rem] flex-col gap-2 px-4 py-2 md:gap-4 md:py-4 xl:flex-row xl:items-center xl:justify-between">
+        <header data-testid="sticky-portal-header" data-collapsed={isMobileHeaderCollapsed ? "true" : "false"} className="sticky top-0 z-40 border-b border-white/10 bg-black/90 backdrop-blur">
+          <div className={`relative mx-auto flex max-w-[90rem] flex-col px-4 pr-14 transition-all md:gap-4 md:py-4 md:pr-4 xl:flex-row xl:items-center xl:justify-between ${isMobileHeaderCollapsed ? "gap-0 py-1" : "gap-2 py-2"}`}>
             <button type="button" onClick={() => setActiveTab("Home")} className="flex items-center gap-3 text-left">
-              <img src="/images/logo.png" alt="No Limit Fitness" className="h-10 w-10 rounded-xl object-contain md:h-14 md:w-14 md:rounded-2xl" />
+              <img src="/images/logo.png" alt="No Limit Fitness" className={`${isMobileHeaderCollapsed ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl"} object-contain transition-all md:h-14 md:w-14 md:rounded-2xl`} />
               <div>
                 <p data-testid="personalized-portal-label" className="text-xs font-bold uppercase tracking-[0.35em] text-white/50">{personalizedPortalLabel}</p>
-                <h1 className="text-lg font-black uppercase tracking-wide md:text-2xl">
+                <h1 className={`${isMobileHeaderCollapsed ? "hidden" : "block"} text-lg font-black uppercase tracking-wide md:block md:text-2xl`}>
                   No Limit <span className="text-[#00BF63]">Fitness</span>
                 </h1>
               </div>
             </button>
 
+            <button type="button" aria-label={isMobileHeaderCollapsed ? "Expand header" : "Collapse header"} aria-expanded={!isMobileHeaderCollapsed} onClick={() => { if (isMobileHeaderCollapsed) { setIsMobileHeaderPinnedOpen(true); setIsMobileHeaderCollapsed(false); } else { setIsMobileHeaderPinnedOpen(false); setIsMobileHeaderCollapsed(true); } }} className="absolute right-3 top-1/2 flex min-h-10 min-w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-white/5 text-[#00BF63] md:hidden">
+              {isMobileHeaderCollapsed ? <ChevronDown size={20} aria-hidden="true" /> : <ChevronUp size={20} aria-hidden="true" />}
+            </button>
+
             <nav
               aria-label="Main navigation"
-              className={["w-full flex-col gap-3 xl:w-auto xl:flex-row xl:items-center xl:justify-end", normalizedPortalMode === "client" ? "hidden md:flex" : "flex"].join(" ")}
+              className="hidden w-full flex-col gap-3 md:flex xl:w-auto xl:flex-row xl:items-center xl:justify-end"
             >
               {homeNavTabs.length > 0 && (
                 <div
@@ -8646,13 +8678,17 @@ function handlePortalLogout() {
             onOpenTracker={() => setActiveTab("Tracker")}
             onOpenMessages={() => setActiveTab("Messages")}
             onOpenPlans={() => setActiveTab("WorkoutPlans")}
-          /><ClientChangePasswordPanel /></>
+          /></>
         )}
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_END */}
         {/* Bundle 12N: ClientsScreen is now the single coach client-management surface. */}
           {/* NLF_NUTRITION_COACH_TOP_TAB_WINDOW */}
           {activeTab === "Nutrition" && (
             <NutritionCoachScreen />
+          )}
+
+          {activeTab === "Security" && normalizedPortalMode === "client" && (
+            <ClientChangePasswordPanel />
           )}
 
           {activeTab === "Home" && (
@@ -8848,6 +8884,7 @@ function handlePortalLogout() {
               setMessageSender={setMessageSender}
               messageDraft={messageDraft}
               setMessageDraft={setMessageDraft}
+              messageSending={messageSending}
               sendMessage={sendMessage}
               markCoachMessagesRead={markCoachMessagesRead}
               markClientMessagesRead={markClientMessagesRead}
@@ -8856,6 +8893,7 @@ function handlePortalLogout() {
               messageNotice={messageNotice}
               unreadCoachCount={unreadCoachCount}
               unreadClientCount={unreadClientCount}
+              isClientPortal={normalizedPortalMode === "client"}
             />
           )}
 
@@ -13124,6 +13162,7 @@ function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientI
   const selectedClient = clients.find((client) => client.id === trackerClientId);
   const clientLogs = workoutLogs.filter((log) => log.clientId === trackerClientId);
   const [submittingStatus, setSubmittingStatus] = useState("");
+  const [submitActionsCollapsed, setSubmitActionsCollapsed] = useState(false);
 
   async function submitWorkout(status) {
     if (submittingStatus) return;
@@ -13168,7 +13207,7 @@ function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientI
             </div>
             {trackerMessage && <p aria-live="polite" className="mb-4 rounded-2xl border border-[#00BF63]/30 bg-black/50 p-3 text-sm font-bold text-[#00BF63]">{trackerMessage}</p>}
             {selectedPlan && selectedDay && <ActiveWorkoutForm selectedPlan={selectedPlan} selectedDay={selectedDay} trackingDrafts={trackingDrafts} updateTrackingDraft={updateTrackingDraft} skipReason={skipReason} setSkipReason={setSkipReason} workoutDate={workoutDate} setWorkoutDate={setWorkoutDate} />}
-            {selectedPlan && selectedDay && <div data-testid="workout-submit-actions" className="sticky bottom-20 z-20 mt-5 rounded-2xl border border-[#00BF63]/40 bg-black/95 p-3 shadow-2xl md:static md:bg-[#00BF63]/10 md:p-4"><p className="mb-3 hidden text-sm font-bold leading-6 text-white/70 md:block">Save this selected day only. You can choose a different day before or after this one at any time.</p><div className="grid gap-2 sm:grid-cols-2">{selectedDay.exercises.length > 0 && <button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("completed")} className="min-h-12 rounded-2xl bg-[#00BF63] px-4 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:cursor-wait disabled:opacity-60">{submittingStatus === "completed" ? "Saving Workout..." : "Save Completed Workout"}</button>}<button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("skipped")} className="min-h-12 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-black uppercase text-yellow-200 transition hover:bg-yellow-500 hover:text-black disabled:cursor-wait disabled:opacity-60">{submittingStatus === "skipped" ? "Saving Skip..." : "Log Selected Day as Skipped"}</button></div></div>}
+            {selectedPlan && selectedDay && <div data-testid="workout-submit-actions" data-collapsed={submitActionsCollapsed ? "true" : "false"} className="sticky bottom-20 z-20 mt-5 rounded-2xl border border-[#00BF63]/40 bg-black/95 p-3 shadow-2xl md:static md:bg-[#00BF63]/10 md:p-4"><div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-wide text-[#00BF63] md:hidden">Workout Actions</p><p className="hidden text-sm font-bold leading-6 text-white/70 md:block">Save this selected day only. You can choose a different day before or after this one at any time.</p><button type="button" aria-label={submitActionsCollapsed ? "Expand workout actions" : "Collapse workout actions"} aria-expanded={!submitActionsCollapsed} onClick={() => setSubmitActionsCollapsed((value) => !value)} className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-white/15 text-[#00BF63] md:hidden">{submitActionsCollapsed ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}</button></div>{!submitActionsCollapsed && <div className="mt-2 grid gap-2 sm:grid-cols-2 md:mt-3">{selectedDay.exercises.length > 0 && <button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("completed")} className="min-h-12 rounded-2xl bg-[#00BF63] px-4 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:cursor-wait disabled:opacity-60">{submittingStatus === "completed" ? "Saving Workout..." : "Save Completed Workout"}</button>}<button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("skipped")} className="min-h-12 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-black uppercase text-yellow-200 transition hover:bg-yellow-500 hover:text-black disabled:cursor-wait disabled:opacity-60">{submittingStatus === "skipped" ? "Saving Skip..." : "Log Selected Day as Skipped"}</button></div>}</div>}
             {!selectedPlan && <EmptyState text="Select a client with an assigned plan." />}
           </div>
           <div data-testid="recent-workout-logs" className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 xl:col-span-2">
@@ -13360,6 +13399,7 @@ function MessagesScreen({
   setMessageSender,
   messageDraft,
   setMessageDraft,
+  messageSending,
   sendMessage,
   markCoachMessagesRead,
   markClientMessagesRead,
@@ -13368,6 +13408,7 @@ function MessagesScreen({
   messageNotice,
   unreadCoachCount,
   unreadClientCount,
+  isClientPortal = false,
 }) {
   const [messageSearch, setMessageSearch] = useState("");
   const [conversationView, setConversationView] = useState("active");
@@ -13605,13 +13646,13 @@ function MessagesScreen({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <button
+                  {!isClientPortal && <button
                     type="button"
                     onClick={() => markCoachMessagesRead(selectedConversation.clientId)}
                     className="rounded-full border border-[#00BF63]/40 bg-[#00BF63]/10 px-4 py-2 text-xs font-black uppercase text-[#00BF63] transition hover:bg-[#00BF63] hover:text-black"
                   >
                     Mark Coach Read
-                  </button>
+                  </button>}
                   <button
                     type="button"
                     onClick={() => markClientMessagesRead(selectedConversation.clientId)}
@@ -13698,8 +13739,9 @@ function MessagesScreen({
                 <button
                   type="button"
                   onClick={sendMessage}
+                  disabled={messageSending}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#00BF63] px-5 py-3 font-black uppercase text-black transition hover:bg-white"
-                > Send Message
+                > {messageSending ? "Sending Message..." : "Send Message"}
                 </button>
               </div>
             </>

@@ -2,7 +2,11 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Coach client account administration", () => {
   test("client can open password change controls", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/?testUnlock=true&portalMode=client");
+    const mobileNav = page.getByRole("navigation", { name: /Mobile navigation/i });
+    await mobileNav.getByRole("button", { name: "Menu", exact: true }).click();
+    await page.getByLabel("Mobile tab menu").getByRole("button", { name: "Account Security", exact: true }).click();
     const panel = page.getByTestId("client-change-password");
     await expect(panel.getByLabel("New Client Password", { exact: true })).toBeVisible();
     await panel.getByLabel("New Client Password", { exact: true }).fill("NewPassword123");

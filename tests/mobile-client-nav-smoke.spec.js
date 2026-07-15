@@ -1,6 +1,17 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Mobile client navigation smoke coverage", () => {
+  test("sticky mobile header collapses on scroll and can be reopened", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/?testUnlock=true&portalMode=client");
+    const header = page.getByTestId("sticky-portal-header");
+    await expect(header).toHaveAttribute("data-collapsed", "false");
+    await page.evaluate(() => window.scrollTo(0, 300));
+    await expect(header).toHaveAttribute("data-collapsed", "true");
+    await header.getByRole("button", { name: "Expand header" }).click();
+    await expect(header).toHaveAttribute("data-collapsed", "false");
+    await expect(header.getByRole("button", { name: "Collapse header" })).toBeVisible();
+  });
   test("coach mobile navigation keeps core destinations fixed", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/?testUnlock=true&portalMode=coach");
@@ -40,7 +51,8 @@ test.describe("Mobile client navigation smoke coverage", () => {
 
     await expect(mobileMenu).toBeVisible();
 
-    for (const label of ["Nutrition", "Progress", "Logout"]) {
+    await expect(mobileMenu.getByRole("button")).toHaveCount(6);
+    for (const label of ["Nutrition", "Progress", "Account Security", "Logout"]) {
       await expect(
         mobileMenu.getByRole("button", { name: new RegExp("^" + label + "$", "i") })
       ).toBeVisible();
@@ -77,11 +89,13 @@ test.describe("Mobile client navigation smoke coverage", () => {
     await expect(page.getByLabel("Send As")).toHaveCount(0);
     await expect(page.locator("main")).toContainText("Signed-in role");
     await expect(page.locator("main")).toContainText("Client");
+    await expect(page.getByRole("button", { name: "Mark Coach Read", exact: true })).toHaveCount(0);
 
     await page.getByLabel("Message").fill("Client role locked message");
     await page.getByRole("button", { name: /^Send Message$/ }).click();
 
     await expect(page.locator("main")).toContainText("Client role locked message");
+    await expect(page.getByTestId("message-bubble").filter({ hasText: "Client role locked message" })).toHaveCount(1);
     await expect(page.locator("main")).toContainText("Client message sent locally.");
   });
 

@@ -174,4 +174,12 @@ test.describe("Client workout log polish", () => {
     });
     expect(order).toBe(true);
   });
+  test("collapses and restores sticky workout actions", async ({ page }) => {
+    const actions = page.getByTestId("workout-submit-actions");
+    await actions.getByRole("button", { name: "Collapse workout actions" }).click();
+    await expect(actions).toHaveAttribute("data-collapsed", "true");
+    await expect(actions.getByRole("button", { name: "Save Completed Workout" })).toHaveCount(0);
+    await actions.getByRole("button", { name: "Expand workout actions" }).click();
+    await expect(actions.getByRole("button", { name: "Save Completed Workout" })).toBeVisible();
+  });
 });
