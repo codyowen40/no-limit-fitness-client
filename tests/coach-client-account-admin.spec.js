@@ -1,6 +1,15 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Coach client account administration", () => {
+  test("client can open password change controls", async ({ page }) => {
+    await page.goto("/?testUnlock=true&portalMode=client");
+    const panel = page.getByTestId("client-change-password");
+    await expect(panel.getByLabel("New Client Password", { exact: true })).toBeVisible();
+    await panel.getByLabel("New Client Password", { exact: true }).fill("NewPassword123");
+    await panel.getByLabel("Confirm New Client Password", { exact: true }).fill("DifferentPassword123");
+    await panel.getByRole("button", { name: "Change Password" }).click();
+    await expect(panel.getByRole("status")).toContainText("do not match");
+  });
   test("coach login opens the dashboard without a second account-access gate", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Coach Access" }).click();

@@ -637,3 +637,23 @@ export async function fetchAdminDirectory(action = "list", payload = {}) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
+
+export async function changeCurrentUserPassword(password) {
+  const client = requireSupabase();
+  const cleanPassword = normalizeRequiredText(password);
+  if (cleanPassword.length < 8) throw new Error("New password must be at least 8 characters.");
+  const { data, error } = await client.auth.updateUser({ password: cleanPassword });
+  if (error) throw error;
+  return data;
+}
+
+export async function resetManagedClientPassword({ clientId, password }) {
+  const client = requireSupabase();
+  const cleanPassword = normalizeRequiredText(password);
+  if (!clientId) throw new Error("Select a client first.");
+  if (cleanPassword.length < 8) throw new Error("Temporary password must be at least 8 characters.");
+  const { data, error } = await client.functions.invoke("reset-client-password", { body: { clientId, password: cleanPassword } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}

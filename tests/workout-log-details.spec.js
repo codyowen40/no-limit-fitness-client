@@ -316,4 +316,18 @@ test.describe("No Limit Fitness workout log details", () => {
     await expect(page.getByText(/Temporary log should be deleted/i).first()).toBeVisible();
     await expect(page.getByText(/Stored log should remain after reload/i).first()).toBeVisible();
   });
+
+  test("edits and reversibly unlogs a saved workout", async ({ page }) => {
+    await openSeededApp(page, [createCompletedLog({ id: "editable-log", dayName: "Editable Day", timestamp: 1710000005000 })]);
+    await openProgress(page);
+    await page.getByRole("button", { name: "Edit Workout Log" }).click();
+    await page.getByLabel("Edit Workout Date").fill("2026-05-10");
+    await page.getByLabel(/Edit .* Sets/).first().fill("5");
+    await page.getByRole("button", { name: "Save Workout Log Changes" }).click();
+    await expect(page.getByRole("status")).toContainText("updated");
+    await page.getByRole("button", { name: "Unlog Workout" }).click();
+    await expect(page.getByRole("button", { name: "Log Again" })).toBeVisible();
+    await page.getByRole("button", { name: "Log Again" }).click();
+    await expect(page.getByRole("button", { name: "Unlog Workout" })).toBeVisible();
+  });
 });

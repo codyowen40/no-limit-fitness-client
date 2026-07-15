@@ -93,6 +93,7 @@ export function normalizeBackendWorkoutLog(log) {
     planName: log.plan_name || "",
     dayName: log.day_name || "",
     status: log.status,
+    isUnlogged: Boolean(log.is_unlogged),
     skipReason: log.skip_reason || "",
     submittedAt: formatDateTime(log.submitted_at || log.created_at),
     timestamp: getTimestamp(log.submitted_at || log.created_at),
@@ -412,6 +413,42 @@ export async function deleteBackendTrainingEvent(eventId) {
   if (error) throw error;
 }
 
+async function getAuthenticatedClient() {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user?.id) throw new Error("Authenticated client account required.");
+  const { data, error } = await supabase.from("clients").select("id, profile_id").eq("profile_id", auth.user.id).single();
+  if (error || !data) throw error || new Error("Client profile is not linked.");
+  return { ...data, userId: auth.user.id };
+}
+
+export async function saveBackendClientCheckIn(value) {
+  const client = await getAuthenticatedClient();
+  const { data, error } = await supabase.from("client_checkins").insert({ client_id: client.id, check_in_date: value.checkInDate, weight: value.checkInWeight || null, waist: value.waistMeasurement || null, adherence: Number(value.adherenceScore), workouts_completed: Number(value.workoutsCompleted), protein: Number(value.proteinConsistency), hunger: Number(value.hungerScore), energy: Number(value.energyScore), sleep: Number(value.sleepScore), stress: Number(value.stressScore), digestion: Number(value.digestionScore), recovery: Number(value.recoveryScore), notes: value.clientCheckInNotes || "", front_note: value.frontPhotoNote || "", side_note: value.sidePhotoNote || "", back_note: value.backPhotoNote || "" }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchBackendClientCheckIns(clientId) {
+  let query = supabase.from("client_checkins").select("*").order("check_in_date", { ascending: false });
+  if (clientId) query = query.eq("client_id", clientId);
+  const { data, error } = await query; if (error) throw error; return data || [];
+}
+
+export async function saveBackendProgressPhotos({ photoDate, frontFile, sideFile, backFile, notes, frontNote, sideNote, backNote }) {
+  const client = await getAuthenticatedClient();
+  const folder = `${client.userId}/${photoDate}`;
+  const upload = async (angle, file) => { const path = `${folder}/${angle}-${Date.now()}`; const { error } = await supabase.storage.from("progress-photos").upload(path, file, { contentType: file.type, upsert: false }); if (error) throw error; return path; };
+  const [frontPath, sidePath, backPath] = await Promise.all([upload("front", frontFile), upload("side", sideFile), upload("back", backFile)]);
+  const { data, error } = await supabase.from("progress_photo_checkins").insert({ client_id: client.id, photo_date: photoDate, front_path: frontPath, side_path: sidePath, back_path: backPath, notes: notes || "", front_note: frontNote || "", side_note: sideNote || "", back_note: backNote || "" }).select().single();
+  if (error) throw error; return data;
+}
+
+export async function fetchBackendProgressPhotos(clientId) {
+  let query = supabase.from("progress_photo_checkins").select("*").order("photo_date", { ascending: false }); if (clientId) query = query.eq("client_id", clientId);
+  const { data, error } = await query; if (error) throw error;
+  return Promise.all((data || []).map(async (item) => { const sign = async (path) => (await supabase.storage.from("progress-photos").createSignedUrl(path, 3600)).data?.signedUrl || ""; return { ...item, frontUrl: await sign(item.front_path), sideUrl: await sign(item.side_path), backUrl: await sign(item.back_path) }; }));
+}
+
 export async function updateBackendPlanFromAppPlan({ planId, clientId, planName, days = [] }) {
   const { error: planError } = await supabase
     .from("workout_plans")
@@ -657,4 +694,28 @@ export async function saveBackendNotificationPreferences(preferences) {
   if (error) throw error;
 
   return normalizeBackendNotificationPreferences(data);
+}
+
+export async function updateBackendWorkoutLogDate(logId, submittedAt) {
+  const { data, error } = await supabase.from("workout_logs").update({ submitted_at: submittedAt }).eq("id", logId).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setBackendWorkoutLogUnlogged(logId, isUnlogged) {
+  const { data, error } = await supabase.from("workout_logs").update({ is_unlogged: isUnlogged }).eq("id", logId).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateBackendWorkoutLogFromAppLog(log) {
+  const { error: logError } = await supabase.from("workout_logs").update({ submitted_at: log.submittedAt, status: log.status, skip_reason: log.skipReason || "" }).eq("id", log.id);
+  if (logError) throw logError;
+  const { error: deleteError } = await supabase.from("workout_entries").delete().eq("workout_log_id", log.id);
+  if (deleteError) throw deleteError;
+  if (log.status !== "skipped" && log.entries?.length) {
+    const { error } = await supabase.from("workout_entries").insert(log.entries.map((entry) => ({ workout_log_id: log.id, plan_exercise_id: entry.exerciseId || null, exercise_name: entry.exerciseName, actual_weight: entry.actualWeight || "", sets_completed: entry.setsCompleted || "", reps_completed: entry.repsCompleted || "", time_completed: entry.timeCompleted || "", actual_rest: entry.restUsed || "", exercise_substitution: entry.substitution || "", client_notes: entry.notes || "" })));
+    if (error) throw error;
+  }
+  return log;
 }

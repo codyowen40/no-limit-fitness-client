@@ -329,8 +329,8 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { createClientRecord, createManagedClientAccount, fetchAdminDirectory, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser } from "./lib/noLimitSupabaseApi";
-import { createBackendPlanFromAppPlan, updateBackendPlanFromAppPlan, updateBackendPlanAssignment, deleteBackendWorkoutPlan, createBackendWorkoutLogFromAppLog, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage, fetchBackendTrainingEvents, saveBackendTrainingEvent, deleteBackendTrainingEvent } from "./lib/noLimitBackendBridge";
+import { createClientRecord, createManagedClientAccount, fetchAdminDirectory, getCurrentSession, getCurrentProfile, signInWithEmailPassword, signOutUser, changeCurrentUserPassword, resetManagedClientPassword } from "./lib/noLimitSupabaseApi";
+import { createBackendPlanFromAppPlan, updateBackendPlanFromAppPlan, updateBackendPlanAssignment, deleteBackendWorkoutPlan, createBackendWorkoutLogFromAppLog, updateBackendWorkoutLogDate, updateBackendWorkoutLogFromAppLog, setBackendWorkoutLogUnlogged, fetchBackendClients, fetchBackendPlans, fetchBackendWorkoutLogs, fetchBackendMessages, fetchBackendNotifications, fetchBackendNotificationPreferences, fetchBackendExerciseLibrary, sendBackendMessage, fetchBackendTrainingEvents, saveBackendTrainingEvent, deleteBackendTrainingEvent, saveBackendClientCheckIn, fetchBackendClientCheckIns, saveBackendProgressPhotos, fetchBackendProgressPhotos } from "./lib/noLimitBackendBridge";
 
 const STORAGE_KEY = "no-limit-fitness-app-local-state-v1";
 
@@ -805,6 +805,7 @@ function mapServerWorkoutLogForApp(log, clients, plans) {
     dayId: String(getServerValue(log, ["dayId", "day_id", "workoutDayId", "workout_day_id"], "")),
     dayName: String(getServerValue(log, ["dayName", "day_name"], "Server Workout")),
     status: rawStatus.includes("skip") ? "skipped" : "completed",
+    isUnlogged: Boolean(getServerValue(log, ["isUnlogged", "is_unlogged"], false)),
     submittedAt: normalizeServerDateLabel(submittedAtRaw),
     workoutDate: getLocalWorkoutDateValue(new Date(normalizeServerTimestamp(submittedAtRaw))),
     workoutDateLabel: getWorkoutDateLabel(getLocalWorkoutDateValue(new Date(normalizeServerTimestamp(submittedAtRaw)))),
@@ -1868,7 +1869,7 @@ function ClientApprovedWorkoutPlanPanel() {
 
   function getTodayDate() {
     try {
-      return new Date().toISOString().slice(0, 10);
+      return getLocalWorkoutDateValue();
     } catch {
       return "";
     }
@@ -1914,6 +1915,7 @@ function ClientApprovedWorkoutPlanPanel() {
         size: file.size,
         dataUrl: String(reader.result || ""),
         addedAt: new Date().toLocaleString(),
+        file,
       });
 
       setPhotoStatus(angleLabel + " photo ready to save.");
@@ -1926,9 +1928,17 @@ function ClientApprovedWorkoutPlanPanel() {
     reader.readAsDataURL(file);
   }
 
-  function saveProgressPhotoCheckIn() {
-    if (!frontPhoto && !sidePhoto && !backPhoto) {
-      setPhotoStatus("Add at least one progress photo before saving.");
+  async function saveProgressPhotoCheckIn() {
+    if (!frontPhoto || !sidePhoto || !backPhoto) {
+      setPhotoStatus("Add front, side, and back progress photos before saving.");
+      return;
+    }
+    if (!photoDate || photoDate > getLocalWorkoutDateValue()) {
+      setPhotoStatus("Choose a valid photo date that is not in the future.");
+      return;
+    }
+    if (savedPhotoCheckIns.some((item) => item.photoDate === photoDate)) {
+      setPhotoStatus("A progress photo check-in already exists for this date.");
       return;
     }
 
@@ -1945,7 +1955,16 @@ function ClientApprovedWorkoutPlanPanel() {
       savedAt: new Date().toLocaleString(),
     };
 
-    const nextSaved = [nextCheckIn, ...savedPhotoCheckIns].slice(0, 8);
+    if (!isLocalRegressionRuntime()) {
+      try {
+        await saveBackendProgressPhotos({ photoDate, frontFile: frontPhoto.file, sideFile: sidePhoto.file, backFile: backPhoto.file, notes: photoCheckInNotes, frontNote: frontPhotoNote, sideNote: sidePhotoNote, backNote: backPhotoNote });
+        clearPendingPhotos();
+        setPhotoStatus("Progress photos securely uploaded for coach review.");
+        return;
+      } catch (error) { setPhotoStatus(error?.message || "Unable to securely upload progress photos."); return; }
+    }
+
+    const nextSaved = [nextCheckIn, ...savedPhotoCheckIns];
     const saved = saveProgressPhotos(nextSaved);
 
     if (!saved) return;
@@ -2156,6 +2175,7 @@ function ClientApprovedWorkoutPlanPanel() {
           </p>
         </div>
       )}
+      {latestPhotoCheckIn && <button type="button" onClick={() => { const next = savedPhotoCheckIns.filter((item) => item.id !== latestPhotoCheckIn.id); setSavedPhotoCheckIns(next); saveProgressPhotos(next); setPhotoStatus("Incorrect photo check-in deleted."); }} className="mt-3 rounded-full border border-red-500/30 px-4 py-2 text-xs font-black uppercase text-red-300">Delete Latest Photo Check-In</button>}
     </section>
   );
 }
@@ -2178,7 +2198,7 @@ function ClientWeeklyNutritionCheckInForm() {
 
   function getTodayDate() {
     try {
-      return new Date().toISOString().slice(0, 10);
+      return getLocalWorkoutDateValue();
     } catch {
       return "";
     }
@@ -2213,8 +2233,18 @@ function ClientWeeklyNutritionCheckInForm() {
     }
   }
 
-  function saveClientWeeklyCheckIn(event) {
+  async function saveClientWeeklyCheckIn(event) {
     event.preventDefault();
+
+    const weight = Number(checkInWeight);
+    const waist = Number(waistMeasurement);
+    const workouts = Number(workoutsCompleted);
+    const hasMeaningfulEntry = [checkInWeight, waistMeasurement, clientCheckInNotes, frontPhotoNote, sidePhotoNote, backPhotoNote].some((value) => String(value || "").trim());
+    if (!checkInDate || checkInDate > getLocalWorkoutDateValue()) return setCheckInStatus("Choose a valid check-in date that is not in the future.");
+    if (!hasMeaningfulEntry) return setCheckInStatus("Add weight, waist, notes, or progress feedback before saving.");
+    if ((checkInWeight && (!Number.isFinite(weight) || weight <= 0)) || (waistMeasurement && (!Number.isFinite(waist) || waist <= 0))) return setCheckInStatus("Weight and waist must be positive numbers.");
+    if (!Number.isInteger(workouts) || workouts < 0) return setCheckInStatus("Workouts completed must be zero or a positive whole number.");
+    if (checkIns.some((item) => item.checkInDate === checkInDate)) return setCheckInStatus("A weekly check-in already exists for this date. Delete it before replacing it.");
 
     const nextCheckIn = {
       id: makeId("client-weekly-checkin"),
@@ -2237,7 +2267,12 @@ function ClientWeeklyNutritionCheckInForm() {
       savedAt: new Date().toLocaleString(),
     };
 
-    const nextCheckIns = [nextCheckIn, ...checkIns].slice(0, 12);
+    if (!isLocalRegressionRuntime()) {
+      try { await saveBackendClientCheckIn(nextCheckIn); setCheckInStatus("Weekly client check-in securely saved for coach review."); return; }
+      catch (error) { setCheckInStatus(error?.message || "Unable to securely save this check-in."); return; }
+    }
+
+    const nextCheckIns = [nextCheckIn, ...checkIns];
 
     setCheckIns(nextCheckIns);
     saveClientCheckIns(nextCheckIns);
@@ -2491,6 +2526,7 @@ function ClientWeeklyNutritionCheckInForm() {
           </p>
         </div>
       )}
+      {latestCheckIn && <button type="button" onClick={() => { const next = checkIns.filter((item) => item.id !== latestCheckIn.id); setCheckIns(next); saveClientCheckIns(next); setCheckInStatus("Incorrect weekly check-in deleted."); }} className="mt-3 rounded-full border border-red-500/30 px-4 py-2 text-xs font-black uppercase text-red-300">Delete Latest Check-In</button>}
     </section>
   );
 }
@@ -3923,7 +3959,7 @@ function NutritionCoachScreen() {
   );
 }
 
-﻿﻿function CoachProgressPhotoReviewPanel() {
+﻿﻿function CoachProgressPhotoReviewPanel({ clientId = "" }) {
   const PROGRESS_PHOTOS_STORAGE_KEY = "nlf-client-progress-photos-v1";
   const COACH_PROGRESS_PHOTO_NOTES_STORAGE_KEY = "nlf-coach-progress-photo-review-notes-v1";
 
@@ -3950,15 +3986,18 @@ function NutritionCoachScreen() {
     }
   }
 
-  const [progressPhotoCheckIns, setProgressPhotoCheckIns] = useState(readSavedProgressPhotos);
+  const [progressPhotoCheckIns, setProgressPhotoCheckIns] = useState(() => isLocalRegressionRuntime() ? readSavedProgressPhotos() : []);
   const [coachPhotoNotes, setCoachPhotoNotes] = useState(readCoachPhotoNotes);
   const [photoReviewStatus, setPhotoReviewStatus] = useState("");
 
   const latestPhotoCheckIn = progressPhotoCheckIns[0] || null;
 
-  function refreshProgressPhotos() {
-    setProgressPhotoCheckIns(readSavedProgressPhotos());
-    setPhotoReviewStatus("Progress photo review refreshed.");
+  async function refreshProgressPhotos() {
+    if (!isLocalRegressionRuntime()) {
+      if (!clientId) return setPhotoReviewStatus("Select a client before reviewing progress photos.");
+      try { const records = await fetchBackendProgressPhotos(clientId); setProgressPhotoCheckIns(records.map((item) => ({ id: item.id, photoDate: item.photo_date, photoCheckInNotes: item.notes, frontPhotoNote: item.front_note, sidePhotoNote: item.side_note, backPhotoNote: item.back_note, frontPhoto: { dataUrl: item.frontUrl }, sidePhoto: { dataUrl: item.sideUrl }, backPhoto: { dataUrl: item.backUrl } }))); setPhotoReviewStatus("Secure progress photos refreshed for the selected client."); return; } catch (error) { setPhotoReviewStatus(error?.message || "Unable to load progress photos."); return; }
+    }
+    setProgressPhotoCheckIns(readSavedProgressPhotos()); setPhotoReviewStatus("Progress photo review refreshed.");
   }
 
   function saveCoachPhotoReviewNotes() {
@@ -4139,7 +4178,7 @@ function NutritionCoachScreen() {
   );
 }
 
-function CoachClientWeeklyCheckInPanel() {
+function CoachClientWeeklyCheckInPanel({ clientId = "" }) {
   const CLIENT_WEEKLY_CHECKINS_STORAGE_KEY = "nlf-client-weekly-checkins-v1";
   const COACH_CLIENT_CHECKIN_NOTES_STORAGE_KEY = "nlf-coach-client-checkin-notes-v1";
 
@@ -4166,7 +4205,7 @@ function CoachClientWeeklyCheckInPanel() {
     }
   }
 
-  const [clientCheckIns, setClientCheckIns] = useState(readClientCheckIns);
+  const [clientCheckIns, setClientCheckIns] = useState(() => isLocalRegressionRuntime() ? readClientCheckIns() : []);
   const [coachCheckInNotes, setCoachCheckInNotes] = useState(readCoachNotes);
   const [coachCheckInStatus, setCoachCheckInStatus] = useState("");
 
@@ -4197,9 +4236,12 @@ function CoachClientWeeklyCheckInPanel() {
       latestCheckIn?.backPhotoNote
   );
 
-  function refreshClientCheckIns() {
-    setClientCheckIns(readClientCheckIns());
-    setCoachCheckInStatus("Client weekly check-ins refreshed.");
+  async function refreshClientCheckIns() {
+    if (!isLocalRegressionRuntime()) {
+      if (!clientId) return setCoachCheckInStatus("Select a client before reviewing check-ins.");
+      try { const records = await fetchBackendClientCheckIns(clientId); setClientCheckIns(records.map((item) => ({ id: item.id, checkInDate: item.check_in_date, checkInWeight: item.weight, waistMeasurement: item.waist, adherenceScore: item.adherence, workoutsCompleted: item.workouts_completed, proteinConsistency: item.protein, hungerScore: item.hunger, energyScore: item.energy, sleepScore: item.sleep, stressScore: item.stress, digestionScore: item.digestion, recoveryScore: item.recovery, clientCheckInNotes: item.notes, frontPhotoNote: item.front_note, sidePhotoNote: item.side_note, backPhotoNote: item.back_note }))); setCoachCheckInStatus("Secure check-ins refreshed for the selected client."); return; } catch (error) { setCoachCheckInStatus(error?.message || "Unable to load client check-ins."); return; }
+    }
+    setClientCheckIns(readClientCheckIns()); setCoachCheckInStatus("Client weekly check-ins refreshed.");
   }
 
   function saveCoachClientCheckInNotes() {
@@ -7925,6 +7967,37 @@ const isLoggedIn =
     setTrackerMessage(`${log.dayName} workout log deleted locally.`);
   }
 
+  async function updateWorkoutLogDate(logId, dateValue) {
+    const parsed = getWorkoutDateTimestamp(dateValue);
+    if (!parsed || dateValue > getLocalWorkoutDateValue()) throw new Error("Choose a valid workout date that is not in the future.");
+    if (!isLocalRegressionRuntime()) await updateBackendWorkoutLogDate(logId, parsed.toISOString());
+    setWorkoutLogs((current) => current.map((log) => log.id === logId ? { ...log, workoutDate: dateValue, workoutDateLabel: getWorkoutDateLabel(dateValue), submittedAt: parsed.toLocaleString(), timestamp: parsed.getTime() } : log));
+  }
+
+  async function saveWorkoutLogEdits(updatedLog) {
+    const parsed = getWorkoutDateTimestamp(updatedLog.workoutDate);
+    if (!parsed || updatedLog.workoutDate > getLocalWorkoutDateValue()) throw new Error("Choose a valid workout date that is not in the future.");
+    const normalized = { ...updatedLog, workoutDateLabel: getWorkoutDateLabel(updatedLog.workoutDate), submittedAt: parsed.toISOString(), timestamp: parsed.getTime(), entries: updatedLog.status === "skipped" ? [] : updatedLog.entries };
+    if (!isLocalRegressionRuntime()) await updateBackendWorkoutLogFromAppLog(normalized);
+    setWorkoutLogs((current) => current.map((log) => log.id === normalized.id ? normalized : log));
+  }
+
+  async function toggleWorkoutLogState(logId) {
+    const log = workoutLogs.find((item) => item.id === logId); if (!log) return;
+    const next = !log.isUnlogged;
+    if (!isLocalRegressionRuntime()) await setBackendWorkoutLogUnlogged(logId, next);
+    setWorkoutLogs((current) => current.map((item) => item.id === logId ? { ...item, isUnlogged: next } : item));
+  }
+
+  async function saveCoachTranslatedWorkoutLog({ clientId, planId, dayId, workoutDate: dateValue, entries, coachNotes }) {
+    const client = clients.find((item) => item.id === clientId); const plan = savedPlans.find((item) => item.id === planId); const day = plan?.days?.find((item) => item.id === dayId);
+    if (!client || !plan || !day) throw new Error("Select a client, assigned plan, and training day.");
+    const parsed = getWorkoutDateTimestamp(dateValue); if (!parsed) throw new Error("Choose a valid workout date.");
+    const newLog = { id: makeId("coach-workout-log"), clientId, clientName: client.name, planId, planName: plan.planName, dayId, dayName: day.name, status: "completed", skipReason: "", workoutDate: dateValue, workoutDateLabel: getWorkoutDateLabel(dateValue), submittedAt: parsed.toISOString(), timestamp: parsed.getTime(), entries: entries.map((entry, index) => ({ exerciseId: day.exercises[index]?.id || null, exerciseName: entry.exercise, assignedSets: day.exercises[index]?.sets || "", assignedRepsOrTime: day.exercises[index]?.repsOrTime || "", assignedWeightGuidance: day.exercises[index]?.weightGuidance || "", assignedRest: day.exercises[index]?.rest || "", actualWeight: entry.weight, setsCompleted: entry.sets, repsCompleted: entry.reps, timeCompleted: "", restUsed: entry.rest || "", substitution: "", notes: [entry.notes, coachNotes].filter(Boolean).join(" — ") })) };
+    if (!isLocalRegressionRuntime()) { await createBackendWorkoutLogFromAppLog({ clientId, planId, workoutDayId: dayId, planName: plan.planName, dayName: day.name, status: "completed", submittedAt: parsed.toISOString(), entries: newLog.entries.map((entry) => ({ ...entry, planExerciseId: entry.exerciseId })) }); }
+    setWorkoutLogs((current) => [newLog, ...current]); setSelectedWorkoutLogId(newLog.id); return newLog;
+  }
+
   async function saveTrainingEvent(event) {
     const profile = isLocalRegressionRuntime() ? { id: "coach-primary" } : await getCurrentProfile();
     const payload = { ...event, coachId: event.coachId || profile?.id };
@@ -8565,13 +8638,13 @@ function handlePortalLogout() {
         <main className="mx-auto max-w-7xl px-4 py-8 pb-28 md:pb-8">
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_START */}
         {activeTab === "Client" && normalizedPortalMode === "client" && (
-          <ClientOverviewScreen
+          <><ClientOverviewScreen
             clients={clients}
             savedPlans={savedPlans}
             onOpenTracker={() => setActiveTab("Tracker")}
             onOpenMessages={() => setActiveTab("Messages")}
             onOpenPlans={() => setActiveTab("WorkoutPlans")}
-          />
+          /><ClientChangePasswordPanel /></>
         )}
         {/* NLF_CLIENT_PORTAL_POLISH_PANEL_END */}
         {/* Bundle 12N: ClientsScreen is now the single coach client-management surface. */}
@@ -8624,6 +8697,7 @@ function handlePortalLogout() {
               setSelectedWorkoutLogId={setSelectedWorkoutLogId}
               deleteWorkoutLog={deleteWorkoutLog}
               onSaveCoachSessionLog={saveCoachSessionForClient}
+              onSaveTranslatedWorkoutLog={saveCoachTranslatedWorkoutLog}
               unreadCoachCount={unreadCoachCount}
               unreadActivityCount={unreadActivityCount}
               activityFilter={activityFilter}
@@ -8802,6 +8876,9 @@ function handlePortalLogout() {
               selectedWorkoutLogId={selectedWorkoutLogId}
               setSelectedWorkoutLogId={setSelectedWorkoutLogId}
               deleteWorkoutLog={normalizedPortalMode === "client" ? undefined : deleteWorkoutLog}
+              updateWorkoutLogDate={updateWorkoutLogDate}
+              saveWorkoutLogEdits={saveWorkoutLogEdits}
+              toggleWorkoutLogState={toggleWorkoutLogState}
             />
           )}
 
@@ -10900,7 +10977,7 @@ function CoachDashboardCommandSummaryCards() {
   );
 }
 
-function CoachWorkoutNotesLogGenerator() {
+function CoachWorkoutNotesLogGenerator({ clients = [], savedPlans = [], onSaveTranslatedWorkoutLog }) {
   const COACH_GENERATED_WORKOUT_LOGS_STORAGE_KEY = "nlf-coach-generated-workout-logs-v1";
 
   function readSavedWorkoutLogs() {
@@ -10957,6 +11034,7 @@ function CoachWorkoutNotesLogGenerator() {
           sets: setRepMatch[2],
           reps: setRepMatch[3].replace(/\s+/g, ""),
           weight: setRepMatch[4] ? setRepMatch[4] + " " + (setRepMatch[5] || "lb") : "",
+          rest: cleanedLine.match(/rest\s*[:=-]?\s*([\d.]+\s*(?:sec|seconds?|min|minutes?))/i)?.[1] || "",
           notes: trailingNote || cleanedLine,
         };
       }
@@ -10971,6 +11049,7 @@ function CoachWorkoutNotesLogGenerator() {
         sets: setsMatch ? setsMatch[1] : "",
         reps: repsMatch ? repsMatch[1] : "",
         weight: weightMatch ? weightMatch[1] + " " + weightMatch[2] : "",
+        rest: cleanedLine.match(/rest\s*[:=-]?\s*([\d.]+\s*(?:sec|seconds?|min|minutes?))/i)?.[1] || "",
         notes: cleanedLine,
       };
     });
@@ -11009,6 +11088,11 @@ function CoachWorkoutNotesLogGenerator() {
   const [editableWorkoutLog, setEditableWorkoutLog] = useState(null);
   const [savedWorkoutLogs, setSavedWorkoutLogs] = useState(readSavedWorkoutLogs);
   const [workoutLogStatus, setWorkoutLogStatus] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [selectedDayId, setSelectedDayId] = useState("");
+  const assignedPlans = savedPlans.filter((plan) => plan.clientId === selectedClientId);
+  const selectedPlan = assignedPlans.find((plan) => plan.id === selectedPlanId);
 
   function generateWorkoutLogFromNotes() {
     const nextLog = parseWorkoutNotes(rawWorkoutNotes);
@@ -11069,6 +11153,7 @@ function CoachWorkoutNotesLogGenerator() {
           sets: "",
           reps: "",
           weight: "",
+          rest: "",
           notes: "",
         },
       ];
@@ -11099,7 +11184,7 @@ function CoachWorkoutNotesLogGenerator() {
     setWorkoutLogStatus("Exercise row removed.");
   }
 
-  function saveGeneratedWorkoutLog() {
+  async function saveGeneratedWorkoutLog() {
     const logToSave = editableWorkoutLog ? recalculateWorkoutLog(editableWorkoutLog) : null;
 
     if (!logToSave || !logToSave.entries.length) {
@@ -11116,6 +11201,7 @@ function CoachWorkoutNotesLogGenerator() {
           sets: String(entry.sets || "").trim(),
           reps: String(entry.reps || "").trim(),
           weight: String(entry.weight || "").trim(),
+          rest: String(entry.rest || "").trim(),
           notes: String(entry.notes || "").trim(),
         }))
         .filter((entry) => entry.exercise || entry.sets || entry.reps || entry.weight || entry.notes),
@@ -11125,6 +11211,13 @@ function CoachWorkoutNotesLogGenerator() {
     if (!cleanedLog.entries.length) {
       setWorkoutLogStatus("Add at least one exercise before saving.");
       return;
+    }
+
+    if (!selectedClientId || !selectedPlanId || !selectedDayId) {
+      if (!isLocalRegressionRuntime()) { setWorkoutLogStatus("Select a client, assigned plan, and training day before saving."); return; }
+    } else {
+      try { await onSaveTranslatedWorkoutLog({ clientId: selectedClientId, planId: selectedPlanId, dayId: selectedDayId, workoutDate: cleanedLog.workoutDate, entries: cleanedLog.entries, coachNotes: cleanedLog.coachNotes }); }
+      catch (error) { setWorkoutLogStatus(error?.message || "Unable to save the translated workout."); return; }
     }
 
     const nextSavedLogs = [cleanedLog, ...savedWorkoutLogs].slice(0, 20);
@@ -11140,7 +11233,7 @@ function CoachWorkoutNotesLogGenerator() {
 
     setEditableWorkoutLog(cleanedLog);
     setSavedWorkoutLogs(nextSavedLogs);
-    setWorkoutLogStatus("Edited workout log saved.");
+    setWorkoutLogStatus(selectedClientId ? "Edited workout log saved to the selected client's training day." : "Edited workout log saved locally for regression review.");
   }
 
   function clearWorkoutNotes() {
@@ -11176,6 +11269,8 @@ function CoachWorkoutNotesLogGenerator() {
           {savedWorkoutLogs.length} saved
         </span>
       </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3"><Select label="Workout Log Client" value={selectedClientId} onChange={(value) => { setSelectedClientId(value); setSelectedPlanId(""); setSelectedDayId(""); }} options={[{ label: "Select client", value: "" }, ...clients.map((client) => ({ label: client.name, value: client.id }))]} /><Select label="Workout Log Plan" value={selectedPlanId} onChange={(value) => { setSelectedPlanId(value); setSelectedDayId(""); }} options={[{ label: "Select assigned plan", value: "" }, ...assignedPlans.map((plan) => ({ label: plan.planName, value: plan.id }))]} /><Select label="Workout Log Training Day" value={selectedDayId} onChange={setSelectedDayId} options={[{ label: "Select training day", value: "" }, ...(selectedPlan?.days || []).map((day) => ({ label: day.name, value: day.id }))]} /></div>
 
       <label className="mt-5 block space-y-2">
         <span className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
@@ -11292,6 +11387,7 @@ function CoachWorkoutNotesLogGenerator() {
                   <th className="px-4 py-3">Sets</th>
                   <th className="px-4 py-3">Reps</th>
                   <th className="px-4 py-3">Weight</th>
+                  <th className="px-4 py-3">Rest</th>
                   <th className="px-4 py-3">Notes</th>
                   <th className="px-4 py-3">Remove</th>
                 </tr>
@@ -11334,6 +11430,7 @@ function CoachWorkoutNotesLogGenerator() {
                         className="w-28 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none transition focus:border-[#00BF63]"
                       />
                     </td>
+                    <td className="px-4 py-3"><input aria-label={"Exercise " + (index + 1) + " Rest"} value={entry.rest || ""} onChange={(event) => updateWorkoutEntry(index, "rest", event.target.value)} className="w-28 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none transition focus:border-[#00BF63]" /></td>
                     <td className="px-4 py-3">
                       <input
                         aria-label={"Exercise " + (index + 1) + " Notes"}
@@ -11393,7 +11490,8 @@ function CoachWorkoutNotesLogGenerator() {
     </section>
   );
 }
-function CoachCheckInsWorkspace() {
+function CoachCheckInsWorkspace({ clients = [], savedPlans = [], onSaveTranslatedWorkoutLog }) {
+  const [reviewClientId, setReviewClientId] = useState("");
   return (
     <section
       data-testid="coach-checkins-workspace"
@@ -11430,9 +11528,10 @@ function CoachCheckInsWorkspace() {
       </div>
 
       <div className="mt-5 grid gap-5">
-        <CoachWorkoutNotesLogGenerator />
-        <CoachClientWeeklyCheckInPanel />
-        <CoachProgressPhotoReviewPanel />
+        <Select label="Check-In Client" value={reviewClientId} onChange={setReviewClientId} options={[{ label: "Select a client to review", value: "" }, ...clients.map((client) => ({ label: client.name, value: client.id }))]} />
+        <CoachWorkoutNotesLogGenerator clients={clients} savedPlans={savedPlans} onSaveTranslatedWorkoutLog={onSaveTranslatedWorkoutLog} />
+        <CoachClientWeeklyCheckInPanel clientId={reviewClientId} />
+        <CoachProgressPhotoReviewPanel clientId={reviewClientId} />
         <CoachWeeklyActionPlanGenerator />
         <CoachActionPlanCompletionReviewPanel />
         <CoachWeeklyAdjustmentRecommendationPanel />
@@ -11451,6 +11550,7 @@ function CoachScreen({
   setSelectedWorkoutLogId,
   deleteWorkoutLog,
   onSaveCoachSessionLog = () => {},
+  onSaveTranslatedWorkoutLog = async () => {},
   unreadCoachCount = 0,
   unreadActivityCount = 0,
   activityFilter,
@@ -11784,7 +11884,7 @@ function CoachScreen({
         </button>
       </div>
 
-      {coachCommandTab === "checkins" && <CoachCheckInsWorkspace />}
+      {coachCommandTab === "checkins" && <CoachCheckInsWorkspace clients={safeClients} savedPlans={safePlans} onSaveTranslatedWorkoutLog={onSaveTranslatedWorkoutLog} />}
 
       <CoachDashboardCommandSummaryCards />
 
@@ -12188,6 +12288,18 @@ function AdminCoachDirectoryPanel() {
   );
 }
 
+function ClientChangePasswordPanel() {
+  const [password, setPassword] = useState(""); const [confirm, setConfirm] = useState(""); const [status, setStatus] = useState("");
+  async function submit(event) { event.preventDefault(); if (password !== confirm) return setStatus("Passwords do not match."); try { await changeCurrentUserPassword(password); setPassword(""); setConfirm(""); setStatus("Password changed successfully."); } catch (error) { setStatus(error?.message || "Unable to change password."); } }
+  return <section data-testid="client-change-password" className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5"><h2 className="text-xl font-black uppercase">Account Security</h2><p className="mt-2 text-sm text-white/60">Change your client login password. Use at least eight characters.</p><form onSubmit={submit} className="mt-4 grid gap-3 md:grid-cols-2"><label className="grid gap-2 text-sm font-bold">New Password<input aria-label="New Client Password" type="password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} className="rounded-2xl border border-white/10 bg-black px-4 py-3" /></label><label className="grid gap-2 text-sm font-bold">Confirm Password<input aria-label="Confirm New Client Password" type="password" minLength={8} value={confirm} onChange={(event) => setConfirm(event.target.value)} className="rounded-2xl border border-white/10 bg-black px-4 py-3" /></label><button type="submit" className="rounded-2xl bg-[#00BF63] px-5 py-3 font-black uppercase text-black md:col-span-2">Change Password</button></form>{status && <p role="status" className="mt-3 text-sm font-bold text-[#00BF63]">{status}</p>}</section>;
+}
+
+function CoachClientPasswordResetPanel({ client }) {
+  const [password, setPassword] = useState(""); const [confirm, setConfirm] = useState(""); const [status, setStatus] = useState("");
+  async function submit(event) { event.preventDefault(); if (password !== confirm) return setStatus("Temporary passwords do not match."); try { await resetManagedClientPassword({ clientId: client?.id, password }); setPassword(""); setConfirm(""); setStatus("Temporary password assigned. Share it privately and ask the client to change it after login."); } catch (error) { setStatus(error?.message || "Unable to reset client password."); } }
+  return <section data-testid="coach-client-password-reset" className="mt-4 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/5 p-4"><h4 className="font-black uppercase">Reset Client Password</h4><p className="mt-1 text-sm text-white/55">Assign a temporary password for {client?.name}. The current password is never displayed.</p><form onSubmit={submit} className="mt-3 grid gap-3"><input aria-label="Client Temporary Password" type="password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Temporary password" className="rounded-xl border border-white/10 bg-black px-4 py-3" /><input aria-label="Confirm Client Temporary Password" type="password" minLength={8} value={confirm} onChange={(event) => setConfirm(event.target.value)} placeholder="Confirm temporary password" className="rounded-xl border border-white/10 bg-black px-4 py-3" /><button type="submit" className="rounded-xl bg-[#00BF63] px-4 py-3 font-black uppercase text-black">Assign Temporary Password</button></form>{status && <p role="status" className="mt-3 text-sm font-bold text-[#00BF63]">{status}</p>}</section>;
+}
+
 function ClientsScreen({
   clients,
   clientForm,
@@ -12555,7 +12667,7 @@ function ClientsScreen({
             </div>
 
             <div data-testid="selected-client-workspace" className="rounded-2xl border border-white/10 bg-black/35 p-4">
-              {selectedClient ? (
+              {selectedClient ? (<>
                 <ClientProfileDetails
                   client={selectedClient}
                   savedPlans={savedPlans}
@@ -12566,7 +12678,8 @@ function ClientsScreen({
                   openPlansForClient={openPlansForClient}
                   updateClientStatus={updateClientStatus}
                 />
-              ) : (
+                <CoachClientPasswordResetPanel client={selectedClient} />
+              </>) : (
                 <EmptyState text="Select a client to open their complete profile workspace." />
               )}
             </div>
@@ -12988,13 +13101,16 @@ function TrainingCalendarScreen({ clients, events, isCoachPortal, activeClientId
   const start = new Date(cursor); start.setHours(0, 0, 0, 0); view === "week" ? start.setDate(start.getDate() - start.getDay()) : start.setDate(1);
   const count = view === "week" ? 7 : new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
   const days = Array.from({ length: count }, (_, index) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + index));
+  const calendarCells = view === "month" ? [...Array(start.getDay()).fill(null), ...days] : days;
   const setField = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const setStart = (value) => { const startValue = new Date(value); const endValue = Number.isNaN(startValue.getTime()) ? null : new Date(startValue.getTime() + 60 * 60 * 1000); const localEnd = endValue ? new Date(endValue.getTime() - endValue.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""; setForm((current) => ({ ...current, startsAt: value, endsAt: localEnd })); };
   function move(amount) { setCursor((current) => { const next = new Date(current); view === "week" ? next.setDate(next.getDate() + amount * 7) : next.setMonth(next.getMonth() + amount); return next; }); }
   async function submit(event) { event.preventDefault(); if (!form.title.trim() || !form.clientId || !form.startsAt || !form.endsAt) return setNotice("Add a title, client, start time, and end time."); if (new Date(form.endsAt) <= new Date(form.startsAt)) return setNotice("End time must be after start time."); try { await onSave({ ...form, startsAt: new Date(form.startsAt).toISOString(), endsAt: new Date(form.endsAt).toISOString() }); setForm({ title: "Personal Training", clientId: "", startsAt: "", endsAt: "", location: "" }); setNotice("Training event saved and shared with the client."); } catch (error) { setNotice(error?.message || "Unable to save this event."); } }
   return <div data-testid="training-calendar"><SectionHeader eyebrow="Schedule" title={isCoachPortal ? "Training Calendar" : "My Training Calendar"} description={isCoachPortal ? "Assign dated and timed training sessions in a week or month view." : "View training sessions assigned by your coach."} />
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4"><div className="flex gap-2"><button type="button" onClick={() => move(-1)} className="rounded-xl border border-white/15 px-3 py-2 font-black">Previous</button><button type="button" onClick={() => setCursor(new Date())} className="rounded-xl border border-white/15 px-3 py-2 font-black">Today</button><button type="button" onClick={() => move(1)} className="rounded-xl border border-white/15 px-3 py-2 font-black">Next</button></div><h2 className="text-xl font-black uppercase">{start.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2><div aria-label="Calendar view" className="flex gap-2">{["week", "month"].map((option) => <button key={option} type="button" aria-pressed={view === option} onClick={() => setView(option)} className={`rounded-xl px-3 py-2 text-sm font-black uppercase ${view === option ? "bg-[#00BF63] text-black" : "border border-white/15"}`}>{option}</button>)}</div></div>
-    {isCoachPortal && <form onSubmit={submit} className="mb-6 rounded-[1.5rem] border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"><h3 className="mb-4 text-xl font-black uppercase">Schedule Training Event</h3><div className="grid gap-4 md:grid-cols-2"><Input label="Event Title" value={form.title} onChange={(value) => setField("title", value)} /><Select label="Assign Client" value={form.clientId} onChange={(value) => setField("clientId", value)} options={[{ label: "Select a client", value: "" }, ...clients.map((client) => ({ label: client.name, value: client.id }))]} /><Input label="Start Date and Time" type="datetime-local" value={form.startsAt} onChange={(value) => setField("startsAt", value)} /><Input label="End Date and Time" type="datetime-local" value={form.endsAt} onChange={(value) => setField("endsAt", value)} /><Input label="Location" value={form.location} onChange={(value) => setField("location", value)} /></div>{notice && <p aria-live="polite" className="mt-4 font-bold text-[#00BF63]">{notice}</p>}<button type="submit" className="mt-4 rounded-xl bg-[#00BF63] px-5 py-3 font-black uppercase text-black">Save Event</button></form>}
-    <div className={`grid gap-3 ${view === "week" ? "md:grid-cols-7" : "sm:grid-cols-2 lg:grid-cols-7"}`}>{days.map((date) => { const key = getLocalWorkoutDateValue(date); const items = visibleEvents.filter((item) => getLocalWorkoutDateValue(new Date(item.startsAt)) === key); return <section key={key} className="min-h-36 rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xs font-black uppercase text-white/45">{date.toLocaleDateString(undefined, { weekday: "short" })}</p><p className="text-lg font-black">{date.getDate()}</p><div className="mt-3 space-y-2">{items.map((item) => <article key={item.id} className="rounded-xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-3"><p className="font-black">{item.title}</p><p className="text-xs text-white/65">{new Date(item.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</p><p className="text-xs text-white/65">{item.clientName || clients.find((client) => client.id === item.clientId)?.name}</p>{item.location && <p className="text-xs text-white/50">{item.location}</p>}{isCoachPortal && <button type="button" onClick={() => onDelete(item.id)} className="mt-2 text-xs font-black text-red-300">Delete</button>}</article>)}</div></section>; })}</div>
+    {isCoachPortal && <form onSubmit={submit} className="mb-6 rounded-[1.5rem] border border-[#00BF63]/25 bg-[#00BF63]/10 p-5"><h3 className="mb-4 text-xl font-black uppercase">Schedule Training Event</h3><div className="grid gap-4 md:grid-cols-2"><Input label="Event Title" value={form.title} onChange={(value) => setField("title", value)} /><Select label="Assign Client" value={form.clientId} onChange={(value) => setField("clientId", value)} options={[{ label: "Select a client", value: "" }, ...clients.map((client) => ({ label: client.name, value: client.id }))]} /><Input label="Start Date and Time" type="datetime-local" value={form.startsAt} onChange={setStart} /><Input label="End Date and Time" type="datetime-local" value={form.endsAt} onChange={(value) => setField("endsAt", value)} /><Input label="Location" value={form.location} onChange={(value) => setField("location", value)} /></div>{notice && <p aria-live="polite" className="mt-4 font-bold text-[#00BF63]">{notice}</p>}<button type="submit" className="mt-4 rounded-xl bg-[#00BF63] px-5 py-3 font-black uppercase text-black">Save Event</button></form>}
+    {view === "month" && <div aria-label="Month weekdays" className="mb-2 hidden grid-cols-7 gap-3 lg:grid">{["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day) => <p key={day} className="text-center text-xs font-black uppercase text-white/45">{day}</p>)}</div>}
+    <div aria-label={`${view} calendar grid`} className="grid grid-cols-7 gap-2">{calendarCells.map((date, index) => { if (!date) return <div key={`blank-${index}`} aria-hidden="true" className="min-h-28 rounded-2xl border border-transparent" />; const key = getLocalWorkoutDateValue(date); const items = visibleEvents.filter((item) => getLocalWorkoutDateValue(new Date(item.startsAt)) === key); return <section key={key} className="min-h-28 rounded-2xl border border-white/10 bg-white/[0.04] p-2"><p className="text-[10px] font-black uppercase text-white/45">{date.toLocaleDateString(undefined, { weekday: "short" })}</p><p className="text-lg font-black">{date.getDate()}</p><div className="mt-2 space-y-2">{items.map((item) => <article key={item.id} className="rounded-xl border border-[#00BF63]/30 bg-[#00BF63]/10 p-2"><p className="text-xs font-black">{item.title}</p><p className="text-[10px] text-white/65">{new Date(item.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</p><p className="text-[10px] text-white/65">{item.clientName || clients.find((client) => client.id === item.clientId)?.name}</p>{item.location && <p className="text-[10px] text-white/50">{item.location}</p>}{isCoachPortal && <button type="button" onClick={() => onDelete(item.id)} className="mt-1 text-[10px] font-black text-red-300">Delete</button>}</article>)}</div></section>; })}</div>
     {!isCoachPortal && !visibleEvents.length && <div className="mt-5"><EmptyState text="Your coach has not scheduled any training events yet." /></div>}
   </div>;
 }
@@ -13817,6 +13933,8 @@ function ProgressScreen({
   selectedWorkoutLogId,
   setSelectedWorkoutLogId,
   deleteWorkoutLog,
+  saveWorkoutLogEdits,
+  toggleWorkoutLogState,
 }) {
   const completedLogs = workoutLogs.filter((log) => log.status === "completed");
   const skippedLogs = workoutLogs.filter((log) => log.status === "skipped");
@@ -14074,7 +14192,7 @@ function ProgressScreen({
 
         <div>
           <h3 className="mb-4 text-xl font-black uppercase">Workout Log Details</h3>
-          <WorkoutLogDetails log={selectedWorkoutLog} onDelete={deleteWorkoutLog} />
+          <WorkoutLogDetails log={selectedWorkoutLog} onDelete={deleteWorkoutLog} onSave={saveWorkoutLogEdits} onToggleLogged={toggleWorkoutLogState} />
         </div>
       </div>
     </div>
@@ -14275,28 +14393,19 @@ function WorkoutLogList({ logs, selectedLogId, onSelect, onDelete }) {
   );
 }
 
-function WorkoutLogDetails({ log, onDelete }) {
-  if (!log) return <EmptyState text="Select a workout log to view details." />;
-
-  return (
-    <div className="rounded-2xl border border-[#00BF63]/30 bg-black/50 p-5">
-      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Selected Workout</p><h4 className="mt-1 text-2xl font-black uppercase">{log.dayName}</h4><p className="mt-1 text-sm text-white/60">{log.planName}</p></div>
-        <div className="flex flex-wrap gap-2"><StatusPill status={log.status} />{onDelete && <button type="button" onClick={() => onDelete(log.id)} className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-black uppercase text-red-300 transition hover:bg-red-500 hover:text-white">Delete Workout Log</button>}</div>
-      </div>
-      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4"><MiniProgram label="Client" value={log.clientName} /><MiniProgram label="Plan" value={log.planName} /><MiniProgram label="Training Day" value={log.dayName} /><MiniProgram label="Workout Date" value={log.workoutDateLabel || log.submittedAt} /></div>
-      {log.skipReason && <div className="mb-5 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-200">Skip Reason</p><p className="mt-2 text-sm font-bold text-white">{log.skipReason}</p></div>}
-      <div className="space-y-4">
-        {log.entries.map((entry, index) => (
-          <div key={`${entry.exerciseId}-${index}`} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.25em] text-[#00BF63]">Exercise {index + 1}</p><h5 className="mt-1 text-xl font-black">{entry.exerciseName}</h5></div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><MiniProgram label="Assigned Sets" value={entry.assignedSets} /><MiniProgram label="Assigned Reps/Time" value={entry.assignedRepsOrTime} /><MiniProgram label="Weight Guidance" value={entry.assignedWeightGuidance} /><MiniProgram label="Assigned Rest" value={entry.assignedRest} /><MiniProgram label="Actual Weight Used" value={entry.actualWeight || "Not entered"} /><MiniProgram label="Sets Completed" value={entry.setsCompleted || "Not entered"} /><MiniProgram label="Reps Completed" value={entry.repsCompleted || "Not entered"} /><MiniProgram label="Time Completed" value={entry.timeCompleted || "Not entered"} /><MiniProgram label="Actual Rest Used" value={entry.restUsed || "Not entered"} /><MiniProgram label="Exercise Substitution" value={entry.substitution || "No substitution"} /></div>
-            <div className="mt-3 rounded-2xl border border-white/10 bg-black/40 p-4"><p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">Client Notes</p><p className="mt-2 text-sm leading-6 text-white/70">{entry.notes || "No client notes added."}</p></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function WorkoutLogDetails({ log, onDelete, onSave, onToggleLogged }) {
+  const [editing, setEditing] = useState(false); const [draft, setDraft] = useState(log); const [notice, setNotice] = useState("");
+  useEffect(() => { setDraft(log); setEditing(false); }, [log?.id]);
+  if (!log || !draft) return <EmptyState text="Select a workout log to view details." />;
+  const shown = editing ? draft : log;
+  const updateEntry = (index, field, value) => setDraft((current) => ({ ...current, entries: current.entries.map((entry, position) => position === index ? { ...entry, [field]: value } : entry) }));
+  async function save() { try { await onSave(draft); setEditing(false); setNotice("Workout log updated."); } catch (error) { setNotice(error?.message || "Unable to update workout log."); } }
+  return <div className="rounded-2xl border border-[#00BF63]/30 bg-black/50 p-5">
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-black uppercase text-[#00BF63]">Selected Workout</p><h4 className="text-2xl font-black uppercase">{shown.dayName}</h4><p className="text-sm text-white/60">{shown.planName}</p></div><div className="flex flex-wrap gap-2"><StatusPill status={log.isUnlogged ? "unlogged" : shown.status} />{onSave && <button type="button" onClick={() => setEditing((value) => !value)} className="rounded-full border border-[#00BF63]/40 px-3 py-1 text-xs font-black uppercase text-[#00BF63]">{editing ? "Cancel Edit" : "Edit Workout Log"}</button>}{onToggleLogged && <button type="button" onClick={() => onToggleLogged(log.id)} className="rounded-full border border-yellow-400/40 px-3 py-1 text-xs font-black uppercase text-yellow-200">{log.isUnlogged ? "Log Again" : "Unlog Workout"}</button>}{onDelete && <button type="button" onClick={() => onDelete(log.id)} className="rounded-full border border-red-500/30 px-3 py-1 text-xs font-black uppercase text-red-300">Delete Workout Log</button>}</div></div>
+    {editing ? <div className="mb-5 grid gap-3 md:grid-cols-3"><Input label="Edit Workout Date" type="date" value={draft.workoutDate || ""} onChange={(value) => setDraft((current) => ({ ...current, workoutDate: value }))} /><Select label="Edit Workout Status" value={draft.status} onChange={(value) => setDraft((current) => ({ ...current, status: value }))} options={[{ label: "Completed", value: "completed" }, { label: "Skipped", value: "skipped" }]} /><Input label="Edit Skip Reason" value={draft.skipReason || ""} onChange={(value) => setDraft((current) => ({ ...current, skipReason: value }))} /></div> : <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4"><MiniProgram label="Client" value={log.clientName} /><MiniProgram label="Plan" value={log.planName} /><MiniProgram label="Training Day" value={log.dayName} /><MiniProgram label="Workout Date" value={log.workoutDateLabel || log.submittedAt} /></div>}
+    <div className="space-y-4">{shown.entries.map((entry, index) => <div key={`${entry.exerciseId}-${index}`} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><h5 className="mb-3 text-xl font-black">{entry.exerciseName}</h5>{editing ? <div className="grid gap-3 md:grid-cols-2">{[["Weight","actualWeight"],["Sets","setsCompleted"],["Reps","repsCompleted"],["Time","timeCompleted"],["Rest","restUsed"],["Substitution","substitution"],["Notes","notes"]].map(([label, field]) => <Input key={field} label={`Edit ${entry.exerciseName} ${label}`} value={entry[field] || ""} onChange={(value) => updateEntry(index, field, value)} />)}</div> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><MiniProgram label="Actual Weight" value={entry.actualWeight || "Not entered"} /><MiniProgram label="Sets Completed" value={entry.setsCompleted || "Not entered"} /><MiniProgram label="Reps Completed" value={entry.repsCompleted || "Not entered"} /><MiniProgram label="Time Completed" value={entry.timeCompleted || "Not entered"} /><MiniProgram label="Rest Used" value={entry.restUsed || "Not entered"} /><MiniProgram label="Substitution" value={entry.substitution || "None"} /><MiniProgram label="Notes" value={entry.notes || "None"} /></div>}</div>)}</div>
+    {editing && <button type="button" onClick={save} className="mt-5 w-full rounded-2xl bg-[#00BF63] px-5 py-3 font-black uppercase text-black">Save Workout Log Changes</button>}{notice && <p role="status" className="mt-3 text-sm font-bold text-[#00BF63]">{notice}</p>}
+  </div>;
 }
 
 function MessageBubble({ message }) {

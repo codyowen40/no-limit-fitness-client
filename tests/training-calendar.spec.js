@@ -14,12 +14,14 @@ test("coach schedules assigned training events in week and month views", async (
   target.setHours(11);
   const end = new Date(target.getTime() - target.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   await calendar.getByLabel("Start Date and Time").fill(local);
-  await calendar.getByLabel("End Date and Time").fill(end);
+  await expect(calendar.getByLabel("End Date and Time")).toHaveValue(end);
   await calendar.getByLabel("Location").fill("Main Gym");
   await calendar.getByRole("button", { name: "Save Event" }).click();
 
   await expect(calendar.getByText("Strength Coaching Session")).toBeVisible();
   await expect(calendar.getByText("Main Gym")).toBeVisible();
   await calendar.getByRole("button", { name: "month", exact: true }).click();
+  await expect(calendar.getByLabel("Month weekdays")).toContainText("Sunday");
+  await expect(calendar.getByLabel("Month weekdays")).toContainText("Saturday");
   await expect(calendar.getByText("Strength Coaching Session")).toBeVisible();
 });
