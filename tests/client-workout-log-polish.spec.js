@@ -35,6 +35,27 @@ const testPlan = {
         },
       ],
     },
+    {
+      id: "day-rest-polish",
+      name: "Day 2 - Recovery",
+      exercises: [],
+    },
+    {
+      id: "day-conditioning-polish",
+      name: "Day 3 - Conditioning",
+      exercises: [
+        {
+          id: "exercise-conditioning-polish",
+          exerciseId: "Walk",
+          exerciseName: "Walk",
+          sets: "1",
+          repsOrTime: "20 min",
+          weightGuidance: "Easy pace",
+          rest: "As needed",
+          notes: "Stay conversational.",
+        },
+      ],
+    },
   ],
 };
 
@@ -123,10 +144,28 @@ test.describe("Client workout log polish", () => {
   });
 
   test("requires a reason before logging a skipped workout", async ({ page }) => {
-    await page.getByRole("button", { name: "Log as Skipped", exact: true }).click();
+    await page.getByRole("button", { name: "Log Selected Day as Skipped", exact: true }).click();
     await expect(page.getByText("Add a skip reason before logging this workout as skipped.")).toBeVisible();
   });
 
+  test("logs days out of order and can skip a day with no exercises", async ({ page }) => {
+    const dayPicker = page.getByTestId("training-day-picker");
+
+    await dayPicker.getByRole("button", { name: /Day 3 - Conditioning/ }).click();
+    await expect(page.getByTestId("active-workout-form")).toContainText("Day 3 - Conditioning");
+    await page.getByLabel("Sets Completed").fill("1");
+    await page.getByRole("button", { name: "Save Completed Workout", exact: true }).click();
+    await expect(dayPicker.getByRole("button", { name: /Day 3 - Conditioning/ })).toContainText("completed");
+
+    await dayPicker.getByRole("button", { name: /Day 2 - Recovery/ }).click();
+    await expect(page.getByRole("button", { name: "Save Completed Workout", exact: true })).toHaveCount(0);
+    await page.getByLabel("Skip Reason").fill("Recovery day intentionally skipped.");
+    await page.getByRole("button", { name: "Log Selected Day as Skipped", exact: true }).click();
+    await expect(dayPicker.getByRole("button", { name: /Day 2 - Recovery/ })).toContainText("skipped");
+
+    await dayPicker.getByRole("button", { name: /Day 1 - Strength/ }).click();
+    await expect(page.getByTestId("active-workout-form")).toContainText("Day 1 - Strength");
+  });
   test("places save actions after the workout inputs", async ({ page }) => {
     const actions = page.getByTestId("workout-submit-actions");
     const notes = page.getByLabel("Client Notes").last();

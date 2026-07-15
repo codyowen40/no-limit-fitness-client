@@ -12907,7 +12907,7 @@ function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientI
     if (submittingStatus) return;
     setSubmittingStatus(status);
     try {
-      await markWorkoutStatus(selectedPlan, selectedDay, status);
+      return await markWorkoutStatus(selectedPlan, selectedDay, status);
     } finally {
       setSubmittingStatus("");
     }
@@ -12930,8 +12930,13 @@ function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientI
               </div>
             </div>
             <div data-testid="training-day-picker" className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-              <h3 className="mb-4 text-xl font-black uppercase">Training Days</h3>
-              {selectedPlan && <div aria-label="Training days" className="flex flex-wrap gap-2">{selectedPlan.days.map((day) => <button key={day.id} type="button" aria-pressed={selectedDay?.id === day.id} onClick={() => setSelectedTrackerDayId(day.id)} className={`rounded-full border px-4 py-2 text-sm font-black transition ${selectedDay?.id === day.id ? "border-[#00BF63] bg-[#00BF63] text-black" : "border-white/10 bg-black/40 text-white hover:border-[#00BF63]"}`}>{day.name}</button>)}</div>}
+              <h3 className="text-xl font-black uppercase">Training Days</h3>
+              <p className="mb-4 mt-2 text-sm leading-6 text-white/55">Choose any day to log next. Days can be completed or skipped in any order.</p>
+              {selectedPlan && <div aria-label="Training days" className="grid gap-2 sm:grid-cols-2">{selectedPlan.days.map((day) => {
+                const latestDayLog = clientLogs.find((log) => log.planId === selectedPlan.id && log.dayId === day.id);
+                const dayStatus = latestDayLog?.status || "not logged";
+                return <button key={day.id} type="button" aria-pressed={selectedDay?.id === day.id} onClick={() => { setSelectedTrackerDayId(day.id); setSkipReason(""); }} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${selectedDay?.id === day.id ? "border-[#00BF63] bg-[#00BF63] text-black" : "border-white/10 bg-black/40 text-white hover:border-[#00BF63]"}`}><span>{day.name}</span><span className={`text-[10px] uppercase tracking-wide ${selectedDay?.id === day.id ? "text-black/65" : dayStatus === "completed" ? "text-[#00BF63]" : dayStatus === "skipped" ? "text-yellow-200" : "text-white/35"}`}>{dayStatus}</span></button>;
+              })}</div>}
               {!selectedPlan && <EmptyState text="This client does not have a saved plan assigned yet." />}
             </div>
           </div>
@@ -12941,7 +12946,7 @@ function TrackerScreen({ clients, savedPlans, trackerClientId, setTrackerClientI
             </div>
             {trackerMessage && <p aria-live="polite" className="mb-4 rounded-2xl border border-[#00BF63]/30 bg-black/50 p-3 text-sm font-bold text-[#00BF63]">{trackerMessage}</p>}
             {selectedPlan && selectedDay && <ActiveWorkoutForm selectedPlan={selectedPlan} selectedDay={selectedDay} trackingDrafts={trackingDrafts} updateTrackingDraft={updateTrackingDraft} skipReason={skipReason} setSkipReason={setSkipReason} workoutDate={workoutDate} setWorkoutDate={setWorkoutDate} />}
-            {selectedPlan && selectedDay && selectedDay.exercises.length > 0 && <div data-testid="workout-submit-actions" className="mt-5 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4"><p className="mb-3 text-sm font-bold leading-6 text-white/70">Review your entries, then save the workout. Skipped workouts require a reason.</p><div className="grid gap-3 sm:grid-cols-2"><button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("completed")} className="min-h-12 rounded-2xl bg-[#00BF63] px-4 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:cursor-wait disabled:opacity-60">{submittingStatus === "completed" ? "Saving Workout..." : "Save Completed Workout"}</button><button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("skipped")} className="min-h-12 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-black uppercase text-yellow-200 transition hover:bg-yellow-500 hover:text-black disabled:cursor-wait disabled:opacity-60">{submittingStatus === "skipped" ? "Saving Skip..." : "Log as Skipped"}</button></div></div>}
+            {selectedPlan && selectedDay && <div data-testid="workout-submit-actions" className="mt-5 rounded-2xl border border-[#00BF63]/25 bg-[#00BF63]/10 p-4"><p className="mb-3 text-sm font-bold leading-6 text-white/70">Save this selected day only. You can choose a different day before or after this one at any time.</p><div className="grid gap-3 sm:grid-cols-2">{selectedDay.exercises.length > 0 && <button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("completed")} className="min-h-12 rounded-2xl bg-[#00BF63] px-4 py-3 text-sm font-black uppercase text-black transition hover:bg-white disabled:cursor-wait disabled:opacity-60">{submittingStatus === "completed" ? "Saving Workout..." : "Save Completed Workout"}</button>}<button type="button" disabled={Boolean(submittingStatus)} onClick={() => submitWorkout("skipped")} className="min-h-12 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-black uppercase text-yellow-200 transition hover:bg-yellow-500 hover:text-black disabled:cursor-wait disabled:opacity-60">{submittingStatus === "skipped" ? "Saving Skip..." : "Log Selected Day as Skipped"}</button></div></div>}
             {!selectedPlan && <EmptyState text="Select a client with an assigned plan." />}
           </div>
           <div data-testid="recent-workout-logs" className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 xl:col-span-2">
